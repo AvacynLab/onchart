@@ -16,8 +16,8 @@
     "db:pull": "drizzle-kit pull",
     "db:check": "drizzle-kit check",
     "db:up": "drizzle-kit up",
-    "pretest": "pnpm exec playwright install --with-deps",
-    "test": "export PLAYWRIGHT=True && pnpm exec playwright test"
+    "pretest": "pnpm exec playwright install --with-deps chromium",
+    "test": "AUTH_SECRET=test-secret PLAYWRIGHT=True pnpm exec playwright test"
   },
   "dependencies": {
     "@ai-sdk/provider": "2.0.0-beta.1",
