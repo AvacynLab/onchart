@@ -543,11 +543,16 @@ export async function createStreamId({
   streamId: string;
   chatId: string;
 }) {
+  // When no database is configured (e.g. during tests), gracefully skip
+  // persistence so the stream-based features can still operate in-memory.
+  if (!db) return;
+
   try {
     await db
       .insert(stream)
       .values({ id: streamId, chatId, createdAt: new Date() });
   } catch (error) {
+    // Provide a consistent error wrapper to surface DB failures to callers.
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to create stream id',
@@ -556,6 +561,10 @@ export async function createStreamId({
 }
 
 export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
+  // Without a database, no stream IDs are tracked, so return an empty list
+  // rather than throwing to keep tests and local development running.
+  if (!db) return [];
+
   try {
     const streamIds = await db
       .select({ id: stream.id })
