@@ -1,0 +1,69 @@
+version: "3.9"
+services:
+  analytics:
+    build: ./services/analytics
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DB_PATH=/data/analytics.db
+      - JWT_SECRET=changeme
+      - PG_URL=postgresql://postgres:password@timescaledb:5432/analytics
+    volumes:
+      - analytics-data:/data
+    depends_on:
+      - redis
+      - timescaledb
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health\")' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  timescaledb:
+    image: timescale/timescaledb:latest-pg14
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=analytics
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescale-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  nlp_worker:
+    build: ./services/analytics
+    command: python nlp_worker.py
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DB_PATH=/data/analytics.db
+      - PG_URL=postgresql://postgres:password@timescaledb:5432/analytics
+    depends_on:
+      - redis
+      - timescaledb
+    volumes:
+      - analytics-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import os,redis; redis.Redis.from_url(os.getenv(\"REDIS_URL\")).ping()'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+volumes:
+  analytics-data:
+  timescale-data:

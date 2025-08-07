@@ -3,6 +3,8 @@
   <h1 align="center">Chat SDK</h1>
 </a>
 
+[![CI](https://github.com/your-org/onchart/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/onchart/actions/workflows/ci.yml)
+
 <p align="center">
     Chat SDK is a free, open-source template built with Next.js and the AI SDK that helps you quickly build powerful chatbot applications.
 </p>
@@ -60,3 +62,47 @@ pnpm dev
 ```
 
 Your app template should now be running on [localhost:3000](http://localhost:3000).
+
+## Architecture
+
+```mermaid
+graph LR
+    Y[Yahoo WS] --> A[Analytics Service]
+    F[Finnhub WS] --> A
+    A --> R[(Redis)]
+    A --> S[(SQLite)]
+    A --> T[(TimescaleDB)]
+    A --> WS[/ws/stream/]
+    WS --> B[Next.js Frontend]
+```
+
+## Getting started
+
+```bash
+git clone <repository-url>
+cd onchart
+docker compose up
+```
+
+Navigate to <http://localhost:3000> for the frontend and <http://localhost:8000/docs> for the analytics API. The compose stack
+also starts Redis, TimescaleDB and the sentiment worker used by the analytics service.  Optional Reddit and Twitter scrapers
+feed posts into the worker when `ENABLE_REDDIT=1` and `ENABLE_TWITTER=1` are set.
+
+## API keys
+
+Copy `docker-compose.override.yml.example` to `docker-compose.override.yml` and fill in your provider credentials:
+
+```yaml
+services:
+  analytics:
+    environment:
+      ALPHAVANTAGE_API_KEY: "..."
+      TWELVEDATA_API_KEY: "..."
+      FINNHUB_API_KEY: "..."
+```
+
+The override file is ignored by git, keeping your secrets out of version control.
+
+## Disclaimer
+
+Les données fournies sont gratuites et peuvent comporter un décalage.

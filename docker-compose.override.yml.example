@@ -1,0 +1,10 @@
+version: "3.9"
+# Example override file to supply API keys for local development.
+# Copy to `docker-compose.override.yml` and replace the placeholders.
+services:
+  analytics:
+    environment:
+      ALPHAVANTAGE_API_KEY: "YOUR_ALPHA_VANTAGE_KEY"
+      TWELVEDATA_API_KEY: "YOUR_TWELVE_DATA_KEY"
+      FINNHUB_API_KEY: "YOUR_FINNHUB_KEY"
+      JWT_SECRET: "changeme"

@@ -1,0 +1,8 @@
+syntax = "proto2";
+
+message Quote {
+  optional string id = 1;
+  optional double price = 2;
+  optional int64 time = 3;
+  optional int64 volume = 4;
+}
