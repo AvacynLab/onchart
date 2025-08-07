@@ -34,7 +34,10 @@ export async function generateTitleFromUserMessage({
 }
 
 export async function deleteTrailingMessages({ id }: { id: string }) {
+  // When no message is found (likely because there is no database configured),
+  // skip the deletion step to prevent crashes during tests or local runs.
   const [message] = await getMessageById({ id });
+  if (!message) return;
 
   await deleteMessagesByChatIdAfterTimestamp({
     chatId: message.chatId,

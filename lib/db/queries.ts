@@ -439,6 +439,11 @@ export async function getSuggestionsByDocumentId({
 }
 
 export async function getMessageById({ id }: { id: string }) {
+  // When running in environments without a configured database (like unit
+  // tests) `db` will be undefined. In that case return an empty result so
+  // callers can decide how to proceed without crashing.
+  if (!db) return [];
+
   try {
     return await db.select().from(message).where(eq(message.id, id));
   } catch (error) {
@@ -456,6 +461,11 @@ export async function deleteMessagesByChatIdAfterTimestamp({
   chatId: string;
   timestamp: Date;
 }) {
+  // If there's no database available, there's nothing to delete and the
+  // function can return early. This keeps local development and tests from
+  // throwing errors when persistence is disabled.
+  if (!db) return;
+
   try {
     const messagesToDelete = await db
       .select({ id: message.id })
