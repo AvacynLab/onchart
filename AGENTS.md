@@ -331,3 +331,4 @@
 - Remplacement des dépendances introuvables `yahoo-finance-ws` et `pandas-ta` par `ws` et retrait de la seconde, ajout d'un stub de types et d'une configuration `tsconfig.worker.json` pour permettre le build du worker marché.
 - Ajout de l'installation des navigateurs Playwright dans le workflow CI et exclusion du dossier `dist` du lint.
 - Mise à jour du workflow CI pour s'exécuter sur `push` et `pull_request` visant `main`.
+- Ajustement du workflow CI pour s'exécuter sur toutes les branches.
