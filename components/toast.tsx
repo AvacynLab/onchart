@@ -2,18 +2,42 @@
 
 import React, { useEffect, useRef, useState, type ReactNode } from 'react';
 import { toast as sonnerToast } from 'sonner';
-import { CheckCircleFillIcon, WarningIcon } from './icons';
+import { CheckCircleFillIcon, WarningIcon, InfoIcon } from './icons';
+import { subscribeAIEvents, type AIEvent } from '@/lib/ai/event-engine';
 import { cn } from '@/lib/utils';
 
-const iconsByType: Record<'success' | 'error', ReactNode> = {
+type ToastType = 'success' | 'error' | 'info' | 'warning';
+
+const iconsByType: Record<ToastType, ReactNode> = {
   success: <CheckCircleFillIcon />,
   error: <WarningIcon />,
+  info: <InfoIcon />,
+  warning: <WarningIcon />,
 };
 
 export function toast(props: Omit<ToastProps, 'id'>) {
   return sonnerToast.custom((id) => (
     <Toast id={id} type={props.type} description={props.description} />
   ));
+}
+
+/**
+ * React component that listens to AI events and surfaces them as toast
+ * notifications. It should be mounted once at the app level.
+ */
+export function AIEventToasts() {
+  useEffect(() => {
+    const unsubscribe = subscribeAIEvents((event: AIEvent) => {
+      const description =
+        event.message ??
+        `${event.symbol} ${event.label ?? ''} @ ${event.price}`;
+      toast({ type: (event.level as ToastType) ?? 'info', description });
+    });
+
+    return unsubscribe;
+  }, []);
+
+  return null;
 }
 
 function Toast(props: ToastProps) {
@@ -68,6 +92,6 @@ function Toast(props: ToastProps) {
 
 interface ToastProps {
   id: string | number;
-  type: 'success' | 'error';
+  type: ToastType;
   description: string;
 }

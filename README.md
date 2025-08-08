@@ -60,3 +60,22 @@ pnpm dev
 ```
 
 Your app template should now be running on [localhost:3000](http://localhost:3000).
+
+## Financial Module
+
+### Environment
+Configure the following variables (see `.env.example`): `ALPHA_VANTAGE_KEY`, `TWELVE_DATA_KEY`, `YAHOO_WS_URL`, `TWITTER_BEARER_TOKEN`, `REDDIT_CLIENT_ID`, `REDDIT_SECRET`.
+
+### Workers
+- `pnpm run market:dev` – collecte des ticks via WebSocket Yahoo Finance et agrégation des bougies.
+- `tsx scripts/fundamentals-refresh.ts` – mise à jour quotidienne des fondamentaux (cron 07:00 UTC).
+- `tsx scripts/news-worker.ts` – ingestion des flux RSS et scoring du sentiment.
+- `tsx scripts/reddit-twitter-worker.ts` – suivi des mentions sociales avec analyse de polarité.
+
+### API Endpoints
+- `GET /api/market/[symbol]/candles/[interval]`
+- `GET /api/fundamentals/[symbol]`
+- `GET /api/sentiment/[symbol]`
+- `WS /api/market/[symbol]/live`
+
+Ces éléments permettent d'alimenter le dashboard type TradingView et les outils IA financiers.

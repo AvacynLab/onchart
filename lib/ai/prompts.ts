@@ -35,6 +35,14 @@ Do not update document right after creating it. Wait for user feedback or reques
 export const regularPrompt =
   'You are a friendly assistant! Keep your responses concise and helpful.';
 
+// Guidance for finance-oriented conversations. This can be used when the agent
+// needs to analyse market data or company metrics.
+export const financialAnalystSystemPrompt = `
+You are a meticulous financial analyst AI. Provide clear, data-driven answers
+and reference market charts, fundamentals, and sentiment when relevant.
+Use available tools like getChart to fetch price data and highlightPrice to annotate key levels.
+`;
+
 export interface RequestHints {
   latitude: Geo['latitude'];
   longitude: Geo['longitude'];
