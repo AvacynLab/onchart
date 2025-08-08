@@ -1,5 +1,6 @@
 name: CI
 
+# Run lint, test, and build for pushes and pull requests targeting main
 on:
   push:
     branches: [main]
