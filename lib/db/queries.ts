@@ -1,8 +1,19 @@
-import 'server-only';
+import { createRequire } from 'node:module';
+
+// Ensure this module is only used in a server context. `server-only` throws
+// when evaluated on the client, but during Playwright tests no database is
+// available, so skip the check to allow importing query helpers. The lookup
+// uses bracket notation so Next.js doesn't statically replace the env check.
+const require = createRequire(import.meta.url);
+const isPlaywright = Boolean(process.env['PLAYWRIGHT']);
+if (!isPlaywright) {
+  require('server-only');
+}
 
 import {
   and,
   asc,
+  avg,
   count,
   desc,
   eq,
@@ -10,6 +21,7 @@ import {
   gte,
   inArray,
   lt,
+  sql,
   type SQL,
 } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -27,6 +39,12 @@ import {
   type DBMessage,
   type Chat,
   stream,
+  candle,
+  fundamentals,
+  type Candle,
+  type Fundamentals,
+  newsSentiment,
+  type NewsSentiment,
 } from './schema';
 import type { ArtifactKind } from '@/components/artifact';
 import { generateUUID } from '../utils';
@@ -66,6 +84,12 @@ export async function createUser(email: string, password: string) {
 export async function createGuestUser() {
   const email = `guest-${Date.now()}`;
   const password = generateHashedPassword(generateUUID());
+
+  // When running Playwright tests the database is not available. Return a
+  // stubbed user object so authentication can proceed without a write.
+  if (isPlaywright) {
+    return [{ id: 'guest', email }];
+  }
 
   try {
     return await db.insert(user).values({ email, password }).returning({
@@ -533,6 +557,149 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get stream ids by chat id',
+    );
+  }
+}
+
+/**
+ * Retrieve the most recent candles for a symbol and interval.
+ *
+ * Returns up to `limit` rows ordered chronologically ascending.
+ *
+ * @param symbol - Ticker symbol, e.g. `AAPL`.
+ * @param interval - Candle interval such as `1m` or `1d`.
+ * @param limit - Maximum number of rows to return (default 500).
+ */
+export async function getCandles({
+  symbol,
+  interval,
+  limit = 500,
+}: {
+  symbol: string;
+  interval: string;
+  limit?: number;
+}): Promise<Candle[]> {
+  try {
+    const rows = await db
+      .select()
+      .from(candle)
+      .where(and(eq(candle.symbol, symbol), eq(candle.interval, interval)))
+      .orderBy(desc(candle.tsStart))
+      .limit(limit);
+
+    // The query orders by most recent first; reverse so the oldest candle is first.
+    return rows.reverse();
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get candles by symbol and interval',
+    );
+  }
+}
+
+/**
+ * Fetches the latest fundamentals entry for a given symbol.
+ * Returns `null` when no fundamentals have been stored.
+ */
+export async function getFundamentals(
+  symbol: string,
+): Promise<Fundamentals | null> {
+  try {
+    const [row] = await db
+      .select()
+      .from(fundamentals)
+      .where(eq(fundamentals.symbol, symbol))
+      .limit(1);
+    return row ?? null;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get fundamentals by symbol',
+    );
+  }
+}
+
+/**
+ * Aggregate sentiment scores for the last 24 hours for a given symbol.
+ *
+ * The function computes the overall average score and an hourly histogram
+ * of average sentiment. Each histogram bucket represents the mean score
+ * of all entries within that hour.
+ *
+ * @param symbol - Stock ticker to retrieve sentiment for.
+ */
+export async function getSentiment24h(
+  symbol: string,
+): Promise<{ score: number; histogram: Array<{ ts: Date; score: number }> }>
+{
+  try {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const rows = await db
+      .select({ ts: newsSentiment.ts, score: newsSentiment.score })
+      .from(newsSentiment)
+      .where(
+        and(eq(newsSentiment.symbol, symbol), gte(newsSentiment.ts, since)),
+      )
+      .orderBy(asc(newsSentiment.ts));
+
+    if (rows.length === 0) {
+      return { score: 0, histogram: [] };
+    }
+
+    // Compute global average sentiment score.
+    const total = rows.reduce((sum, r) => sum + r.score, 0);
+    const average = total / rows.length;
+
+    // Group scores by hour (3600000 ms) and compute average per bucket.
+    const buckets = new Map<number, { sum: number; count: number }>();
+    for (const r of rows) {
+      const hour = Math.floor(r.ts.getTime() / 3_600_000) * 3_600_000;
+      const bucket = buckets.get(hour) ?? { sum: 0, count: 0 };
+      bucket.sum += r.score;
+      bucket.count++;
+      buckets.set(hour, bucket);
+    }
+
+    const histogram = Array.from(buckets.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([ts, { sum, count }]) => ({
+        ts: new Date(ts),
+        score: sum / count,
+      }));
+
+    return { score: average, histogram };
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get sentiment by symbol',
+    );
+  }
+}
+
+/**
+ * Retrieve symbols with the highest average news sentiment over the last day.
+ *
+ * The query computes the mean sentiment score per symbol for entries in the
+ * past 24 hours, returning the top N symbols ordered by descending score.
+ *
+ * @param limit - Maximum number of symbols to return.
+ */
+export async function getTopSentimentSymbols(limit: number) {
+  try {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const score = sql<number>`avg(${newsSentiment.score})`;
+
+    return await db
+      .select({ symbol: newsSentiment.symbol, score })
+      .from(newsSentiment)
+      .where(gte(newsSentiment.ts, since))
+      .groupBy(newsSentiment.symbol)
+      .orderBy(desc(score))
+      .limit(limit);
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get top sentiment symbols',
     );
   }
 }

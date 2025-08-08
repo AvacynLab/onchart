@@ -50,6 +50,20 @@
       "when": 1746118166211,
       "tag": "0006_marvelous_frog_thor",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1754578991744,
+      "tag": "0007_skinny_owl",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1754640586879,
+      "tag": "0008_flippant_white_queen",
+      "breakpoints": true
     }
   ]
 }
