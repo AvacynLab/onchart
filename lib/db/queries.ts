@@ -85,6 +85,7 @@ export async function createGuestUser() {
 
   // When running Playwright tests the database is not available. Return a
   // stubbed user object so authentication can proceed without a write.
+
   if (process.env.PLAYWRIGHT) {
     return [{ id: 'guest', email }];
   }
