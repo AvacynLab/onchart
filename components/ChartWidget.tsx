@@ -90,9 +90,10 @@ export default function ChartWidget({
   }
 
   return (
-    <div ref={containerRef} className="relative h-full w-full">
+    <div ref={containerRef} className="relative size-full">
       {chart && <AIAnnotations chart={chart} />}
       <button
+        type="button"
         onClick={handleAnalysis}
         className="absolute top-2 right-2 rounded bg-blue-500 px-2 py-1 text-xs text-white"
       >

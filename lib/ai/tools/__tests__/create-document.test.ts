@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import Module from 'module';
-import { createRequire } from 'module';
+import Module, { createRequire } from 'module';
 
 test('createDocument persists research artifacts', async () => {
   const require = createRequire(import.meta.url);

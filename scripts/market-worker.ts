@@ -121,9 +121,11 @@ export async function main(): Promise<void> {
    * small random jitter.
    */
   function connectYahoo(attempt = 0) {
+    // Local copy so event handlers can mutate attempt without reassigning the parameter
+    let currentAttempt = attempt;
     const ws = new WebSocketImpl(YAHOO_WS_URL);
     ws.on('open', () => {
-      attempt = 0;
+      currentAttempt = 0;
       ws.send(JSON.stringify({ subscribe: symbols }));
     });
 
@@ -170,8 +172,8 @@ export async function main(): Promise<void> {
     });
 
     ws.on('close', () => {
-      const delay = Math.min(30_000, 2 ** attempt * 1000) + Math.random() * 1000;
-      setTimeout(() => connectYahoo(attempt + 1), delay);
+      const delay = Math.min(30_000, 2 ** currentAttempt * 1000) + Math.random() * 1000;
+      setTimeout(() => connectYahoo(currentAttempt + 1), delay);
     });
 
     ws.on('error', () => ws.close());
@@ -247,8 +249,16 @@ export async function main(): Promise<void> {
     // Fallback if no tick received for 30s
     for (const symbol of symbols) {
       if (now - (lastTick[symbol] ?? 0) > 30_000) {
-        if (!circuitOpenUntil[symbol] || now > circuitOpenUntil[symbol]!) {
-          await fetchAlphaVantage(symbol, db, buffers, lastTick, fallbackFailures, circuitOpenUntil);
+        const openUntil = circuitOpenUntil[symbol];
+        if (openUntil === undefined || now > openUntil) {
+          await fetchAlphaVantage(
+            symbol,
+            db,
+            buffers,
+            lastTick,
+            fallbackFailures,
+            circuitOpenUntil,
+          );
         }
       }
     }
@@ -292,7 +302,7 @@ async function fetchAlphaVantage(
   } catch (err) {
     console.error('alpha vantage fallback failed', err);
     failures[symbol] = (failures[symbol] ?? 0) + 1;
-    if (failures[symbol]! >= 3) {
+    if ((failures[symbol] ?? 0) >= 3) {
       circuit[symbol] = Date.now() + 5 * 60_000; // pause fallback for 5 minutes
       failures[symbol] = 0;
     }

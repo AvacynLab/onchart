@@ -11,7 +11,10 @@ export const CHANNEL_TICK = 'ticks';
 export const CHANNEL_CANDLE = 'candles';
 export const CHANNEL_AI = 'ai-events';
 
-const url = process.env.REDIS_URL!;
+const url = process.env.REDIS_URL;
+if (!url) {
+  throw new Error('REDIS_URL env var is required');
+}
 export const pub = createClient({ url });
 export const sub = createClient({ url });
 
