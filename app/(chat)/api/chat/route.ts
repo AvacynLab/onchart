@@ -23,6 +23,10 @@ import { createDocument } from '@/lib/ai/tools/create-document';
 import { updateDocument } from '@/lib/ai/tools/update-document';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { getWeather } from '@/lib/ai/tools/get-weather';
+import { getChart } from '@/lib/ai/tools/get-chart';
+import { highlightPrice } from '@/lib/ai/tools/highlight-price';
+import { scanOpportunities } from '@/lib/ai/tools/scan-opportunities';
+import { analyseAsset } from '@/lib/ai/tools/analyse-asset';
 import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
@@ -161,6 +165,10 @@ export async function POST(request: Request) {
               ? []
               : [
                   'getWeather',
+                  'getChart',
+                  'highlightPrice',
+                  'scanOpportunities',
+                  'analyseAsset',
                   'createDocument',
                   'updateDocument',
                   'requestSuggestions',
@@ -168,6 +176,10 @@ export async function POST(request: Request) {
           experimental_transform: smoothStream({ chunking: 'word' }),
           tools: {
             getWeather,
+            getChart,
+            highlightPrice,
+            scanOpportunities,
+            analyseAsset,
             createDocument: createDocument({ session, dataStream }),
             updateDocument: updateDocument({ session, dataStream }),
             requestSuggestions: requestSuggestions({

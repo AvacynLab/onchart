@@ -9,6 +9,8 @@ import {
   primaryKey,
   foreignKey,
   boolean,
+  doublePrecision,
+  index,
 } from 'drizzle-orm/pg-core';
 
 export const user = pgTable('User', {
@@ -168,3 +170,90 @@ export const stream = pgTable(
 );
 
 export type Stream = InferSelectModel<typeof stream>;
+
+// -- Financial module tables -------------------------------------------------
+
+/**
+ * Stores every raw tick received from the market WebSocket.
+ * A composite primary key prevents duplicate ticks for the same symbol and timestamp.
+ */
+export const marketTick = pgTable(
+  'market_tick',
+  {
+    symbol: varchar('symbol', { length: 16 }).notNull(),
+    ts: timestamp('ts').notNull(),
+    price: doublePrecision('price').notNull(),
+    volume: doublePrecision('volume'),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.symbol, table.ts] }),
+  }),
+);
+
+export type MarketTick = InferSelectModel<typeof marketTick>;
+
+/**
+ * Aggregated OHLCV candles derived from ticks. Each interval for a symbol is unique.
+ */
+export const candle = pgTable(
+  'candle',
+  {
+    symbol: varchar('symbol', { length: 16 }).notNull(),
+    interval: varchar('interval', { length: 8 }).notNull(),
+    open: doublePrecision('open').notNull(),
+    high: doublePrecision('high').notNull(),
+    low: doublePrecision('low').notNull(),
+    close: doublePrecision('close').notNull(),
+    volume: doublePrecision('volume').notNull(),
+    tsStart: timestamp('ts_start').notNull(),
+    tsEnd: timestamp('ts_end').notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.symbol, table.interval, table.tsStart] }),
+    idxSymbolIntervalTs: index('idx_candle_symbol_interval_ts').on(
+      table.symbol,
+      table.interval,
+      table.tsStart,
+    ),
+  }),
+);
+
+export type Candle = InferSelectModel<typeof candle>;
+
+/**
+ * Latest cached fundamentals for a given symbol stored as raw JSON from providers.
+ */
+export const fundamentals = pgTable('fundamentals', {
+  symbol: varchar('symbol', { length: 16 }).primaryKey(),
+  json: json('json').notNull(),
+  updatedAt: timestamp('updated_at').notNull(),
+});
+
+export type Fundamentals = InferSelectModel<typeof fundamentals>;
+
+/**
+ * News or social sentiment entries associated with a market symbol.
+ */
+export const newsSentiment = pgTable('news_sentiment', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  symbol: varchar('symbol', { length: 16 }).notNull(),
+  headline: text('headline').notNull(),
+  url: text('url'),
+  score: doublePrecision('score').notNull(),
+  ts: timestamp('ts').notNull(),
+});
+
+export type NewsSentiment = InferSelectModel<typeof newsSentiment>;
+
+/**
+ * Symbols that the SaaS should track across all market workers.
+ *
+ * Storing the watchlist in the database allows runtime subscription updates
+ * without redeploying services. Each entry is a unique ticker symbol.
+ */
+export const watchlist = pgTable('watchlist', {
+  /** Ticker symbol, e.g. 'AAPL'. */
+  symbol: varchar('symbol', { length: 16 }).primaryKey(),
+});
+
+export type Watchlist = InferSelectModel<typeof watchlist>;
