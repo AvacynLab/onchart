@@ -2,11 +2,9 @@ import { createRequire } from 'node:module';
 
 // Ensure this module is only used in a server context. `server-only` throws
 // when evaluated on the client, but during Playwright tests no database is
-// available, so skip the check to allow importing query helpers. The lookup
-// uses bracket notation so Next.js doesn't statically replace the env check.
+// available, so skip the check to allow importing query helpers.
 const require = createRequire(import.meta.url);
-const isPlaywright = Boolean(process.env['PLAYWRIGHT']);
-if (!isPlaywright) {
+if (!process.env.PLAYWRIGHT) {
   require('server-only');
 }
 
@@ -87,7 +85,8 @@ export async function createGuestUser() {
 
   // When running Playwright tests the database is not available. Return a
   // stubbed user object so authentication can proceed without a write.
-  if (isPlaywright) {
+
+  if (process.env.PLAYWRIGHT) {
     return [{ id: 'guest', email }];
   }
 
