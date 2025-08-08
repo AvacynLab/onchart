@@ -96,6 +96,8 @@ export async function main(): Promise<void> {
   // available fall back to the generic `ws` package.
   let WebSocketImpl: any;
   try {
+    // `yahoo-finance-ws` is optional; if absent, fall back to the generic `ws` package.
+    // eslint-disable-next-line import/no-unresolved
     WebSocketImpl = (await import('yahoo-finance-ws')).default;
   } catch {
     WebSocketImpl = (await import('ws')).default;

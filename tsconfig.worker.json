@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "incremental": false
+  },
+  "include": ["scripts/market-worker.ts", "types/**/*.d.ts"]
+}

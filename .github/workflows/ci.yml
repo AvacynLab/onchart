@@ -34,6 +34,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install
+      - run: pnpm exec playwright install --with-deps
       - run: pnpm test
 
   build:
