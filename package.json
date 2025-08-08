@@ -3,7 +3,7 @@
   "version": "3.1.0",
   "private": true,
   "scripts": {
-    "dev": "pnpm run market:dev & next dev --turbo",
+    "dev": "if [ -z \"$PLAYWRIGHT\" ]; then pnpm run market:dev & fi; next dev --turbo",
     "build": "tsx lib/db/migrate && next build",
     "start": "next start",
     "lint": "next lint && biome lint --write --unsafe",
@@ -16,7 +16,7 @@
     "db:pull": "drizzle-kit pull",
     "db:check": "drizzle-kit check",
     "db:up": "drizzle-kit up",
-    "test": "export PLAYWRIGHT=True && pnpm exec playwright test",
+    "test": "export PLAYWRIGHT=True AUTH_SECRET=test POSTGRES_URL=postgres://user:pass@localhost:5432/db YAHOO_WS_URL=ws://localhost && pnpm exec playwright test",
     "market:dev": "tsx scripts/market-worker.ts",
     "market:build": "tsup scripts/market-worker.ts --format esm --dts --tsconfig tsconfig.worker.json"
   },

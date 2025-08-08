@@ -8,6 +8,7 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    environment: Preview
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v3
@@ -22,6 +23,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    environment: Preview
     needs: lint
     steps:
       - uses: actions/checkout@v4
@@ -38,6 +40,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    environment: Preview
     needs: test
     steps:
       - uses: actions/checkout@v4
