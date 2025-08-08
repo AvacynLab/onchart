@@ -1,9 +1,6 @@
-import {
-  customProvider,
-  extractReasoningMiddleware,
-  wrapLanguageModel,
-} from 'ai';
-import { xai } from '@ai-sdk/xai';
+import { customProvider } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { cerebras } from '@ai-sdk/cerebras';
 import {
   artifactModel,
   chatModel,
@@ -15,23 +12,26 @@ import { isTestEnvironment } from '../constants';
 export const myProvider = isTestEnvironment
   ? customProvider({
       languageModels: {
-        'chat-model': chatModel,
-        'chat-model-reasoning': reasoningModel,
+        'gpt-5': chatModel,
+        'gpt-5-mini': chatModel,
+        'gpt-5-nano': chatModel,
+        'gpt-5o': reasoningModel,
+        'gpt-oss': chatModel,
         'title-model': titleModel,
         'artifact-model': artifactModel,
       },
     })
   : customProvider({
       languageModels: {
-        'chat-model': xai('grok-2-vision-1212'),
-        'chat-model-reasoning': wrapLanguageModel({
-          model: xai('grok-3-mini-beta'),
-          middleware: extractReasoningMiddleware({ tagName: 'think' }),
-        }),
-        'title-model': xai('grok-2-1212'),
-        'artifact-model': xai('grok-2-1212'),
+        'gpt-5': openai('gpt-5'),
+        'gpt-5-mini': openai('gpt-5-mini'),
+        'gpt-5-nano': openai('gpt-5-nano'),
+        'gpt-5o': openai('gpt-5o'),
+        'gpt-oss': cerebras('gpt-oss'),
+        'title-model': openai('gpt-5-mini'),
+        'artifact-model': openai('gpt-5-mini'),
       },
       imageModels: {
-        'small-model': xai.imageModel('grok-2-image'),
+        'small-model': openai.imageModel('gpt-image-1'),
       },
     });

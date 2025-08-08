@@ -2,6 +2,8 @@ import { compare } from 'bcrypt-ts';
 import NextAuth, { type DefaultSession } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { createGuestUser, getUser } from '@/lib/db/queries';
+// import Google from 'next-auth/providers/google';
+// import Discord from 'next-auth/providers/discord';
 import { authConfig } from './auth.config';
 import { DUMMY_PASSWORD } from '@/lib/constants';
 import type { DefaultJWT } from 'next-auth/jwt';
@@ -70,6 +72,14 @@ export const {
         return { ...guestUser, type: 'guest' };
       },
     }),
+    // Google({
+    //   clientId: process.env.GOOGLE_CLIENT_ID!,
+    //   clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    // }),
+    // Discord({
+    //   clientId: process.env.DISCORD_CLIENT_ID!,
+    //   clientSecret: process.env.DISCORD_CLIENT_SECRET!,
+    // }),
   ],
   callbacks: {
     async jwt({ token, user }) {
