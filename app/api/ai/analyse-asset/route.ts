@@ -1,4 +1,5 @@
 import { analyseAsset } from '@/lib/ai/tools/analyse-asset';
+import { auth } from '@/app/(auth)/auth';
 import 'server-only';
 
 /**
@@ -12,6 +13,11 @@ export async function GET(request: Request) {
   if (!symbol) {
     return Response.json({ error: 'symbol required' }, { status: 400 });
   }
-  const result = await analyseAsset.execute({ symbol });
+  const emit = searchParams.get('emitArtifact') === '1';
+  const session = await auth();
+  const result = await analyseAsset.execute(
+    { symbol, emitArtifact: emit ? 'research-asset' : undefined },
+    { session },
+  );
   return Response.json(result);
 }

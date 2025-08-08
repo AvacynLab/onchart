@@ -1,4 +1,4 @@
-import { createDocumentHandler } from '@/lib/artifacts/server';
+import { createDocumentHandler } from '@/lib/artifacts/handler';
 
 interface ChartConfig {
   symbol: string;

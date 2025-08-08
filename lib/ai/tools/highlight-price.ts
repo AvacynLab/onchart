@@ -18,7 +18,7 @@ export const highlightPrice = tool({
     label: z.string().optional(),
   }),
   execute: async ({ symbol, price, label }) => {
-    broadcastAIEvent({
+    await broadcastAIEvent({
       type: 'highlight-price',
       symbol,
       price,

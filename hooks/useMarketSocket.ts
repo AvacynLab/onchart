@@ -41,6 +41,8 @@ export default function useMarketSocket(symbol: string, interval: string): Socke
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectRef = useRef<NodeJS.Timeout>();
   const lastUpdateRef = useRef(0);
+  const pingRef = useRef<NodeJS.Timeout>();
+  const reconnectDelayRef = useRef(1000);
 
   useEffect(() => {
     let active = true;
@@ -48,6 +50,16 @@ export default function useMarketSocket(symbol: string, interval: string): Socke
     const connect = () => {
       const ws = new WebSocket(`/api/market/${symbol}/live?interval=${interval}`);
       wsRef.current = ws;
+
+      ws.addEventListener('open', () => {
+        // Reset backoff on successful connection and start keepalive pings.
+        reconnectDelayRef.current = 1000;
+        pingRef.current = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send('ping');
+          }
+        }, 25_000);
+      });
 
       ws.addEventListener('message', (event) => {
         const now = Date.now();
@@ -71,7 +83,11 @@ export default function useMarketSocket(symbol: string, interval: string): Socke
 
       const scheduleReconnect = () => {
         if (!active) return;
-        reconnectRef.current = setTimeout(connect, 1000);
+        if (pingRef.current) clearInterval(pingRef.current);
+        const delay = reconnectDelayRef.current;
+        reconnectRef.current = setTimeout(connect, delay);
+        // Exponential backoff up to 5 seconds.
+        reconnectDelayRef.current = Math.min(delay * 2, 5000);
       };
 
       ws.addEventListener('close', scheduleReconnect);
@@ -85,6 +101,9 @@ export default function useMarketSocket(symbol: string, interval: string): Socke
       wsRef.current?.close();
       if (reconnectRef.current) {
         clearTimeout(reconnectRef.current);
+      }
+      if (pingRef.current) {
+        clearInterval(pingRef.current);
       }
     };
   }, [symbol, interval]);

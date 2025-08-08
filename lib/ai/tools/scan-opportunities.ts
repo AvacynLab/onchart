@@ -1,6 +1,11 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { getTopSentimentSymbols, getCandles } from '@/lib/db/queries';
+import {
+  getTopSentimentSymbols,
+  getCandles,
+  saveDocument,
+} from '@/lib/db/queries';
+import { generateUUID } from '@/lib/utils';
 
 /**
  * Tool that scans for trading opportunities based on news sentiment and
@@ -15,8 +20,9 @@ export const scanOpportunities = tool({
     'Find symbols with strong news sentiment and a price breakout above the 20-period EMA.',
   inputSchema: z.object({
     limit: z.number().min(1).max(20).default(5),
+    emitArtifact: z.literal('research-opportunity').optional(),
   }),
-  execute: async ({ limit }) => {
+  execute: async ({ limit, emitArtifact }, { session } = {}) => {
     const sentiments = await getTopSentimentSymbols(limit);
     const opportunities: Array<{ symbol: string; score: number }> = [];
 
@@ -35,6 +41,18 @@ export const scanOpportunities = tool({
       if (prev <= prevEma && last > lastEma) {
         opportunities.push({ symbol, score });
       }
+    }
+
+    if (emitArtifact === 'research-opportunity' && session?.user?.id) {
+      const id = generateUUID();
+      await saveDocument({
+        id,
+        title: 'opportunity scan',
+        kind: 'research-opportunity',
+        content: JSON.stringify(opportunities),
+        userId: session.user.id,
+      });
+      return { opportunities, documentId: id };
     }
 
     return opportunities;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from 'react';
-import { subscribeAIEvents, type AIEvent } from '@/lib/ai/event-engine';
+import type { AIEvent } from '@/lib/ai/event-engine';
 
 /**
  * Minimal shape configuration understood by TradingView's Lightweight Charts.
@@ -47,12 +47,31 @@ export function applyAIEvent(chart: AnnotationChart, event: AIEvent): void {
 }
 
 /**
+ * Connects to the global `ai-events` WebSocket channel and forwards incoming
+ * events to the provided chart instance. Returns the WebSocket so callers can
+ * close it when no longer needed.
+ */
+export function connectAIAnnotations(chart: AnnotationChart): WebSocket {
+  const ws = new WebSocket('/api/ai/events');
+  ws.addEventListener('message', (ev) => {
+    try {
+      const event = JSON.parse(ev.data as string) as AIEvent;
+      applyAIEvent(chart, event);
+    } catch {
+      // ignore malformed events
+    }
+  });
+  return ws;
+}
+
+/**
  * React component that subscribes to the global `ai-events` channel and overlays
  * annotations on the supplied chart instance. It renders nothing itself.
  */
 export default function AIAnnotations({ chart }: { chart: AnnotationChart }) {
   useEffect(() => {
-    return subscribeAIEvents((event) => applyAIEvent(chart, event));
+    const ws = connectAIAnnotations(chart);
+    return () => ws.close();
   }, [chart]);
 
   return null;

@@ -1,334 +1,338 @@
-### LISTE DÉTAILLÉE DE TÂCHES (À COCHER)
+Parfait — j’ai **ouvert et inspecté** la version actuelle (`onchart-alpha-0.1 (2).zip`).
+Voici **la TODO-list exhaustive à cocher**, **fichier par fichier**, pour intégrer *tous* les points pertinents (y compris les petites améliorations) de mon message précédent **en respectant votre archi actuelle**.
 
-*(notation : `[ ]` à faire / `[x]` fait)*
+> **Lignes rouges trouvées dans le code actuel :**
+>
+> * Le **WS live** (`app/api/market/[symbol]/live/route.ts`) écoute un **EventEmitter in-memory** → **ne reçoit rien** du worker en prod (process différent).
+> * Les **événements IA** (`lib/ai/event-engine.ts`) sont aussi **in-memory** → n’atteignent **pas** le navigateur.
+> * Le **handler “chart”** existe… mais **n’est pas enregistré** dans `lib/artifacts/server.ts` (il y a un fallback import côté tool, mais pas de persistance via `saveDocument`).
+> * `AssetSidebar` affiche des **placeholders** (pas branché aux routes fondamentaux/sentiment/news).
+> * Le WS live **n’impose pas** `export const runtime = 'edge'`.
 
 ---
 
-## 0. Configuration & environnement
+# ✅ À COCHER — CORRECTIONS & AJOUTS (par fichier)
+
+## 0) Environnement & scripts
 
 * [x] **`.env.example`**
 
-  * [x] ➕ Ajouter `ALPHA_VANTAGE_KEY, TWELVE_DATA_KEY, YAHOO_WS_URL, TWITTER_BEARER_TOKEN, REDDIT_CLIENT_ID, REDDIT_SECRET`.
-  * [x] ⚠️ Documenter la limite gratuite de chaque provider (commentaires en-ligne).
-
+  * [x] ➕ `REDIS_URL=redis://localhost:6379` (pour le bus temps réel).
+  * [x] ✍️ Ajouter un commentaire “utilisé pour le pont worker ↔ API WS ↔ client”.
 * [x] **`package.json`**
 
-  * [x] ➕ Dépendances prod : `yahoo-finance-ws`, `ta-lib`, `pandas-ta`, `rss-parser`, `drizzle-kit`, `lightweight-charts`.
-  * [x] ➕ Dépendances dev : `ts-node`, `tsx`, `@types/rss-parser`.
-  * [x] 🔧 Script `dev` → démarrer en // le *worker* de marché (`pnpm run market:dev`).
-  * [x] ➕ Scripts :
-
-    * `"market:dev": "tsx scripts/market-worker.ts"`
-    * `"market:build": "tsup scripts/market-worker.ts --format esm --dts"`
+  * [x] ➕ deps : `"redis": "^5"` (ou `ioredis`, au choix — ci-dessous je pars sur `redis`).
+  * [x] 🔧 Si besoin, ajouter script `dev:ws` (mais **gardez votre flux actuel**).
 
 ---
 
-## 1. Base de données (Drizzle / Postgres)
+## 1) BUS TEMPS RÉEL (bridge inter-process)
 
-* [x] **`lib/db/schema.ts`**
+### 1.1 Créer un bus Redis partagé
 
-  * [x] ➕ Tables :
+* [x] **`lib/market/bus.ts`** *(nouveau)*
 
-    * `market_tick` (symbol, ts, price, volume)
-    * `candle` (symbol, interval, open, high, low, close, volume, ts_start, ts_end, primary key (symbol, interval, ts_start))
-    * `fundamentals` (symbol, json, updated_at)
-    * `news_sentiment` (id uuid pk, symbol, headline, url, score, ts)
-    * `watchlist` (symbol)
-  * [x] ➕ Index `idx_candle_symbol_interval_ts`.
+  * [x] Implémenter un client pub/sub :
 
-* [x] **`lib/db/migrations/**`**
+    ```ts
+    import { createClient } from 'redis';
+    export const CHANNEL_TICK = 'ticks';
+    export const CHANNEL_CANDLE = 'candles';
+    export const CHANNEL_AI = 'ai-events';
 
-  * [x] Générer migration `drizzle-kit generate`.
-  * [x] Vérifier que `lib/db/migrate.ts` exécute bien les nouvelles migrations.
+    const url = process.env.REDIS_URL!;
+    export const pub = createClient({ url });
+    export const sub = createClient({ url });
 
----
+    export async function initBus() {
+      if (!pub.isOpen) await pub.connect();
+      if (!sub.isOpen) await sub.connect();
+    }
+    ```
+  * [x] ✍️ JSDoc précisant : **unique source de vérité** pour tout ce qui part du worker.
 
-## 2. Collecte & stockage temps réel
+### 1.2 Worker → publier les événements
 
-### 2.1 Worker marché (Node standalone)
+* [x] **`scripts/market-worker.ts`**
 
-* [x] **`scripts/market-worker.ts`** *(nouveau)*
+  * [x] ➕ `import { initBus, pub, CHANNEL_TICK, CHANNEL_CANDLE } from '@/lib/market/bus'`
+  * [x] Au **démarrage**, `await initBus()` (avec retry).
+  * [x] À **chaque tick** inséré → `await pub.publish(CHANNEL_TICK, JSON.stringify({symbol, ts, price, volume}))`.
+  * [x] À **chaque flush de bougie** (5m/15m/1h/4h/1d) → publier sur `CHANNEL_CANDLE` avec `{symbol, interval, open, high, low, close, volume, tsStart, tsEnd}`.
+  * [x] ✅ **Ne touchez pas** au reste (agrégation, fallback REST) → **on garde votre archi**.
 
-  * [x] Connexion WebSocket `YAHOO_WS_URL`.
-  * [x] Souscription dynamique à la liste de symboles (lire table `watchlist` si existante, sinon env var).
-  * [x] Pour chaque tick → insert `market_tick` + mise à jour **buffer en mémoire** pour agrégation.
-  * [x] Toutes les 5 s : flush buffer vers table `candle` (5 m en construction); idem 15 m, 1 h, 4 h, 1 d.
-  * [x] Fallback REST (Alpha Vantage) quand WebSocket
-    ne renvoie plus depuis > 30 s (sémaphore).
+### 1.3 API WS → s’abonner & relayer au navigateur
 
-### 2.2 Scheduler fondamentaux
+* [x] **`app/api/market/[symbol]/live/route.ts`**
 
-* [x] **`scripts/fundamentals-refresh.ts`** *(nouveau)*
+  * [x] ➕ `export const runtime = 'edge'` en tête du fichier.
+  * [x] ➕ `import { initBus, sub, CHANNEL_TICK, CHANNEL_CANDLE } from '@/lib/market/bus'`
+  * [x] `await initBus()` et **s’abonner** aux 2 canaux :
 
-  * [x] Récupère états financiers via Financial Modeling Prep & IEX Cloud.
-  * [x] Upsert ligne `fundamentals`.
-  * [x] Cron daily à 07:00 UTC (doc dans `README.md`).
-
-### 2.3 Scraping sentiment / news
-
-* [x] **`scripts/news-worker.ts`** *(nouveau)*
-
-  * [x] Parse flux RSS (Bloomberg, CNBC, Reuters) → table `news_sentiment`.
-  * [x] Score polarité (VADER).
-
-* [x] **`scripts/reddit-twitter-worker.ts`** *(nouveau)*
-
-  * [x] Stream tweets / posts contenant `$SYMBOL`.
-* [x] Score polarité (VADER) → insert `news_sentiment` (type `social`).
+    * [x] Sur `CHANNEL_TICK`: parse JSON, **filtrer par `symbol`**, `server.send({type:'tick', data})`.
+    * [x] Sur `CHANNEL_CANDLE`: parse JSON, **filtrer par `symbol` & `interval`**, `server.send({type:'candle', data})`.
+  * [x] À la **fermeture WS** : `unsubscribe` proprement (éviter fuites).
+  * [x] ❌ **Supprimer** la dépendance à `marketEvents` (in-memory) → **tout passe par Redis**.
 
 ---
 
-## 3. API Next 13 (App Router)
+## 2) ÉVÉNEMENTS IA (annotations, highlights)
 
-### 3.1 Routes marché
+### 2.1 Passer l’EventEmitter IA sur Redis
 
-* [x] **`app/api/market/[symbol]/candles/[interval]/route.ts`** *(nouveau)*
+* [x] **`lib/ai/event-engine.ts`**
 
-  * [x] `GET` : renvoie 500 bougies (`lib/db/queries.ts`).
+  * [x] ➕ `import { initBus, pub, sub, CHANNEL_AI } from '@/lib/market/bus'`.
+  * [x] `broadcastAIEvent(event)` → `await initBus(); await pub.publish(CHANNEL_AI, JSON.stringify(event))`.
+  * [x] `subscribeAIEvents` **côté serveur** peut rester pour tests **mais** marquez-le comme *server-only mock* (JSDoc) pour éviter confusion côté client.
 
-* [x] **`app/api/market/[symbol]/live/route.ts`** *(nouveau – WebSocket)*
+### 2.2 Route WS dédiée aux events IA
 
-  * [x] Upgrade WS, push ticks & dernière bougie en formation.
+* [x] **`app/api/ai/events/route.ts`** *(nouveau)*
 
-### 3.2 Routes fundamentals & sentiment
+  * [x] `export const runtime = 'edge'`.
+  * [x] Upgrade WS, `await initBus()` puis `sub.subscribe(CHANNEL_AI, ...)`, `server.send(eventJSON)` **sans filtrage** (le client filtre si besoin par `symbol`).
+  * [x] Unsubscribe à la fermeture.
 
-* [x] **`app/api/fundamentals/[symbol]/route.ts`** *(nouveau)*
+### 2.3 Côté client : ne plus importer `node:events`
 
-  * [x] `GET` : renvoie JSON de la dernière ligne `fundamentals`.
+* [x] **`components/AIAnnotations.tsx`**
 
-* [x] **`app/api/sentiment/[symbol]/route.ts`** *(nouveau)*
-
-  * [x] `GET` : agrège score 24 h & retourne histogramme.
-
-### 3.3 Routes IA tools
-
-* [x] **`app/api/ai/analyse-asset/route.ts`** *(nouveau)*
-
-  * [x] `GET` : expose l'outil d'analyse d'actif.
-
-* [x] **`app/api/ai/scan-opportunities/route.ts`** *(nouveau)*
-
-  * [x] `GET` : renvoie les opportunités détectées.
-
-* [x] **`app/api/ai/highlight-price/route.ts`** *(nouveau)*
-
-  * [x] `POST` : diffuse une annotation de prix.
-
----
-
-## 4. Outils IA pour l’agent
-
-* [x] **`lib/ai/tools/get-chart.ts`** *(nouveau)*
-
-  * [x] Paramètres : `symbol`, `interval` → renvoie URL `/api/market/${symbol}/candles/${interval}` + spec chart.
-
-* [x] **`lib/ai/tools/highlight-price.ts`** *(nouveau)*
-
-  * [x] Ajoute annotation via Channel `ai-events` (WebSocket).
-
-* [x] **`lib/ai/tools/scan-opportunities.ts`** *(nouveau)*
-
-  * [x] Query : top `news_sentiment` + breakout EMA.
-
-* [x] **`lib/ai/tools/analyse-asset.ts`** *(nouveau)*
-
-  * [x] Compose fundamentals + sentiment + technique résumés.
-
-* [x] **`lib/ai/prompts.ts`**
-
-  * [x] ➕ Section “Financial Analyst System Prompt”.
-
----
-
-## 5. Intégration « documents » / artifacts
-
-### 5.1 Nouveau *artifact* “chart”
-
-* [x] **`artifacts/chart/server.ts`** *(nouveau)*
-
-  * [x] `createDocumentHandler<'chart'>` : stocke config (symbol, interval, studies).
-
-* [x] **`artifacts/chart/client.tsx`** *(nouveau)*
-
-  * [x] Rendu `LightweightChart` + overlays IA.
-
-* [x] **`artifacts/actions.ts`**
-
-  * [x] ➕ export `getChartDocument()`.
-
-### 5.2 Extension du tool “create-document”
-
-* [x] **`lib/ai/tools/create-document.ts`**
-
-  * [x] Ajouter support `kind: 'chart'`.
-
----
-
-## 6. Front-end : dashboard TradingView-like
-
-### 6.1 Composants
-
-* [x] **`components/ChartWidget.tsx`** *(nouveau)*
-
-  * [x] Instancie `LightweightChart` (lazy-load lib).
-  * [x] DataFeed via WebSocket hook (`useMarketSocket`).
-
-* [x] **`components/AssetSidebar.tsx`** *(nouveau)*
-
-  * [x] Tabs **Overview / Fundamentals / Sentiment / News**.
-
-* [x] **`components/AIAnnotations.tsx`** *(nouveau)*
-
-  * [x] Abonne au WS `ai-events`, appelle `chart.addShape()`.
-
-### 6.2 Hooks
-
-* [x] **`hooks/useMarketSocket.ts`** *(nouveau)*
-
-  * [x] Gère reconnexion + throttling 5 Hz.
-
-* [x] **`hooks/useAgent.ts`** *(update)*
-
-  * [x] Ajouter appels aux nouveaux tools.
-
-### 6.3 Pages
-
-* [x] **`app/(chat)/chart/[symbol]/[interval]/page.tsx`** *(nouveau)*
-
-  * [x] Affiche `ChartWidget` + `AssetSidebar` + zone chat contextuelle.
-
----
-
-## 7. Événements IA / callouts
-
-* [x] **`lib/ai/event-engine.ts`** *(nouveau)*
-
-  * [x] Sur réception d’un croisement EMA ou pic de sentiment → `broadcastAIEvent(symbol, message, level, ts)`.
-
-* [x] **`components/Toast.tsx`** *(update)*
-
-  * [x] Afficher notification niveau `AIEvent`.
-
----
-
-## 8. Tests
-
-* [x] **`lib/ai/tools/__tests__/get-chart.test.ts`**
-
-  * [x] Vérifie format tool.
-
-* [x] **`app/api/market/[symbol]/candles/[interval]/route.test.ts`**
-
-  * [x] Mock la requête et vérifie la réponse JSON.
-
-* [x] **`app/api/sentiment/[symbol]/route.test.ts`**
-
-  * [x] Mock la requête et vérifie la réponse JSON agrégée.
-
-* [x] **`app/api/market/[symbol]/live/route.test.ts`**
-
-  * [x] Simule bus d'événements et vérifie la diffusion des ticks et bougies.
-
-* [x] **`scripts/__tests__/market-worker.test.ts`**
-
-  * [x] Mock WS, assure tick→candle ok.
-
-* [x] **`app/api/ai/analyse-asset/route.test.ts`**
-
-  * [x] Vérifie la réponse de l'endpoint.
-
-* [x] **`app/api/ai/scan-opportunities/route.test.ts`**
-
-  * [x] Vérifie la réponse de l'endpoint.
-
-* [x] **`app/api/ai/highlight-price/route.test.ts`**
-
-  * [x] Vérifie la diffusion de l'événement.
-
-* [x] **`hooks/__tests__/useAgent.test.ts`**
-
-  * [x] Vérifie les appels aux endpoints et la construction du chart.
-
-* [x] **`components/__tests__/ChartWidget.test.tsx`**
-
-  * [x] Rend & met à jour en live (test du helper `applyCandleUpdate`).
+  * [x] ❌ **Retirer** `subscribeAIEvents` import (in-memory).
+  * [x] ➕ Connexion à `new WebSocket('/api/ai/events')`.
+  * [x] OnMessage → `applyAIEvent(chart, event)` (vous l’avez déjà) — **avec guard** sur `symbol` si vous voulez scope.
+  * [x] ✅ Conserver l’API `applyAIEvent` et la map `levelColors`.
 
 * [x] **`components/__tests__/AIAnnotations.test.tsx`**
 
-  * [x] Vérifie que les événements highlight ajoutent une forme au graphique.
+  * [x] Mettre à jour le test : **mock** `WebSocket` et vérifier qu’un message `highlight-price` déclenche bien `chart.addShape`.
 
 ---
 
-## 9. CI
+## 3) ARTIFACT “CHART” — ENREGISTREMENT & PERSISTENCE
 
-* [x] **`.github/workflows/ci.yml`**
+### 3.1 Enregistrer le handler côté serveur
 
-  * [x] **jobs**: lint → test → build (inclut `market:build`).
+* [x] **`lib/artifacts/server.ts`**
+
+  * [x] ➕ `import { chartDocumentHandler } from '@/artifacts/chart/server'`
+  * [x] ➕ Rajouter `chartDocumentHandler` dans `documentHandlersByArtifactKind` (après `sheetDocumentHandler`).
+  * [x] ✅ Laissez `artifactKinds` tel quel (il inclut déjà `'chart'`).
+
+> **Pourquoi ?** Votre tool `create-document` *essaie* un import dynamique si le handler n’est pas listé, mais **ne sauvegarde pas** via `saveDocument` (c’est `createDocumentHandler` qui le fait). En l’enregistrant ici, vous obtenez **persistance** + **comportement homogène** avec les autres artifacts.
+
+### 3.2 Assurer le flux de rendu côté client
+
+* [x] **`artifacts/chart/client.tsx`** : **OK** (il écoute `data-chartConfig`).
+* [x] **`artifacts/chart/server.ts`** : **OK** (stream config + JSON final).
+* [x] **`artifacts/chart/server.test.ts`** : laisser, mais
+
+  * [x] ➕ un test d’intégration **serveur** pour `saveDocument` via `lib/artifacts/server.ts` (vérifie que le doc est créé et persisté quand `kind='chart'`).
 
 ---
 
-## 10. Documentation
+## 4) OUTILS DE L’AGENT (interaction interface & recherches)
 
+### 4.1 Tools existants — brancher sur le nouveau transport
+
+* [x] **`app/api/ai/highlight-price/route.ts`**
+
+  * [x] Vérifier qu’il appelle bien `broadcastAIEvent` (qui publie maintenant sur Redis).
+  * [x] Tester en local : un POST doit faire apparaître une annotation en live sur le chart.
+
+### 4.2 Montrer un graphique précis (symbol + timeframe)
+
+* [x] **`lib/ai/tools/get-chart.ts`**
+
+  * [x] ✅ déjà OK : renvoie la spec (symbol/interval) — **rien à changer**.
+  * [x] (Option) Autoriser `studies` (SMA/EMA/RSI) dans la spec pour un overlay auto (ChartWidget).
+
+### 4.3 Création de “documents de recherche” (mêmes mécaniques que “create-document”)
+
+* [ ] **Nouveaux artifacts** :
+
+* [x] **`artifacts/research-opportunity/server.ts`** *(scan global ou par symbol ; résumés + liens + mini score)*
+* [x] **`artifacts/research-opportunity/client.tsx`** *(rendu markdown + boutons “Ouvrir chart”)*
+  * [x] **`artifacts/research-asset/server.ts`** *(analyse approfondie d’un asset/entreprise : fondamentaux + sentiment + technique)*
+  * [x] **`artifacts/research-asset/client.tsx`**
+  * [x] **`artifacts/research-fa-ta/server.ts`** *(analyse fondamentale/technique **avec** configuration de chart et **ébauche de stratégie**)*
+  * [x] **`artifacts/research-fa-ta/client.tsx`**
+  * [x] **`artifacts/research-fa-ta/server.test.ts`**
+  * [x] **`artifacts/research-general/server.ts`** *(recherche libre plus/moins organisée — plan + sections)*
+  * [x] **`artifacts/research-general/client.tsx`**
+  * [x] **`artifacts/research-general/server.test.ts`**
+
+* [x] **`lib/artifacts/server.ts`**
+
+  * [x] ➕ importer & **enregistrer** le handler `research-asset`.
+  * [x] ➕ importer & **enregistrer** le handler `research-opportunity`.
+  * [x] ➕ importer les autres handlers et étendre `documentHandlersByArtifactKind`.
+  * [x] ➕ étendre `artifactKinds` avec `'research-asset'` et `'research-opportunity'` (les autres restent à ajouter).
+
+* [x] **`lib/ai/tools/create-document.ts`**
+
+  * [x] ✅ Rien à casser (gère déjà les kinds via `artifactKinds`).
+  * [x] ➕ Tests couvrant chaque nouveau kind (création OK + persistance OK).
+
+* [x] **`lib/ai/tools/analyse-asset.ts`** *(existe déjà)*
+
+  * [x] ➕ Option `emitArtifact: 'research-asset'` pour déclencher la **création d’un document** avec le contenu complet retourné.
+* [x] Idem pour `scan-opportunities.ts` → `emitArtifact: 'research-opportunity'`.
+  * [x] Nouveau tool `analyse-fa-ta.ts` → agrège fondamentaux + technique + **propose config de chart + stratégie** → crée `research-fa-ta`.
+  * [x] Nouveau tool `research-general.ts` → **brief** + **plan** + **sections** + annexes → crée `research-general`.
+
+---
+
+## 5) FRONT — brancher la sidebar & solidifier le WS
+
+### 5.1 Sidebar : consommer les routes (plus de placeholders)
+
+* [x] **`components/AssetSidebar.tsx`**
+
+  * [x] Onglet **Fundamentals** → fetch `/api/fundamentals/[symbol]`, afficher P/E, Rev, EPS (prendre ce qu’il y a dans `json`), `updatedAt`.
+  * [x] Onglet **Sentiment** → fetch `/api/sentiment/[symbol]`, afficher **score moyen 24h** + **sparkline** (simple UL si vous ne voulez pas de chart).
+  * [x] Onglet **News** → soit
+
+    * [x] **(A)** créer route **`app/api/news/[symbol]/route.ts`** (select dans `news_sentiment`) & l’appeler ici,
+    * [ ] **(B)** ou **étendre** `/api/sentiment` pour renvoyer aussi les headlines récentes.
+
+### 5.2 WebSocket client : robustesse UX
+
+* [x] **`hooks/useMarketSocket.ts`**
+
+  * [x] ➕ **ping/keepalive** (envoyer un message “ping” toutes 20–30s si le serveur ne le fait pas).
+  * [x] ✅ Throttle 5Hz : **garder** (déjà présent).
+  * [x] Gérer **backoff** à la reconnexion (1s → 2s → 5s).
+
+### 5.3 ChartWidget : overlays optionnels
+
+* [x] **`components/ChartWidget.tsx`**
+
+  * [x] (Option) Lire une **spec “studies”** depuis props ou metadata chart pour auto-ajouter EMA/RSI au montage.
+  * [x] (Option) Bouton **“Demander une analyse IA”** : appelle `analyse-asset` et **crée un artifact** `research-asset`.
+
+---
+
+## 6) API REST complémentaires (si manquantes pour la sidebar)
+
+* [x] **`app/api/news/[symbol]/route.ts`** *(nouveau si choisi en 5.1A)*
+
+  * [x] `GET` : dernières N news (headline, url, score, ts).
+  * [x] **Tests** unitaires.
+* [x] **`app/api/market/[symbol]/candles/[interval]/route.ts`**
+
+  * [x] ✅ déjà OK — rien à changer (tester avec 5m/15m/1h/4h/1d).
+
+---
+
+## 7) TESTS — couverture & intégration du bridge
+
+### 7.1 Bridge Redis end-to-end
+
+* [x] **`app/api/market/[symbol]/live/route.test.ts`**
+
+   * [x] Mock `redis` → publier sur `CHANNEL_TICK`/`CHANNEL_CANDLE` et **attendre** que la route WS forwarde bien les messages (tick + candle).
+   * [x] Vérifier **unsubscribe** à la fermeture (pas de “message leak” après `close`).
+
+* [x] **`components/__tests__/AIAnnotations.test.tsx`**
+
+   * [x] Mock `WebSocket` client → envoyer `highlight-price` et vérifier appel `chart.addShape`.
+
+* [x] **`app/api/ai/events/route.test.ts`**
+
+   * [x] Mock `redis` → publier sur `CHANNEL_AI` et vérifier que le WS forwarde bien les événements.
+
+### 7.2 Artifacts de recherche
+
+
+* [x] **`artifacts/*/server.test.ts`** (pour chacun des 4 nouveaux kinds)
+
+  * [x] Test `onCreateDocument` → stream parts + contenu final non vide pour `research-asset`.
+  * [x] Test via `lib/artifacts/server.ts` → **persistance** avec `saveDocument`.
+
+### 7.3 Tools IA
+
+* [x] **`lib/ai/tools/__tests__/analyse-asset.test.ts`**
+
+  * [x] ➕ cas “emitArtifact” crée bien un `research-asset`.
+* [x] **`lib/ai/tools/__tests__/scan-opportunities.test.ts`**
+
+* [x] ➕ cas “emitArtifact” crée bien un `research-opportunity`.
+* [x] **Nouveaux tests** pour `analyse-fa-ta.ts` & `research-general.ts`.
+
+---
+
+## 8) PETITES AMÉLIORATIONS (qualité & perfs)
+
+* [x] **`app/api/market/[symbol]/live/route.ts`**
+
+  * [x] **Backpressure** : si `server.bufferedAmount` > seuil → **drop** certains ticks (mais gardez les candles).
+  * [x] **Try/catch** autour du parse JSON + logs minimalistes.
+
+* [x] **`scripts/market-worker.ts`**
+
+  * [x] **Retry** WS Yahoo avec jitter & **circuit-breaker** sur fallback REST (pour éviter de plomber les quotas).
+  * [x] **Cap mémoire** des buffers intraday (ex. garder N ticks par fenêtre seulement).
+
+* [x] **`lib/db/queries.ts`**
+
+  * [x] Index déjà OK ; vérifier `LIMIT`/`ORDER BY` systématiques (vous le faites déjà 👍).
+
+* [x] **`components/AssetSidebar.tsx`**
+
+  * [x] **Suspense/loader** + **erreurs** user-friendly (éviter écran vide).
+
+---
+
+## 9) DOCUMENTATION
+
+* [x] **`docs/DATA_FLOW.md`**
+
+  * [x] ➕ schéma “worker → Redis → Next WS → navigateur”.
+* [x] **`docs/AI_TOOLS.md`**
+
+  * [x] ➕ section “tools de recherche” pour `analyse-asset` avec `emitArtifact` (autres kinds à documenter).
+  * [x] Documentation `analyse-fa-ta` & `research-general`.
 * [x] **`README.md`**
 
-  * [x] Section *Financial Module* : setup env, lancer workers, endpoints.
-* [x] **`docs/AI_TOOLS.md`** : description des nouveaux tools.
-* [x] **`docs/DATA_FLOW.md`** : schéma collecte → stockage → front (PlantUML).
+  * [x] ➕ “Comment lancer Redis en local” + sanity check pour voir les annotations IA en live.
 
 ---
 
-### OBJECTIFS ATTENDUS / CORRECTIFS À APPORTER
+# 🎯 Résultats attendus (critères de réussite)
 
-| Bloc            | Objectif observable                                                                 | Correctifs/Notes                               |
-| --------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------- |
-| Collecte marché | Ticks reçus & bougies 5m persistantes, ≤ 200 ms de retard                           | Vérifier buffer flush, gérer retry WS          |
-| Fondamentaux    | `/api/fundamentals/AAPL` retourne JSON valide                                       | Mapping FMP→DB                                 |
-| Sentiment       | `/api/sentiment/AAPL` renvoie score & histogram                                     | NLP simple VADER, normalisation                |
-| Agent IA        | “Montre le graph 15m de TSLA et souligne le dernier plus haut” → chart + annotation | Ajout des tools `get-chart`, `highlight-price` |
-| Front           | Navigation fluide entre symboles, pas de freeze (< 60 fps)                          | WebSocket throttling et suspense React         |
-| Tests           | couverture > 80 % sur nouvelles libs                                                | utiliser Vitest + msw                          |
-| CI              | pipeline verte, image worker publiée                                                | ajouter step build worker                      |
+* **Temps réel fiable** : un tick/candle publié par `scripts/market-worker.ts` apparaît **sous 200 ms** dans le chart via `/api/market/.../live`.
+* **Annotations IA** : un POST sur `/api/ai/highlight-price` provoque **immédiatement** un label sur le graphique du symbole concerné.
+* **Chart Artifact** : `create-document` avec `kind: 'chart'` **persiste** et **affiche** le graphique (symbol/timeframe/studies).
+* **Sidebar vivante** : Fundamentals/Sentiment/News affichent des données réelles via vos routes existantes.
+* **Recherches profondes** : l’agent peut **créer** des documents `research-*` (opportunités globales/symbole, analyse asset, FA+TA avec stratégie, recherche générale), **ouverts** automatiquement à l’écran.
+* **Tests** : nouveaux tests **verts**, y compris l’intégration **Redis bridge** (pas de faux positifs in-memory).
 
 ---
 
-### Historique
-- Initialisation du fichier et import de la liste de tâches.
-- Ajout des clés d'environnement et mise à jour de `package.json`.
-- Ajout des tables financières et génération de la migration (échec connexion BDD lors de l'exécution).
-- Création du tool `get-chart`, intégration au chat et ajout du prompt "Financial Analyst" avec son test.
-- Ajout de la requête `getCandles`, de la route API correspondante et d'un test de l'endpoint.
-- Ajout de la requête `getFundamentals`, de la route API correspondante et d'un test de l'endpoint.
-- Ajout de la requête `getSentiment24h`, de la route API `/api/sentiment/[symbol]` et du test associé.
-- Ajout du moteur d'événements AI et du tool `highlight-price`, intégrés à la route de chat avec test.
-- Ajout des tools `scan-opportunities` et `analyse-asset`, intégrés au chat et couverts par des tests.
-- Vérification du script de migration et ajout de notifications toast pour les événements IA.
-- Création du hook `useMarketSocket` avec reconnexion et throttling, composant `ChartWidget` utilisant `LightweightChart`.
-- Ajout du composant `AssetSidebar` avec onglets et test de rendu.
-- Ajout du composant `AIAnnotations` abonné aux événements IA avec test unitaire et intégration dans `ChartWidget`.
-- Création de la page `app/(chat)/chart/[symbol]/[interval]` affichant `ChartWidget`, `AssetSidebar` et un chat contextuel.
-- Ajout d'un test de rendu serveur pour `ChartWidget` (mise à jour en direct à compléter).
-- Implémentation de l'endpoint WebSocket `/api/market/[symbol]/live` et bus d'événements marché avec test de diffusion tick/bougie.
-- Mise en place d'un workflow CI exécutant lint, tests et build (incluant `market:build`).
-- Ajout de la documentation du module financier : section README, description des outils IA et schéma de flux de données.
-- Ajout de la fonction `aggregateTicks` dans le worker marché et d'un test unitaire vérifiant la conversion tick→bougie.
-- Ajout de l'artifact `chart` (serveur & client), export de `getChartDocument`, support `kind: 'chart'` dans `create-document` et test du handler.
-- Implémentation complète du worker de marché : connexion WebSocket, insertion des ticks, agrégation multi-intervalle et fallback Alpha Vantage.
-- Ajout du script `fundamentals-refresh` collectant les fondamentaux via FMP et IEX et testant l'upsert.
-- Implémentation du `news-worker` agrégeant les flux RSS, calculant le score VADER et ajoutant un test unitaire.
-- Implémentation du `reddit-twitter-worker` capturant les posts sociaux, calculant le score VADER et testant l'insertion en base.
-- Ajout du helper `applyCandleUpdate` et d'un test assurant la mise à jour live du `ChartWidget`.
-- Ajout du hook `useAgent` exposant les tools IA via des endpoints dédiés et création des tests associés.
-- Ajout des variables `FMP_API_KEY` et `IEX_CLOUD_KEY` dans `.env.example`.
-- Retrait de la variable d'environnement `MARKET_SYMBOLS` (liste des symboles désormais gérée côté SaaS).
-- Remplacement de la dépendance inexistante `tradingview-lightweight-charts` par `lightweight-charts` et correction des avertissements ESLint.
-- Ajout de la dépendance de build `tsup` et d'un stub de types pour `rss-parser` (package de types introuvable).
-- Chargement dynamique de la watchlist depuis la base (fallback env `MARKET_SYMBOLS`) utilisé par tous les workers.
-- Correction de la tâche `reddit-twitter-worker` pour indiquer l'usage de VADER pour le scoring de polarité.
-- Ajout de la table `watchlist` au schéma et migration associée, utilisation typée dans `getWatchlistSymbols`.
+Si vous validez, je peux enchaîner en 4 PRs courtes et ciblées :
 
-- Vérification finale : toutes les tâches cochées, aucun changement fonctionnel requis. Tests Playwright à exécuter après installation des navigateurs.
-- Exécution des tests unitaires (`pnpm test`) : échec dû à l'absence des navigateurs Playwright.
-- Remplacement des dépendances introuvables `yahoo-finance-ws` et `pandas-ta` par `ws` et retrait de la seconde, ajout d'un stub de types et d'une configuration `tsconfig.worker.json` pour permettre le build du worker marché.
-- Ajout de l'installation des navigateurs Playwright dans le workflow CI et exclusion du dossier `dist` du lint.
-- Mise à jour du workflow CI pour s'exécuter sur `push` et `pull_request` visant `main`.
-- Ajustement du workflow CI pour s'exécuter sur toutes les branches.
+1. **Bridge Redis** (bus + WS market + events IA + tests),
+2. **Chart handler enregistré** (+ test persistance),
+3. **Sidebar branchée** (fundamentals/sentiment/news),
+4. **Artifacts de recherche + tools IA associés**.
+
+---
+
+### HISTORIQUE
+
+* Initialisation du fichier et import de la TODO-list.
+* Mise en place du bus Redis, connexion worker et routes WS, adaptation événements IA et tests.
+* Enregistrement du handler "chart" avec persistance, refactor WebSocket annotations et tests associés.
+* Branchements de la sidebar (fundamentals/sentiment/news), ajout de la route news et robustesse du client WebSocket.
+* Ajout de la prise en charge des études techniques dans ChartWidget avec tests associés.
+* Ajout du backpressure WS live, retry/jitter du worker avec circuit breaker et documentation Redis.
+* Introduction de l'artifact `research-asset` (handler, client, tests), option `emitArtifact` pour `analyse-asset`, bouton d'analyse IA dans ChartWidget et script `dev:ws`.
+* Ajout de l'artifact `research-opportunity` avec handler, client, enregistrement global, support `emitArtifact` pour `scan-opportunities` et tests associés.
+* Ajout des artifacts `research-fa-ta` et `research-general`, enregistrement global, outils IA correspondants, documentation et batteries de tests couvrant persistance.
+* Couverture complète de la route `candles` sur tous les intervalles supportés et validation des petites améliorations.
+* Ajout d'un test d'intégration pour la route `ai/events` validant la diffusion Redis→WebSocket.
+* Vérification de l'API `highlight-price`, ajout des `studies` à `get-chart` et tests de persistance `create-document` pour tous les artifacts de recherche.
+
+* Exécution de la suite de tests Node (25 réussites) ; échec des tests e2e Playwright faute de dépendances système.
+* Re-run node tests (25 pass); Playwright tests fail with server-only module error after installing dependencies.

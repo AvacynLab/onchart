@@ -31,28 +31,35 @@ class MockSocket {
   }
 };
 
-// Shared emitter instance so route and test use the same bus
+// Shared emitter instance emulating the Redis pub/sub bus
 const emitter = new EventEmitter();
 
-// Stub module resolution for server-only and market events
+// Stub module resolution for server-only and bus module
 const originalLoad = (Module as any)._load;
 (Module as any)._load = function (request: string, parent: any, isMain: boolean) {
   if (request === 'server-only') return {};
-  if (request === '@/lib/market/events') {
+  if (request === '@/lib/market/bus') {
     return {
-      marketEvents: emitter,
-      emitTick: (tick: any) => emitter.emit('tick', tick),
-      emitCandle: (candle: any) => emitter.emit('candle', candle),
+      CHANNEL_TICK: 'ticks',
+      CHANNEL_CANDLE: 'candles',
+      pub: {
+        isOpen: true,
+        publish: async (channel: string, msg: string) => emitter.emit(channel, msg),
+      },
+      sub: {
+        isOpen: true,
+        subscribe: async (channel: string, handler: any) => emitter.on(channel, handler),
+        unsubscribe: async (channel: string, handler: any) => emitter.off(channel, handler),
+      },
+      initBus: async () => {},
     };
   }
   return originalLoad(request, parent, isMain);
 };
 
-const { emitTick, emitCandle } = require('@/lib/market/events');
-
 test('websocket relays tick and candle events', async () => {
   const { GET } = await import('./route');
-  const res: any = GET(
+  const res: any = await GET(
     new Request('http://test?interval=1m', {
       headers: { upgrade: 'websocket' },
     }),
@@ -66,18 +73,25 @@ test('websocket relays tick and candle events', async () => {
   const received: any[] = [];
   ws.addEventListener('message', (ev: any) => received.push(JSON.parse(ev.data)));
 
-  emitTick({ symbol: 'AAPL', ts: 1, price: 2, volume: 3 });
-  emitCandle({
-    symbol: 'AAPL',
-    interval: '1m',
-    open: 1,
-    high: 2,
-    low: 0.5,
-    close: 1.5,
-    volume: 10,
-    tsStart: 0,
-    tsEnd: 60,
-  });
+  const { pub, CHANNEL_TICK, CHANNEL_CANDLE } = require('@/lib/market/bus');
+  await pub.publish(
+    CHANNEL_TICK,
+    JSON.stringify({ symbol: 'AAPL', ts: 1, price: 2, volume: 3 }),
+  );
+  await pub.publish(
+    CHANNEL_CANDLE,
+    JSON.stringify({
+      symbol: 'AAPL',
+      interval: '1m',
+      open: 1,
+      high: 2,
+      low: 0.5,
+      close: 1.5,
+      volume: 10,
+      tsStart: 0,
+      tsEnd: 60,
+    }),
+  );
 
   assert.equal(received.length, 2);
   assert.deepEqual(received[0], {
@@ -98,4 +112,12 @@ test('websocket relays tick and candle events', async () => {
       tsEnd: 60,
     },
   });
+
+  // Ensure no messages are forwarded after closing the socket
+  ws.close();
+  await pub.publish(
+    CHANNEL_TICK,
+    JSON.stringify({ symbol: 'AAPL', ts: 2, price: 3, volume: 4 }),
+  );
+  assert.equal(received.length, 2);
 });

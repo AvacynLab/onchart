@@ -66,6 +66,26 @@ Your app template should now be running on [localhost:3000](http://localhost:300
 ### Environment
 Configure the following variables (see `.env.example`): `ALPHA_VANTAGE_KEY`, `TWELVE_DATA_KEY`, `YAHOO_WS_URL`, `TWITTER_BEARER_TOKEN`, `REDDIT_CLIENT_ID`, `REDDIT_SECRET`.
 
+### Redis
+Start a Redis instance locally:
+
+```
+docker run -p 6379:6379 redis
+```
+
+Then set `REDIS_URL=redis://localhost:6379` in your `.env` file. Redis bridges the market data worker, API WebSockets and the browser.
+
+### Sanity check
+With the app (`pnpm dev`) and the market worker (`pnpm run market:dev`) running, post an AI highlight to verify live annotations:
+
+```
+curl -X POST http://localhost:3000/api/ai/highlight-price \
+  -H 'Content-Type: application/json' \
+  -d '{"symbol":"AAPL","price":150,"level":"info","message":"Test"}'
+```
+
+A label should appear on the corresponding chart immediately if the bridge works.
+
 ### Workers
 - `pnpm run market:dev` – collecte des ticks via WebSocket Yahoo Finance et agrégation des bougies.
 - `tsx scripts/fundamentals-refresh.ts` – mise à jour quotidienne des fondamentaux (cron 07:00 UTC).

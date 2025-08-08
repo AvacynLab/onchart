@@ -1,27 +1,36 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyAIEvent } from '../AIAnnotations';
-import type { AnnotationChart } from '../AIAnnotations';
+import { connectAIAnnotations, type AnnotationChart } from '../AIAnnotations';
 
-test('applyAIEvent creates a shape on highlight-price events', () => {
+test('websocket message payload results in chart annotation', () => {
   const shapes: any[] = [];
-  const chart: AnnotationChart = {
-    addShape: (config) => shapes.push(config),
-  };
+  const chart: AnnotationChart = { addShape: (c) => shapes.push(c) };
 
-  applyAIEvent(chart, {
-    type: 'highlight-price',
-    symbol: 'AAPL',
-    price: 123,
-    ts: 1,
-    label: 'test',
-    level: 'success',
-  });
+  // Minimal WebSocket mock that can emit messages to listeners.
+  class MockWebSocket {
+    url: string;
+    listeners: Record<string, Array<(ev: any) => void>> = {};
+    constructor(url: string) {
+      this.url = url;
+    }
+    addEventListener(type: string, fn: (ev: any) => void) {
+      if (!this.listeners[type]) this.listeners[type] = [];
+      this.listeners[type]!.push(fn);
+    }
+    sendMessage(data: string) {
+      this.listeners['message']?.forEach((fn) => fn({ data }));
+    }
+    close() {}
+  }
+  (global as any).WebSocket = MockWebSocket as any;
+
+  const ws: any = connectAIAnnotations(chart);
+  ws.sendMessage(
+    JSON.stringify({ type: 'highlight-price', symbol: 'AAPL', price: 100, ts: 1 }),
+  );
 
   assert.equal(shapes.length, 1);
-  assert.deepEqual(shapes[0], {
-    price: 123,
-    text: 'test',
-    color: '#16a34a',
-  });
+  assert.deepEqual(shapes[0], { price: 100, text: undefined, color: undefined });
+
+  ws.close();
 });

@@ -1,6 +1,12 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { getFundamentals, getSentiment24h, getCandles } from '@/lib/db/queries';
+import {
+  getFundamentals,
+  getSentiment24h,
+  getCandles,
+  saveDocument,
+} from '@/lib/db/queries';
+import { generateUUID } from '@/lib/utils';
 
 /**
  * Tool that compiles a quick analysis of a financial asset by combining
@@ -12,8 +18,11 @@ import { getFundamentals, getSentiment24h, getCandles } from '@/lib/db/queries';
 export const analyseAsset = tool({
   description:
     'Summarise fundamentals, 24h sentiment and 20-period EMA trend for a symbol.',
-  inputSchema: z.object({ symbol: z.string().min(1) }),
-  execute: async ({ symbol }) => {
+  inputSchema: z.object({
+    symbol: z.string().min(1),
+    emitArtifact: z.literal('research-asset').optional(),
+  }),
+  execute: async ({ symbol, emitArtifact }, { session }) => {
     const [fundamentals, sentiment, candles] = await Promise.all([
       getFundamentals(symbol),
       getSentiment24h(symbol),
@@ -31,7 +40,7 @@ export const analyseAsset = tool({
           : 'below'
         : 'unknown';
 
-    return {
+    const result = {
       fundamentals,
       sentiment,
       technical: {
@@ -40,6 +49,20 @@ export const analyseAsset = tool({
         trend,
       },
     };
+
+    if (emitArtifact === 'research-asset' && session?.user?.id) {
+      const id = generateUUID();
+      await saveDocument({
+        id,
+        title: `${symbol} research`,
+        kind: 'research-asset',
+        content: JSON.stringify(result),
+        userId: session.user.id,
+      });
+      return { ...result, documentId: id };
+    }
+
+    return result;
   },
 });
 

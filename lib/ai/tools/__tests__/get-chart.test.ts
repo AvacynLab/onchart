@@ -11,3 +11,12 @@ test('getChart returns URL and spec for symbol/interval', async () => {
   assert.equal(result.spec.interval, '1d');
   assert.equal(result.spec.type, 'candlestick');
 });
+
+test('getChart includes studies when provided', async () => {
+  const result = await getChart.execute({
+    symbol: 'MSFT',
+    interval: '1h',
+    studies: ['ema20', 'rsi14'],
+  });
+  assert.deepEqual(result.spec.studies, ['ema20', 'rsi14']);
+});

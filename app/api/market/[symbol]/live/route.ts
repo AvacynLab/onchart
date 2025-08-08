@@ -1,11 +1,39 @@
 import { type NextRequest } from 'next/server';
-import { marketEvents, type MarketTick, type MarketCandle } from '@/lib/market/events';
+import { initBus, sub, CHANNEL_TICK, CHANNEL_CANDLE } from '@/lib/market/bus';
 import 'server-only';
+
+export const runtime = 'edge';
+
+/**
+ * Maximum amount of unsent data (in bytes) allowed in the WebSocket buffer
+ * before tick updates start getting dropped. Candles are still delivered
+ * so the client can catch up once the buffer drains.
+ */
+const BACKPRESSURE_LIMIT = 64 * 1024; // 64 KiB
+
+interface MarketTick {
+  symbol: string;
+  ts: number;
+  price: number;
+  volume: number;
+}
+
+interface MarketCandle {
+  symbol: string;
+  interval: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  tsStart: number;
+  tsEnd: number;
+}
 
 /**
  * WebSocket endpoint streaming live market ticks and the latest candle.
  */
-export function GET(request: NextRequest, { params }: { params: { symbol: string } }) {
+export async function GET(request: NextRequest, { params }: { params: { symbol: string } }) {
   if (request.headers.get('upgrade') !== 'websocket') {
     return new Response('Expected "websocket"', { status: 400 });
   }
@@ -15,23 +43,39 @@ export function GET(request: NextRequest, { params }: { params: { symbol: string
   const interval = searchParams.get('interval') ?? '1m';
   const symbol = params.symbol.toUpperCase();
 
-  const tickListener = (tick: MarketTick) => {
-    if (tick.symbol !== symbol) return;
-    server.send(JSON.stringify({ type: 'tick', data: tick }));
-  };
-
-  const candleListener = (candle: MarketCandle) => {
-    if (candle.symbol !== symbol || candle.interval !== interval) return;
-    server.send(JSON.stringify({ type: 'candle', data: candle }));
-  };
-
   server.accept();
-  marketEvents.on('tick', tickListener);
-  marketEvents.on('candle', candleListener);
+  await initBus();
 
-  server.addEventListener('close', () => {
-    marketEvents.off('tick', tickListener);
-    marketEvents.off('candle', candleListener);
+  const tickListener = (message: string) => {
+    try {
+      const tick: MarketTick = JSON.parse(message);
+      if (tick.symbol !== symbol) return;
+      // Apply a simple backpressure strategy: if the WebSocket buffer grows
+      // beyond the threshold we drop the tick. Candles are still forwarded so
+      // the client can resynchronise once the connection catches up.
+      if (server.bufferedAmount > BACKPRESSURE_LIMIT) return;
+      server.send(JSON.stringify({ type: 'tick', data: tick }));
+    } catch (err) {
+      console.warn('malformed tick message', err);
+    }
+  };
+
+  const candleListener = (message: string) => {
+    try {
+      const candle: MarketCandle = JSON.parse(message);
+      if (candle.symbol !== symbol || candle.interval !== interval) return;
+      server.send(JSON.stringify({ type: 'candle', data: candle }));
+    } catch (err) {
+      console.warn('malformed candle message', err);
+    }
+  };
+
+  await sub.subscribe(CHANNEL_TICK, tickListener);
+  await sub.subscribe(CHANNEL_CANDLE, candleListener);
+
+  server.addEventListener('close', async () => {
+    await sub.unsubscribe(CHANNEL_TICK, tickListener);
+    await sub.unsubscribe(CHANNEL_CANDLE, candleListener);
   });
 
   try {

@@ -619,6 +619,39 @@ export async function getFundamentals(
 }
 
 /**
+ * Retrieve the most recent news sentiment entries for a given symbol.
+ *
+ * Each entry contains the headline, optional URL, sentiment score and the
+ * timestamp when the article was recorded.
+ *
+ * @param symbol - Ticker to fetch news for.
+ * @param limit - Maximum number of articles to return. Defaults to 5.
+ */
+export async function getLatestNews(
+  symbol: string,
+  limit = 5,
+): Promise<Array<{ headline: string; url: string | null; score: number; ts: Date }>> {
+  try {
+    return await db
+      .select({
+        headline: newsSentiment.headline,
+        url: newsSentiment.url,
+        score: newsSentiment.score,
+        ts: newsSentiment.ts,
+      })
+      .from(newsSentiment)
+      .where(eq(newsSentiment.symbol, symbol))
+      .orderBy(desc(newsSentiment.ts))
+      .limit(limit);
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get news by symbol',
+    );
+  }
+}
+
+/**
  * Aggregate sentiment scores for the last 24 hours for a given symbol.
  *
  * The function computes the overall average score and an hourly histogram

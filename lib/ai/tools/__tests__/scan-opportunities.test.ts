@@ -36,6 +36,9 @@ const originalLoad = (Module as any)._load;
       getTopSentimentSymbols: async () => sentiments,
       getCandles: async ({ symbol }: { symbol: string }) =>
         symbol === 'ABC' ? breakoutCandles : flatCandles,
+      saveDocument: async (args: any) => {
+        (globalThis as any).__saved = args;
+      },
     };
   }
   return originalLoad(request, parent, isMain);
@@ -45,4 +48,14 @@ test('scanOpportunities returns symbols breaking above EMA with positive sentime
   const { scanOpportunities } = await import('../scan-opportunities');
   const res = await scanOpportunities.execute({ limit: 2 });
   assert.deepStrictEqual(res, [{ symbol: 'ABC', score: 0.9 }]);
+});
+
+test('scanOpportunities can emit research-opportunity document', async () => {
+  const { scanOpportunities } = await import('../scan-opportunities');
+  const res: any = await scanOpportunities.execute(
+    { limit: 2, emitArtifact: 'research-opportunity' },
+    { session: { user: { id: 'u1' } } as any },
+  );
+  assert.ok(res.documentId);
+  assert.equal((globalThis as any).__saved.kind, 'research-opportunity');
 });

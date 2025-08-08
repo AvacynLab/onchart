@@ -14,9 +14,15 @@ export const getChart = tool({
   inputSchema: z.object({
     symbol: z.string().min(1),
     interval: z.string().min(1),
+    /**
+     * Optional list of technical studies to overlay on the chart. Supports
+     * identifiers like `ema20` or `rsi14` which `ChartWidget` knows how to
+     * compute client-side.
+     */
+    studies: z.array(z.string()).optional(),
   }),
   // Build the URL and chart spec synchronously; no external calls required
-  execute: async ({ symbol, interval }) => {
+  execute: async ({ symbol, interval, studies }) => {
     const url = `/api/market/${symbol}/candles/${interval}`;
     return {
       url,
@@ -24,6 +30,7 @@ export const getChart = tool({
         type: 'candlestick',
         symbol,
         interval,
+        ...(studies ? { studies } : {}),
       },
     };
   },

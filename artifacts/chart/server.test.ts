@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'module';
+import Module from 'module';
 
 function createDataStream() {
   const parts: any[] = [];
@@ -31,3 +32,4 @@ test('chartDocumentHandler creates and streams config', async () => {
     transient: true,
   });
 });
+

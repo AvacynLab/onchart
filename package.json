@@ -17,6 +17,7 @@
     "db:check": "drizzle-kit check",
     "db:up": "drizzle-kit up",
     "test": "export PLAYWRIGHT=True AUTH_SECRET=test POSTGRES_URL=postgres://user:pass@localhost:5432/db YAHOO_WS_URL=ws://localhost && pnpm exec playwright test",
+    "dev:ws": "pnpm run market:dev",
     "market:dev": "tsx scripts/market-worker.ts",
     "market:build": "tsup scripts/market-worker.ts --format esm --dts --tsconfig tsconfig.worker.json"
   },
