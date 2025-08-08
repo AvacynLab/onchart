@@ -1,4 +1,4 @@
-export const DEFAULT_CHAT_MODEL: string = 'chat-model';
+export const DEFAULT_CHAT_MODEL: string = 'gpt-5';
 
 export interface ChatModel {
   id: string;
@@ -8,13 +8,28 @@ export interface ChatModel {
 
 export const chatModels: Array<ChatModel> = [
   {
-    id: 'chat-model',
-    name: 'Chat model',
-    description: 'Primary model for all-purpose chat',
+    id: 'gpt-5',
+    name: 'GPT-5',
+    description: 'Base GPT-5 model from OpenAI for general-purpose chat',
   },
   {
-    id: 'chat-model-reasoning',
-    name: 'Reasoning model',
-    description: 'Uses advanced reasoning',
+    id: 'gpt-5-mini',
+    name: 'GPT-5 Mini',
+    description: 'Smaller and faster GPT-5 variant with reduced cost',
+  },
+  {
+    id: 'gpt-5-nano',
+    name: 'GPT-5 Nano',
+    description: 'Lightweight GPT-5 model for quick, low-resource tasks',
+  },
+  {
+    id: 'gpt-5o',
+    name: 'GPT-5o',
+    description: 'GPT-5 model optimized for conversational applications',
+  },
+  {
+    id: 'gpt-oss',
+    name: 'GPT-oss',
+    description: 'Cerebras open-source GPT model',
   },
 ];

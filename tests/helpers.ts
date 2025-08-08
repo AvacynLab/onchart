@@ -9,6 +9,7 @@ import {
 } from '@playwright/test';
 import { generateId } from 'ai';
 import { ChatPage } from './pages/chat';
+import { chatModels, type ChatModel } from '@/lib/ai/models';
 import { getUnixTime } from 'date-fns';
 
 export type UserContext = {
@@ -20,11 +21,11 @@ export type UserContext = {
 export async function createAuthenticatedContext({
   browser,
   name,
-  chatModel = 'chat-model',
+  chatModel = 'gpt-5',
 }: {
   browser: Browser;
   name: string;
-  chatModel?: 'chat-model' | 'chat-model-reasoning';
+  chatModel?: ChatModel['id'];
 }): Promise<UserContext> {
   const directory = path.join(__dirname, '../playwright/.sessions');
 
@@ -53,8 +54,11 @@ export async function createAuthenticatedContext({
 
   const chatPage = new ChatPage(page);
   await chatPage.createNewChat();
-  await chatPage.chooseModelFromSelector('chat-model-reasoning');
-  await expect(chatPage.getSelectedModel()).resolves.toEqual('Reasoning model');
+  await chatPage.chooseModelFromSelector(chatModel);
+  const expectedName = chatModels.find((m) => m.id === chatModel)?.name;
+  if (expectedName) {
+    await expect(chatPage.getSelectedModel()).resolves.toEqual(expectedName);
+  }
 
   await page.waitForTimeout(1000);
   await context.storageState({ path: storageFile });
