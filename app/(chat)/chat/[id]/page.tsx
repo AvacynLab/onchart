@@ -7,6 +7,8 @@ import { getChatById, getMessagesByChatId } from '@/lib/db/queries';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { convertToUIMessages } from '@/lib/utils';
+import FinancePanel from '@/components/finance/FinancePanel';
+import FinanceHint from '@/components/finance/FinanceHint';
 
 export default async function Page(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -55,6 +57,8 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
           autoResume={true}
         />
         <DataStreamHandler />
+        <FinancePanel chatId={chat.id} userId={session.user.id} />
+        <FinanceHint />
       </>
     );
   }
@@ -71,6 +75,8 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
         autoResume={true}
       />
       <DataStreamHandler />
+      <FinancePanel chatId={chat.id} userId={session.user.id} />
+      <FinanceHint />
     </>
   );
 }

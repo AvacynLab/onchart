@@ -60,3 +60,19 @@ pnpm dev
 ```
 
 Your app template should now be running on [localhost:3000](http://localhost:3000).
+
+## Disclaimer
+
+Ce projet utilise exclusivement des données publiques, ne constitue pas un conseil financier et les informations fournies peuvent être incomplètes ou fragiles.
+
+## Public data sources
+
+Les outils financiers s'appuient sur des sources ouvertes telles que Yahoo Finance, Stooq, Binance, la SEC/EDGAR et plusieurs flux RSS (Yahoo Finance, Reuters, Nasdaq).
+
+## Usage limits
+
+Les comptes invités sont destinés à l'exploration légère et peuvent être soumis à des limites sur les analyses coûteuses ou les scans massifs.
+
+## Legal
+
+Les données sont fournies « telles quelles » sans garantie d'exactitude. Aucun contenu généré ne constitue une recommandation d'investissement.

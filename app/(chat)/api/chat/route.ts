@@ -34,6 +34,8 @@ import {
 } from 'resumable-stream';
 import { after } from 'next/server';
 import { ChatSDKError } from '@/lib/errors';
+import { createFinanceTools } from '@/lib/ai/tools-finance';
+import type { Tool } from 'ai';
 import type { ChatMessage } from '@/lib/types';
 import type { ChatModel } from '@/lib/ai/models';
 import type { VisibilityType } from '@/components/visibility-selector';
@@ -60,6 +62,39 @@ export function getStreamContext() {
   }
 
   return globalStreamContext;
+}
+
+// --- Finance tools helpers -------------------------------------------------
+
+/**
+ * Wrap a tool so that any thrown error is converted into a `ChatSDKError` with
+ * a namespaced identifier. The original tool metadata (description, schema)
+ * is preserved by copying properties onto the wrapper function.
+ */
+function wrapTool(name: string, t: Tool) {
+  const fn = async (args: unknown) => {
+    try {
+      // `t` is itself a function produced by `tool()` from `ai`.
+      return await (t as any)(args);
+    } catch (error) {
+      throw new ChatSDKError(`tool_error:${name}`);
+    }
+  };
+
+  return Object.assign(fn, t);
+}
+
+/**
+ * Prefix all tool names under a namespace so that the LLM can call them using
+ * dotted identifiers like `finance.get_quote`.
+ */
+function prefixTools(prefix: string, tools: Record<string, Tool>) {
+  return Object.fromEntries(
+    Object.entries(tools).map(([key, value]) => [
+      `${prefix}.${key}`,
+      wrapTool(`${prefix}.${key}`, value),
+    ]),
+  );
 }
 
 export async function POST(request: Request) {
@@ -149,6 +184,25 @@ export async function POST(request: Request) {
     const streamId = generateUUID();
     await createStreamId({ streamId, chatId: id });
 
+    // Build finance toolset with context-specific persistence and namespacing.
+    const ft = createFinanceTools({
+      userId: session.user.id,
+      chatId: id,
+    });
+    const { ui: uiTools, research: researchTools, ...finance } = ft;
+    const financeToolMap = {
+      ...prefixTools('finance', finance as Record<string, Tool>),
+      ...prefixTools('ui', uiTools as Record<string, Tool>),
+      ...prefixTools('research', researchTools as Record<string, Tool>),
+    };
+    const activeTools = [
+      'getWeather',
+      'createDocument',
+      'updateDocument',
+      'requestSuggestions',
+      ...Object.keys(financeToolMap),
+    ];
+
     const stream = createUIMessageStream({
       execute: ({ writer: dataStream }) => {
         const result = streamText({
@@ -157,14 +211,7 @@ export async function POST(request: Request) {
           messages: convertToModelMessages(uiMessages),
           stopWhen: stepCountIs(5),
           experimental_activeTools:
-            selectedChatModel === 'gpt-5o'
-              ? []
-              : [
-                  'getWeather',
-                  'createDocument',
-                  'updateDocument',
-                  'requestSuggestions',
-                ],
+            selectedChatModel === 'gpt-5o' ? [] : activeTools,
           experimental_transform: smoothStream({ chunking: 'word' }),
           tools: {
             getWeather,
@@ -174,6 +221,7 @@ export async function POST(request: Request) {
               session,
               dataStream,
             }),
+            ...financeToolMap,
           },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,

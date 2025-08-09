@@ -27,6 +27,9 @@ import {
   type DBMessage,
   type Chat,
   stream,
+  analysis,
+  research,
+  attentionMarker,
 } from './schema';
 import type { ArtifactKind } from '@/components/artifact';
 import { generateUUID } from '../utils';
@@ -533,6 +536,245 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get stream ids by chat id',
+    );
+  }
+}
+
+// Save an analysis result produced by a finance tool.
+export async function saveAnalysis({
+  userId,
+  chatId,
+  type,
+  input,
+  output,
+}: {
+  userId: string;
+  chatId: string;
+  type: string;
+  input: unknown;
+  output: unknown;
+}) {
+  try {
+    await db.insert(analysis).values({
+      id: generateUUID(),
+      userId,
+      chatId,
+      type,
+      input,
+      output,
+      createdAt: new Date(),
+    });
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to save analysis',
+    );
+  }
+}
+
+// Retrieve analyses linked to a specific chat, ordered from newest to oldest.
+export async function listAnalysesByChatId({
+  chatId,
+}: {
+  chatId: string;
+}) {
+  try {
+    return await db
+      .select()
+      .from(analysis)
+      .where(eq(analysis.chatId, chatId))
+      .orderBy(desc(analysis.createdAt));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to list analyses by chat id',
+    );
+  }
+}
+
+// Create a new research document.
+export async function createResearch({
+  userId,
+  chatId,
+  kind,
+  title,
+  sections,
+}: {
+  userId: string;
+  chatId: string;
+  kind: 'opportunity' | 'asset_deep_dive' | 'ft_report' | 'general';
+  title: string;
+  sections: unknown;
+}) {
+  try {
+    const [created] = await db
+      .insert(research)
+      .values({
+        id: generateUUID(),
+        userId,
+        chatId,
+        kind,
+        title,
+        sections,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    return created;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create research document',
+    );
+  }
+}
+
+// Update an existing research document.
+export async function updateResearch({
+  id,
+  sections,
+  title,
+}: {
+  id: string;
+  sections?: unknown;
+  title?: string;
+}) {
+  try {
+    const [updated] = await db
+      .update(research)
+      .set({
+        ...(sections !== undefined ? { sections } : {}),
+        ...(title !== undefined ? { title } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(research.id, id))
+      .returning();
+    return updated;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update research document',
+    );
+  }
+}
+
+// Fetch a research document by its identifier.
+export async function getResearchById({
+  id,
+}: {
+  id: string;
+}) {
+  try {
+    const [doc] = await db
+      .select()
+      .from(research)
+      .where(eq(research.id, id))
+      .limit(1);
+    return doc;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get research by id',
+    );
+  }
+}
+
+// List all research documents for a chat.
+export async function listResearchByChatId({
+  chatId,
+}: {
+  chatId: string;
+}) {
+  try {
+    return await db
+      .select()
+      .from(research)
+      .where(eq(research.chatId, chatId))
+      .orderBy(desc(research.updatedAt));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to list research by chat id',
+    );
+  }
+}
+
+// Persist a chart annotation created by the agent.
+export async function saveAttentionMarker({
+  userId,
+  chatId,
+  symbol,
+  timeframe,
+  payload,
+}: {
+  userId: string;
+  chatId: string;
+  symbol: string;
+  timeframe: string;
+  payload: unknown;
+}): Promise<string> {
+  const id = generateUUID();
+  try {
+    await db.insert(attentionMarker).values({
+      id,
+      userId,
+      chatId,
+      symbol,
+      timeframe,
+      payload,
+      createdAt: new Date(),
+    });
+    return id;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to save attention marker',
+    );
+  }
+}
+
+// Retrieve attention markers filtered by chat, symbol and timeframe.
+export async function listAttentionMarkers({
+  chatId,
+  symbol,
+  timeframe,
+}: {
+  chatId: string;
+  symbol: string;
+  timeframe: string;
+}) {
+  try {
+    return await db
+      .select()
+      .from(attentionMarker)
+      .where(
+        and(
+          eq(attentionMarker.chatId, chatId),
+          eq(attentionMarker.symbol, symbol),
+          eq(attentionMarker.timeframe, timeframe),
+        ),
+      )
+      .orderBy(desc(attentionMarker.createdAt));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to list attention markers',
+    );
+  }
+}
+
+// Delete a previously saved attention marker by its identifier.
+export async function deleteAttentionMarker({
+  id,
+}: {
+  id: string;
+}) {
+  try {
+    await db.delete(attentionMarker).where(eq(attentionMarker.id, id));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to delete attention marker',
     );
   }
 }
