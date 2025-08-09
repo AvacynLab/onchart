@@ -1,0 +1,487 @@
+import { tool } from 'ai';
+import { z } from 'zod';
+import { fetchQuoteYahoo, fetchOHLCYahoo } from '../finance/sources/yahoo';
+import { searchYahoo } from '../finance/search';
+import {
+  fetchCompanyFacts,
+  listFilings as secListFilings,
+  searchCompanyCIK,
+} from '../finance/sources/sec';
+import fetchRssFeeds from '../finance/sources/news';
+import { sma, ema, rsi } from '../finance/indicators';
+import {
+  annualizedVolatility,
+  maxDrawdown,
+  sharpeRatio,
+  sortinoRatio,
+  beta,
+} from '../finance/risk';
+import { emitUIEvent } from '../ui/events';
+import { nanoid } from 'nanoid';
+
+/**
+ * Context passed to each finance tool in order to persist analyses
+ * for a given user and chat session.
+ */
+export interface FinanceToolContext {
+  /** Identifier of the user invoking the tool */
+  userId: string;
+  /** Identifier of the chat associated with the analysis */
+  chatId: string;
+}
+
+/**
+ * Dependencies that can be overridden for testing purposes.
+ */
+type PersistFn = (record: {
+  userId: string;
+  chatId: string;
+  type: string;
+  input: unknown;
+  output: unknown;
+}) => Promise<void>;
+
+interface FinanceDeps {
+  fetchQuote?: typeof fetchQuoteYahoo;
+  fetchOHLC?: typeof fetchOHLCYahoo;
+  search?: typeof searchYahoo;
+  searchCIK?: typeof searchCompanyCIK;
+  fetchFundamentals?: typeof fetchCompanyFacts;
+  listFilings?: typeof secListFilings;
+  fetchNews?: typeof fetchRssFeeds;
+  saveAttentionMarker?: (args: {
+    userId: string;
+    chatId: string;
+    symbol: string;
+    timeframe: string;
+    payload: unknown;
+  }) => Promise<string>;
+  deleteAttentionMarker?: (args: { id: string }) => Promise<void>;
+  createResearch?: (args: {
+    userId: string;
+    chatId: string;
+    kind: string;
+    title: string;
+    sections: any[];
+  }) => Promise<any>;
+  updateResearch?: (args: {
+    id: string;
+    title?: string;
+    sections?: any[];
+  }) => Promise<any>;
+  getResearchById?: (args: { id: string }) => Promise<any>;
+  persist?: PersistFn;
+}
+
+/**
+ * Create a collection of finance related tools.
+ * Each tool validates its inputs with zod and persists the produced
+ * output using `saveAnalysis` so that future conversations can reuse it.
+ */
+export function createFinanceTools(
+  ctx: FinanceToolContext,
+  deps: FinanceDeps = {},
+) {
+  const {
+    fetchQuote = fetchQuoteYahoo,
+    fetchOHLC = fetchOHLCYahoo,
+    search = searchYahoo,
+    searchCIK = searchCompanyCIK,
+    fetchFundamentals = fetchCompanyFacts,
+    listFilings = secListFilings,
+    fetchNews = fetchRssFeeds,
+  } = deps;
+  let persist = deps.persist;
+  let saveAttention = deps.saveAttentionMarker;
+  let deleteAttention = deps.deleteAttentionMarker;
+  let createResearchFn = deps.createResearch;
+  let updateResearchFn = deps.updateResearch;
+  let getResearchFn = deps.getResearchById;
+
+  /** Helper to persist an analysis record */
+  async function persistAnalysis(
+    type: string,
+    input: unknown,
+    output: unknown,
+  ) {
+    try {
+      if (!persist) {
+        const mod = await import('../db/queries');
+        persist = mod.saveAnalysis as PersistFn;
+      }
+      await persist({
+        userId: ctx.userId,
+        chatId: ctx.chatId,
+        type,
+        input,
+        output,
+      });
+    } catch {
+      // Persistence failures should not break the tool execution.
+    }
+  }
+
+  return {
+    /**
+     * Retrieve the latest market quote for a symbol.
+     */
+    get_quote: tool({
+      description: 'Fetch the latest quote for a financial symbol',
+      inputSchema: z.object({ symbol: z.string() }),
+      execute: async ({ symbol }) => {
+        const quote = await fetchQuote(symbol);
+        await persistAnalysis('quote', { symbol }, quote);
+        return quote;
+      },
+    }),
+
+    /**
+     * Fetch OHLC candles for a symbol and timeframe. Range is passed directly
+     * to Yahoo Finance and may be values such as `1d`, `5d`, `1mo`, etc.
+     */
+    get_ohlc: tool({
+      description: 'Fetch OHLC candles for a symbol and timeframe',
+      inputSchema: z.object({
+        symbol: z.string(),
+        timeframe: z.string(),
+        range: z.string().optional(),
+        start: z.number().optional(),
+        end: z.number().optional(),
+      }),
+      execute: async ({ symbol, timeframe, range, start, end }) => {
+        const candles = await fetchOHLC(symbol, timeframe, { range, start, end });
+        await persistAnalysis(
+          'ohlc',
+          { symbol, timeframe, range, start, end },
+          candles,
+        );
+        return candles;
+      },
+    }),
+
+    /**
+     * Search for matching symbols using Yahoo Finance's public API.
+     */
+    search_symbol: tool({
+      description: 'Search financial symbols by keyword',
+      inputSchema: z.object({ query: z.string() }),
+      execute: async ({ query }) => {
+        const results = await search(query);
+        await persistAnalysis('search', { query }, results);
+        return results;
+      },
+    }),
+
+    /**
+     * Retrieve key fundamental metrics from the SEC companyfacts API.
+     * A ticker symbol is resolved to its CIK before requesting data.
+     */
+    get_fundamentals: tool({
+      description: 'Fetch fundamental metrics for a company using SEC data',
+      inputSchema: z
+        .object({ ticker: z.string().optional(), cik: z.string().optional() })
+        .refine((v) => v.ticker || v.cik, {
+          message: 'ticker or cik required',
+        }),
+      execute: async ({ ticker, cik }) => {
+        let cikVal = cik;
+        if (!cikVal && ticker) {
+          const matches = await searchCIK(ticker);
+          cikVal = matches[0]?.cik;
+        }
+        if (!cikVal) throw new Error('CIK not found');
+        const facts = await fetchFundamentals(cikVal);
+        const ratios: Record<string, number> = {};
+        if (facts.assets && facts.liabilities) {
+          ratios.debtToAssets = facts.liabilities / facts.assets;
+        }
+        const out = { cik: cikVal, ...facts, ...ratios };
+        await persistAnalysis('fundamentals', { ticker, cik: cikVal }, out);
+        return out;
+      },
+    }),
+
+    /**
+     * List recent SEC filings for a company filtered by form types.
+     */
+    get_filings: tool({
+      description: 'List SEC filings for a company',
+      inputSchema: z
+        .object({
+          ticker: z.string().optional(),
+          cik: z.string().optional(),
+          forms: z.array(z.string()).default(['10-K', '10-Q', '8-K']),
+        })
+        .refine((v) => v.ticker || v.cik, {
+          message: 'ticker or cik required',
+        }),
+      execute: async ({ ticker, cik, forms }) => {
+        let cikVal = cik;
+        if (!cikVal && ticker) {
+          const matches = await searchCIK(ticker);
+          cikVal = matches[0]?.cik;
+        }
+        if (!cikVal) throw new Error('CIK not found');
+        const filings = await listFilings(cikVal, forms);
+        await persistAnalysis('filings', { ticker, cik: cikVal, forms }, filings);
+        return filings;
+      },
+    }),
+
+    /**
+     * Compute a small set of technical indicators on closing prices.
+     * Indicators are specified by name and computed using default periods:
+     * SMA/EMA 20, RSI 14. Additional indicators can be added later.
+     */
+    compute_indicators: tool({
+      description: 'Compute basic technical indicators for closing prices',
+      inputSchema: z.object({
+        prices: z.array(z.number()).min(1),
+        list: z.array(z.enum(['sma', 'ema', 'rsi'])),
+      }),
+      execute: async ({ prices, list }) => {
+        const out: Record<string, number[]> = {};
+        if (list.includes('sma')) out.sma = sma(prices, 20);
+        if (list.includes('ema')) out.ema = ema(prices, 20);
+        if (list.includes('rsi')) out.rsi = rsi(prices, 14);
+        await persistAnalysis('indicators', { list }, out);
+        return out;
+      },
+    }),
+
+    /**
+     * Compute standard risk metrics from a series of prices.
+     */
+    compute_risk: tool({
+      description: 'Compute risk metrics such as volatility and drawdown',
+      inputSchema: z.object({
+        prices: z.array(z.number()).min(2),
+        benchmark: z.array(z.number()).optional(),
+        riskFreeRate: z.number().optional(),
+      }),
+      execute: async ({ prices, benchmark, riskFreeRate }) => {
+        const metrics: Record<string, number> = {
+          volatility: annualizedVolatility(prices),
+          maxDrawdown: maxDrawdown(prices),
+          sharpe: sharpeRatio(prices, riskFreeRate),
+          sortino: sortinoRatio(prices, riskFreeRate),
+        };
+        if (benchmark) metrics.beta = beta(prices, benchmark);
+        await persistAnalysis('risk', { benchmark }, metrics);
+        return metrics;
+      },
+    }),
+
+    /**
+     * Aggregate public RSS feeds (Yahoo, Reuters, Nasdaq) for recent news.
+     */
+    news: tool({
+      description: 'Fetch recent finance news items for a symbol or query',
+      inputSchema: z
+        .object({
+          symbol: z.string().optional(),
+          query: z.string().optional(),
+          window: z.number().optional(),
+        })
+        .refine((v) => v.symbol || v.query, {
+          message: 'symbol or query required',
+        }),
+      execute: async ({ symbol, query, window }) => {
+        const term = symbol || query || '';
+        const items = await fetchNews(term, window);
+        await persistAnalysis('news', { term, window }, items);
+        return items;
+      },
+    }),
+
+    ui: {
+      /**
+       * Request the client to display a chart for a given symbol.
+       * The chart parameters are forwarded as part of the UI event.
+       */
+      show_chart: tool({
+        description: 'Display a chart for a symbol on the client',
+        inputSchema: z.object({
+          symbol: z.string(),
+          timeframe: z.string(),
+          range: z.string().optional(),
+          overlays: z.array(z.string()).optional(),
+          studies: z.array(z.string()).optional(),
+        }),
+        execute: async (params) => {
+          emitUIEvent({ type: 'show_chart', payload: params });
+          await persistAnalysis('show_chart', params, { ok: true });
+          return { ok: true };
+        },
+      }),
+
+      /**
+       * Add an annotation marker on the client chart and persist it server side.
+       */
+      add_annotation: tool({
+        description: 'Add a chart annotation at a specific time',
+        inputSchema: z.object({
+          symbol: z.string(),
+          timeframe: z.string(),
+          at: z.number(),
+          type: z.string(),
+          text: z.string(),
+        }),
+        execute: async ({ symbol, timeframe, at, type, text }) => {
+          if (!saveAttention) {
+            const mod = await import('../db/queries');
+            saveAttention = mod.saveAttentionMarker;
+          }
+          const id = await saveAttention({
+            userId: ctx.userId,
+            chatId: ctx.chatId,
+            symbol,
+            timeframe,
+            payload: { at, type, text },
+          });
+          const payload = { id, symbol, timeframe, at, type, text };
+          emitUIEvent({ type: 'add_annotation', payload });
+          await persistAnalysis('add_annotation', { symbol, timeframe, at, type }, { id });
+          return { id };
+        },
+      }),
+
+      /**
+       * Remove a previously added annotation by its identifier.
+       */
+      remove_annotation: tool({
+        description: 'Remove a chart annotation by id',
+        inputSchema: z.object({ id: z.string() }),
+        execute: async ({ id }) => {
+          if (!deleteAttention) {
+            const mod = await import('../db/queries');
+            deleteAttention = mod.deleteAttentionMarker;
+          }
+          await deleteAttention({ id });
+          emitUIEvent({ type: 'remove_annotation', payload: { id } });
+          await persistAnalysis('remove_annotation', { id }, { ok: true });
+          return { ok: true };
+        },
+      }),
+
+      /**
+       * Highlight a focus area on the chart.
+       */
+      focus_area: tool({
+        description: 'Highlight a time range on the chart',
+        inputSchema: z.object({
+          symbol: z.string(),
+          timeframe: z.string(),
+          start: z.number(),
+          end: z.number(),
+          reason: z.string().optional(),
+        }),
+        execute: async (params) => {
+          emitUIEvent({ type: 'focus_area', payload: params });
+          await persistAnalysis('focus_area', params, { ok: true });
+          return { ok: true };
+        },
+      }),
+    },
+
+    research: {
+      /**
+       * Create a new research document with optional initial sections.
+       */
+      create: tool({
+        description: 'Create a new research document',
+        inputSchema: z.object({
+          kind: z.string(),
+          title: z.string(),
+          sections: z.array(z.any()).default([]),
+        }),
+        execute: async ({ kind, title, sections }) => {
+          if (!createResearchFn) {
+            const mod = await import('../db/queries');
+            createResearchFn = mod.createResearch;
+          }
+          const doc = await createResearchFn({
+            userId: ctx.userId,
+            chatId: ctx.chatId,
+            kind,
+            title,
+            sections,
+          });
+          return doc;
+        },
+      }),
+
+      /**
+       * Append a section to an existing research document.
+       */
+      add_section: tool({
+        description: 'Append a section to a research document',
+        inputSchema: z.object({
+          id: z.string(),
+          section: z.object({
+            title: z.string().optional(),
+            content: z.string(),
+          }),
+        }),
+        execute: async ({ id, section }) => {
+          if (!getResearchFn || !updateResearchFn) {
+            const mod = await import('../db/queries');
+            getResearchFn = mod.getResearchById;
+            updateResearchFn = mod.updateResearch;
+          }
+          const doc = await getResearchFn({ id });
+          const newSection = { id: nanoid(), ...section };
+          const updated = await updateResearchFn({
+            id,
+            sections: [...(doc.sections || []), newSection],
+          });
+          return updated;
+        },
+      }),
+
+      /**
+       * Update the content of an existing research section.
+       */
+      update_section: tool({
+        description: 'Update a section within a research document',
+        inputSchema: z.object({
+          id: z.string(),
+          sectionId: z.string(),
+          content: z.string(),
+        }),
+        execute: async ({ id, sectionId, content }) => {
+          if (!getResearchFn || !updateResearchFn) {
+            const mod = await import('../db/queries');
+            getResearchFn = mod.getResearchById;
+            updateResearchFn = mod.updateResearch;
+          }
+          const doc = await getResearchFn({ id });
+          const sections = (doc.sections || []).map((s: any) =>
+            s.id === sectionId ? { ...s, content } : s,
+          );
+          const updated = await updateResearchFn({ id, sections });
+          return updated;
+        },
+      }),
+
+      /**
+       * Finalize a research document and persist it as an analysis artifact.
+       */
+      finalize: tool({
+        description: 'Finalize a research document',
+        inputSchema: z.object({ id: z.string() }),
+        execute: async ({ id }) => {
+          if (!getResearchFn) {
+            const mod = await import('../db/queries');
+            getResearchFn = mod.getResearchById;
+          }
+          const doc = await getResearchFn({ id });
+          await persistAnalysis('doc', { id }, doc);
+          return doc;
+        },
+      }),
+    },
+  };
+}
+
+export type FinanceTools = ReturnType<typeof createFinanceTools>;

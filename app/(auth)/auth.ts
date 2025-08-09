@@ -10,11 +10,16 @@ import type { DefaultJWT } from 'next-auth/jwt';
 
 export type UserType = 'guest' | 'regular';
 
+/** Maximum number of heavy analyses allowed for guest users. */
+export const GUEST_MAX_ANALYSES = 20;
+
 declare module 'next-auth' {
   interface Session extends DefaultSession {
     user: {
       id: string;
       type: UserType;
+      /** Remaining analysis credits when the user is a guest. */
+      maxAnalyses?: number;
     } & DefaultSession['user'];
   }
 
@@ -22,6 +27,7 @@ declare module 'next-auth' {
     id?: string;
     email?: string | null;
     type: UserType;
+    maxAnalyses?: number;
   }
 }
 
@@ -29,6 +35,7 @@ declare module 'next-auth/jwt' {
   interface JWT extends DefaultJWT {
     id: string;
     type: UserType;
+    maxAnalyses?: number;
   }
 }
 
@@ -69,7 +76,9 @@ export const {
       credentials: {},
       async authorize() {
         const [guestUser] = await createGuestUser();
-        return { ...guestUser, type: 'guest' };
+        // Guest accounts should be rate limited by downstream services to avoid
+        // costly scans. We attach a quota that can be checked elsewhere.
+        return { ...guestUser, type: 'guest', maxAnalyses: GUEST_MAX_ANALYSES };
       },
     }),
     // Google({
@@ -86,6 +95,7 @@ export const {
       if (user) {
         token.id = user.id as string;
         token.type = user.type;
+        if (user.maxAnalyses !== undefined) token.maxAnalyses = user.maxAnalyses;
       }
 
       return token;
@@ -94,6 +104,7 @@ export const {
       if (session.user) {
         session.user.id = token.id;
         session.user.type = token.type;
+        if (token.maxAnalyses !== undefined) session.user.maxAnalyses = token.maxAnalyses;
       }
 
       return session;

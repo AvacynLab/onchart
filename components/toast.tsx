@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState, type ReactNode } from 'react';
 import { toast as sonnerToast } from 'sonner';
 import { CheckCircleFillIcon, WarningIcon } from './icons';
 import { cn } from '@/lib/utils';
+import { DataSourceError, ParseError, RateLimitedError } from '@/lib/finance/errors';
 
 const iconsByType: Record<'success' | 'error', ReactNode> = {
   success: <CheckCircleFillIcon />,
@@ -70,4 +71,33 @@ interface ToastProps {
   id: string | number;
   type: 'success' | 'error';
   description: string;
+}
+
+/**
+ * Convert a finance related error into a human friendly message.
+ * This keeps error wording consistent across the application and
+ * avoids leaking low level exception details to end users.
+ */
+export function financeErrorMessage(error: unknown): string {
+  if (error instanceof RateLimitedError) {
+    return 'Rate limit reached for data provider, please retry later.';
+  }
+  if (error instanceof DataSourceError) {
+    return 'Failed to fetch data from the remote source.';
+  }
+  if (error instanceof ParseError) {
+    return 'Received malformed data from the remote source.';
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return 'An unknown error occurred.';
+}
+
+/**
+ * Convenience wrapper that displays a toast for a finance error
+ * using {@link financeErrorMessage} to generate the description.
+ */
+export function toastFinanceError(error: unknown) {
+  toast({ type: 'error', description: financeErrorMessage(error) });
 }

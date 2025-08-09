@@ -4,6 +4,7 @@ import {
   varchar,
   timestamp,
   json,
+  jsonb,
   uuid,
   text,
   primaryKey,
@@ -168,3 +169,54 @@ export const stream = pgTable(
 );
 
 export type Stream = InferSelectModel<typeof stream>;
+
+export const analysis = pgTable('Analysis', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  userId: uuid('userId')
+    .notNull()
+    .references(() => user.id),
+  chatId: uuid('chatId')
+    .notNull()
+    .references(() => chat.id),
+  type: varchar('type', { length: 32 }).notNull(),
+  input: jsonb('input').notNull(),
+  output: jsonb('output').notNull(),
+  createdAt: timestamp('createdAt').notNull(),
+});
+
+export type Analysis = InferSelectModel<typeof analysis>;
+
+export const research = pgTable('Research', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  userId: uuid('userId')
+    .notNull()
+    .references(() => user.id),
+  chatId: uuid('chatId')
+    .notNull()
+    .references(() => chat.id),
+  kind: varchar('kind', {
+    enum: ['opportunity', 'asset_deep_dive', 'ft_report', 'general'],
+  }).notNull(),
+  title: text('title').notNull(),
+  sections: jsonb('sections').notNull(),
+  createdAt: timestamp('createdAt').notNull(),
+  updatedAt: timestamp('updatedAt').notNull(),
+});
+
+export type Research = InferSelectModel<typeof research>;
+
+export const attentionMarker = pgTable('AttentionMarker', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  userId: uuid('userId')
+    .notNull()
+    .references(() => user.id),
+  chatId: uuid('chatId')
+    .notNull()
+    .references(() => chat.id),
+  symbol: varchar('symbol', { length: 32 }).notNull(),
+  timeframe: varchar('timeframe', { length: 16 }).notNull(),
+  payload: jsonb('payload').notNull(),
+  createdAt: timestamp('createdAt').notNull(),
+});
+
+export type AttentionMarker = InferSelectModel<typeof attentionMarker>;

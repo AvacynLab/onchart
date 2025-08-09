@@ -24,9 +24,10 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
-import { ArrowUpIcon, StopIcon, SummarizeIcon } from './icons';
+import { ArrowUpIcon, StopIcon } from './icons';
 import { artifactDefinitions, type ArtifactKind } from './artifact';
 import type { ArtifactToolbarItem } from './create-artifact';
+import { financeToolbarItems } from './finance/toolbar-items';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { ChatMessage } from '@/lib/types';
 
@@ -367,7 +368,11 @@ const PureToolbar = ({
     throw new Error('Artifact definition not found!');
   }
 
-  const toolsByArtifactKind = artifactDefinition.toolbar;
+  const baseTools = artifactDefinition.toolbar;
+  const toolsByArtifactKind =
+    artifactKind === 'text'
+      ? [...baseTools, ...financeToolbarItems]
+      : baseTools;
 
   if (toolsByArtifactKind.length === 0) {
     return null;

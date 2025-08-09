@@ -35,6 +35,21 @@ Do not update document right after creating it. Wait for user feedback or reques
 export const regularPrompt =
   'You are a friendly assistant! Keep your responses concise and helpful.';
 
+/**
+ * Additional instructions specific to finance tools so the model knows how to
+ * interact with market data endpoints and charts.
+ */
+export const financePrompt = `
+You can retrieve public market data using finance.* tools.
+Guidelines:
+- Always validate financial symbols before requesting data.
+- Specify a timeframe before calling ui.show_chart.
+- Use compute_indicators for technical analysis.
+- Provide brief numeric summaries and mention data is public and not guaranteed; this is not financial advice.
+- When drafting research documents, structure sections as Summary, Market Context, Data, Charts, Signals, Risks, and Sources.
+- Reference figures and cite sources where possible, highlighting risks alongside signals.
+`;
+
 export interface RequestHints {
   latitude: Geo['latitude'];
   longitude: Geo['longitude'];
@@ -58,11 +73,12 @@ export const systemPrompt = ({
   requestHints: RequestHints;
 }) => {
   const requestPrompt = getRequestPromptFromHints(requestHints);
+  const base = `${regularPrompt}\n\n${financePrompt}\n\n${requestPrompt}`;
 
   if (selectedChatModel === 'gpt-5o') {
-    return `${regularPrompt}\n\n${requestPrompt}`;
+    return base;
   } else {
-    return `${regularPrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}`;
+    return `${base}\n\n${artifactsPrompt}`;
   }
 };
 
