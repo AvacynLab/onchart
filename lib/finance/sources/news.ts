@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio';
+import fetchWithRetry from '../request';
 
 /** News item returned by RSS feeds */
 export interface NewsItem {
@@ -55,8 +56,7 @@ export async function fetchRssFeeds(
 
   for (const url of feeds) {
     try {
-      const res = await fetcher(url);
-      if (!res.ok) continue;
+      const res = await fetchWithRetry(url, { fetcher });
       const xml = await res.text();
       const items = extractItems(xml).filter(
         (i) => now - i.pubDate.getTime() <= windowMs,

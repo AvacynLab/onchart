@@ -14,6 +14,7 @@ import type { Document, Vote } from '@/lib/db/schema';
 import { fetcher } from '@/lib/utils';
 import { MultimodalInput } from './multimodal-input';
 import { Toolbar } from './toolbar';
+import { useToolbarStore } from './toolbar-store';
 import { VersionFooter } from './version-footer';
 import { ArtifactActions } from './artifact-actions';
 import { ArtifactCloseButton } from './artifact-close-button';
@@ -217,7 +218,8 @@ function PureArtifact({
     }
   };
 
-  const [isToolbarVisible, setIsToolbarVisible] = useState(false);
+  const { isVisible: isToolbarVisible, setIsVisible: setIsToolbarVisible } =
+    useToolbarStore();
 
   /*
    * NOTE: if there are no documents, or if
@@ -471,8 +473,6 @@ function PureArtifact({
               <AnimatePresence>
                 {isCurrentVersion && (
                   <Toolbar
-                    isToolbarVisible={isToolbarVisible}
-                    setIsToolbarVisible={setIsToolbarVisible}
                     sendMessage={sendMessage}
                     status={status}
                     stop={stop}

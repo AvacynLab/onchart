@@ -9,6 +9,8 @@ import {
 } from '../finance/sources/sec';
 import fetchRssFeeds from '../finance/sources/news';
 import { sma, ema, rsi } from '../finance/indicators';
+import { maCrossover, rsiReversion, breakoutBB } from '../finance/strategies';
+import { backtest as runBacktest } from '../finance/backtest';
 import {
   annualizedVolatility,
   maxDrawdown,
@@ -71,6 +73,37 @@ interface FinanceDeps {
   }) => Promise<any>;
   getResearchById?: (args: { id: string }) => Promise<any>;
   persist?: PersistFn;
+  createStrategy?: (args: {
+    userId: string;
+    chatId: string;
+    title: string;
+    universe?: unknown;
+    constraints?: unknown;
+    status?: string;
+  }) => Promise<any>;
+  listStrategiesByChat?: (args: {
+    chatId: string;
+    cursor?: Date;
+    limit?: number;
+  }) => Promise<{ items: any[]; nextCursor: Date | null }>;
+  getStrategyById?: (args: { id: string }) => Promise<any>;
+  createStrategyVersion?: (args: {
+    strategyId: string;
+    description?: string;
+    rules: unknown;
+    params: unknown;
+    notes?: string;
+  }) => Promise<any>;
+  getStrategyVersion?: (args: { id: string }) => Promise<any>;
+  saveBacktest?: (args: {
+    strategyVersionId: string;
+    symbolSet: unknown;
+    window: unknown;
+    metrics: unknown;
+    equityCurve: unknown;
+    assumptions: unknown;
+  }) => Promise<any>;
+  updateStrategyStatus?: (args: { id: string; status: string }) => Promise<any>;
 }
 
 /**
@@ -97,6 +130,13 @@ export function createFinanceTools(
   let createResearchFn = deps.createResearch;
   let updateResearchFn = deps.updateResearch;
   let getResearchFn = deps.getResearchById;
+  let createStrategyFn = deps.createStrategy;
+  let listStrategiesFn = deps.listStrategiesByChat;
+  let getStrategyFn = deps.getStrategyById;
+  let createStrategyVersionFn = deps.createStrategyVersion;
+  let getStrategyVersionFn = deps.getStrategyVersion;
+  let saveBacktestFn = deps.saveBacktest;
+  let updateStrategyStatusFn = deps.updateStrategyStatus;
 
   /** Helper to persist an analysis record */
   async function persistAnalysis(
@@ -380,6 +420,214 @@ export function createFinanceTools(
           emitUIEvent({ type: 'focus_area', payload: params });
           await persistAnalysis('focus_area', params, { ok: true });
           return { ok: true };
+        },
+      }),
+    },
+
+    strategy: {
+      /**
+       * Start a strategy definition wizard by returning key questions
+       * the assistant should ask the user.
+       */
+      start_wizard: tool({
+        description: 'List questions to gather strategy requirements',
+        inputSchema: z.object({}).optional(),
+        execute: async () => {
+          return [
+            { key: 'horizon', question: 'Quel est votre horizon de placement ?' },
+            { key: 'risk', question: 'Quel niveau de risque tolérez-vous ?' },
+            { key: 'universe', question: "Sur quels actifs souhaitez-vous vous concentrer ?" },
+            { key: 'frequency', question: 'À quelle fréquence souhaitez-vous trader ?' },
+            { key: 'costs', question: 'Quels frais et slippage souhaitez-vous modéliser ?' },
+            { key: 'esg', question: 'Avez-vous des restrictions ESG ?' },
+            { key: 'maxDrawdown', question: 'Quel drawdown maximum est acceptable ?' },
+          ];
+        },
+      }),
+
+      /**
+       * Propose an initial rule set for a strategy and persist it.
+       */
+      propose: tool({
+        description: 'Propose une stratégie initiale à partir des réponses du questionnaire',
+        inputSchema: z.object({
+          title: z.string(),
+          answers: z.record(z.any()),
+          universe: z.any().optional(),
+          constraints: z.any().optional(),
+        }),
+        execute: async ({ title, answers, universe = {}, constraints = {} }) => {
+          if (!createStrategyFn) {
+            const mod = await import('../db/queries');
+            createStrategyFn = mod.createStrategy;
+            createStrategyVersionFn = mod.createStrategyVersion;
+          }
+          const strat = await createStrategyFn({
+            userId: ctx.userId,
+            chatId: ctx.chatId,
+            title,
+            universe,
+            constraints,
+            status: 'draft',
+          });
+          // Very naive rule proposal: moving average crossover with fixed params.
+          const rules = { type: 'ma_crossover', params: { short: 50, long: 200 } };
+          const version = await createStrategyVersionFn({
+            strategyId: strat.id,
+            description: 'Proposition initiale',
+            rules,
+            params: rules.params,
+          });
+          return { strategy: strat, version };
+        },
+      }),
+
+      /** List strategies for a given chat. */
+      list: tool({
+        description: 'Lister les stratégies d\'un chat',
+        inputSchema: z
+          .object({
+            chatId: z.string().optional(),
+            cursor: z.string().optional(),
+            limit: z.number().int().positive().optional(),
+          })
+          .optional(),
+        execute: async ({ chatId, cursor, limit } = {}) => {
+          if (!listStrategiesFn) {
+            const mod = await import('../db/queries');
+            listStrategiesFn = mod.listStrategiesByChat;
+          }
+          return listStrategiesFn({
+            chatId: chatId ?? ctx.chatId,
+            cursor: cursor ? new Date(cursor) : undefined,
+            limit,
+          });
+        },
+      }),
+
+      /** Fetch a strategy by its identifier. */
+      get: tool({
+        description: 'Récupérer une stratégie par identifiant',
+        inputSchema: z.object({ id: z.string() }),
+        execute: async ({ id }) => {
+          if (!getStrategyFn) {
+            const mod = await import('../db/queries');
+            getStrategyFn = mod.getStrategyById;
+          }
+          return getStrategyFn({ id });
+        },
+      }),
+
+      /**
+       * Run a backtest for a strategy version across one or more symbols.
+       */
+      backtest: tool({
+        description: 'Backtester une version de stratégie',
+        inputSchema: z.object({
+          versionId: z.string(),
+          symbols: z.array(z.string()),
+          timeframe: z.string(),
+          range: z.string().optional(),
+          costs: z.number().nonnegative().default(0),
+          slippage: z.number().nonnegative().default(0),
+        }),
+        execute: async ({
+          versionId,
+          symbols,
+          timeframe,
+          range,
+          costs,
+          slippage,
+        }) => {
+          if (!getStrategyVersionFn || !saveBacktestFn) {
+            const mod = await import('../db/queries');
+            getStrategyVersionFn = mod.getStrategyVersion;
+            saveBacktestFn = mod.saveBacktest;
+          }
+          const version = await getStrategyVersionFn({ id: versionId });
+          if (!version) throw new Error('strategy version not found');
+          const symbol = symbols[0];
+          const candles = await fetchOHLC(symbol, timeframe, { range });
+          const closes = candles.map((c: any) => c.close);
+          let signals;
+          switch (version.rules?.type) {
+            case 'rsi_reversion':
+              signals = rsiReversion(closes, version.rules.params?.period, version.rules.params?.oversold, version.rules.params?.overbought).signals;
+              break;
+            case 'breakout_bb':
+              signals = breakoutBB(closes, version.rules.params?.period, version.rules.params?.multiplier).signals;
+              break;
+            default:
+              signals = maCrossover(closes, version.rules.params?.short, version.rules.params?.long).signals;
+          }
+          const signalMap: Record<number, 'enter' | 'exit'> = {};
+          for (const s of signals) signalMap[s.index] = s.type;
+          const bt = runBacktest({
+            candles,
+            signals: signalMap,
+            costs,
+            slippage,
+          });
+          await saveBacktestFn({
+            strategyVersionId: versionId,
+            symbolSet: symbols,
+            window: { timeframe, range },
+            metrics: bt.metrics,
+            equityCurve: bt.equityCurve,
+            assumptions: { costs, slippage },
+          });
+          return bt;
+        },
+      }),
+
+      /**
+       * Create a refined version of an existing strategy based on feedback.
+       */
+      refine: tool({
+        description: 'Créer une nouvelle version en incorporant le feedback',
+        inputSchema: z.object({
+          versionId: z.string(),
+          feedback: z.string(),
+        }),
+        execute: async ({ versionId, feedback }) => {
+          if (!getStrategyVersionFn || !createStrategyVersionFn) {
+            const mod = await import('../db/queries');
+            getStrategyVersionFn = mod.getStrategyVersion;
+            createStrategyVersionFn = mod.createStrategyVersion;
+          }
+          const prev = await getStrategyVersionFn({ id: versionId });
+          if (!prev) throw new Error('strategy version not found');
+          const next = await createStrategyVersionFn({
+            strategyId: prev.strategyId,
+            description: prev.description,
+            rules: prev.rules,
+            params: prev.params,
+            notes: feedback,
+          });
+          return next;
+        },
+      }),
+
+      /** Finalize a strategy by marking it as validated. */
+      finalize: tool({
+        description: 'Marquer la stratégie comme validée',
+        inputSchema: z.object({ versionId: z.string() }),
+        execute: async ({ versionId }) => {
+          if (
+            !getStrategyVersionFn ||
+            !updateStrategyStatusFn
+          ) {
+            const mod = await import('../db/queries');
+            getStrategyVersionFn = mod.getStrategyVersion;
+            updateStrategyStatusFn = mod.updateStrategyStatus;
+          }
+          const version = await getStrategyVersionFn({ id: versionId });
+          if (!version) throw new Error('strategy version not found');
+          const strat = await updateStrategyStatusFn({
+            id: version.strategyId,
+            status: 'validated',
+          });
+          return strat;
         },
       }),
     },

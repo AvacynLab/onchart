@@ -3,7 +3,8 @@
  * The key is generally the request URL and parameters stringified.
  * Older entries are evicted when capacity is exceeded.
  */
-import { DataSourceError, ParseError } from './errors';
+import { ParseError } from './errors';
+import { fetchWithRetry } from './request';
 
 interface CacheEntry<T> {
   value: T;
@@ -13,6 +14,11 @@ interface CacheEntry<T> {
 
 const CAPACITY = 100; // maximum number of entries
 const store = new Map<string, CacheEntry<unknown>>();
+
+/** Default TTL for intraday data (approx. 15s). */
+export const INTRADAY_TTL_MS = 15_000;
+/** Default TTL for daily data (approx. 5min). */
+export const DAILY_TTL_MS = 300_000;
 
 /**
  * Retrieve a value from cache if it exists and has not expired.
@@ -43,18 +49,25 @@ export function setCache<T>(key: string, value: T, ttlMs: number): void {
 }
 
 /**
+ * Manually invalidate a cache entry. Used when real-time streams (e.g.
+ * WebSocket prices) require bypassing stale cached data.
+ */
+export function invalidateCache(key: string): void {
+  store.delete(key);
+}
+
+/**
  * Convenience wrapper to fetch a URL and cache the parsed JSON response.
  * @param ttlMs Time to live for the cache entry
  */
-export async function cachedJsonFetch<T>(url: string, ttlMs: number): Promise<T> {
+export async function cachedJsonFetch<T>(
+  url: string,
+  ttlMs: number,
+  fetchImpl: typeof fetch = fetch,
+): Promise<T> {
   const cached = getCache<T>(url);
   if (cached) return cached;
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new DataSourceError(
-      `Failed to fetch ${url}: ${res.status} ${res.statusText}`,
-    );
-  }
+  const res = await fetchWithRetry(url, { fetcher: fetchImpl });
   let data: T;
   try {
     data = (await res.json()) as T;

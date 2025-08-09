@@ -220,3 +220,55 @@ export const attentionMarker = pgTable('AttentionMarker', {
 });
 
 export type AttentionMarker = InferSelectModel<typeof attentionMarker>;
+
+export const strategy = pgTable('Strategy', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  userId: uuid('userId')
+    .notNull()
+    .references(() => user.id),
+  chatId: uuid('chatId')
+    .notNull()
+    .references(() => chat.id),
+  title: text('title').notNull(),
+  universe: jsonb('universe').notNull(),
+  constraints: jsonb('constraints').notNull(),
+  status: varchar('status', {
+    enum: ['draft', 'proposed', 'validated'],
+    length: 16,
+  })
+    .notNull()
+    .default('draft'),
+  createdAt: timestamp('createdAt').notNull(),
+  updatedAt: timestamp('updatedAt').notNull(),
+});
+
+export type Strategy = InferSelectModel<typeof strategy>;
+
+export const strategyVersion = pgTable('StrategyVersion', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  strategyId: uuid('strategyId')
+    .notNull()
+    .references(() => strategy.id),
+  description: text('description'),
+  rules: jsonb('rules').notNull(),
+  params: jsonb('params').notNull(),
+  notes: text('notes'),
+  createdAt: timestamp('createdAt').notNull(),
+});
+
+export type StrategyVersion = InferSelectModel<typeof strategyVersion>;
+
+export const strategyBacktest = pgTable('StrategyBacktest', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  strategyVersionId: uuid('strategyVersionId')
+    .notNull()
+    .references(() => strategyVersion.id),
+  symbolSet: jsonb('symbolSet').notNull(),
+  window: jsonb('window').notNull(),
+  metrics: jsonb('metrics').notNull(),
+  equityCurve: jsonb('equityCurve').notNull(),
+  assumptions: jsonb('assumptions').notNull(),
+  createdAt: timestamp('createdAt').notNull(),
+});
+
+export type StrategyBacktest = InferSelectModel<typeof strategyBacktest>;

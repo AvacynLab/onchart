@@ -30,6 +30,9 @@ import {
   analysis,
   research,
   attentionMarker,
+  strategy,
+  strategyVersion,
+  strategyBacktest,
 } from './schema';
 import type { ArtifactKind } from '@/components/artifact';
 import { generateUUID } from '../utils';
@@ -775,6 +778,314 @@ export async function deleteAttentionMarker({
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to delete attention marker',
+    );
+  }
+}
+
+// --- Strategy persistence helpers ---
+
+export async function createStrategy({
+  userId,
+  chatId,
+  title,
+  universe,
+  constraints,
+  status = 'draft',
+}: {
+  userId: string;
+  chatId: string;
+  title: string;
+  universe: unknown;
+  constraints: unknown;
+  status?: 'draft' | 'proposed' | 'validated';
+}) {
+  try {
+    const [row] = await db
+      .insert(strategy)
+      .values({
+        userId,
+        chatId,
+        title,
+        universe,
+        constraints,
+        status,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    return row;
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to create strategy');
+  }
+}
+
+export async function listStrategiesByChat({
+  chatId,
+  cursor,
+  limit = 10,
+}: {
+  chatId: string;
+  /** Return entries strictly older than this timestamp */
+  cursor?: Date;
+  /** Maximum number of rows to return */
+  limit?: number;
+}) {
+  try {
+    const rows = await db
+      .select()
+      .from(strategy)
+      .where(
+        cursor
+          ? and(eq(strategy.chatId, chatId), lt(strategy.updatedAt, cursor))
+          : eq(strategy.chatId, chatId),
+      )
+      .orderBy(desc(strategy.updatedAt))
+      .limit(limit + 1); // Fetch one extra to detect next page
+
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, limit) : rows;
+    const nextCursor = hasMore
+      ? items[items.length - 1]?.updatedAt ?? null
+      : null;
+    return { items, nextCursor };
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to list strategies by chat',
+    );
+  }
+}
+
+export async function getStrategyById({
+  id,
+}: {
+  id: string;
+}) {
+  try {
+    const [row] = await db
+      .select()
+      .from(strategy)
+      .where(eq(strategy.id, id));
+    return row;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get strategy by id',
+    );
+  }
+}
+
+export async function createStrategyVersion({
+  strategyId,
+  description,
+  rules,
+  params,
+  notes,
+}: {
+  strategyId: string;
+  description?: string;
+  rules: unknown;
+  params: unknown;
+  notes?: string;
+}) {
+  try {
+    const [row] = await db
+      .insert(strategyVersion)
+      .values({
+        strategyId,
+        description,
+        rules,
+        params,
+        notes,
+        createdAt: new Date(),
+      })
+      .returning();
+    return row;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create strategy version',
+    );
+  }
+}
+
+export async function saveBacktest({
+  strategyVersionId,
+  symbolSet,
+  window,
+  metrics,
+  equityCurve,
+  assumptions,
+}: {
+  strategyVersionId: string;
+  symbolSet: unknown;
+  window: unknown;
+  metrics: unknown;
+  equityCurve: unknown;
+  assumptions: unknown;
+}) {
+  try {
+    const [row] = await db
+      .insert(strategyBacktest)
+      .values({
+        strategyVersionId,
+        symbolSet,
+        window,
+        metrics,
+        equityCurve,
+        assumptions,
+        createdAt: new Date(),
+      })
+      .returning();
+    return row;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to save strategy backtest',
+    );
+  }
+}
+
+export async function getStrategyVersion({
+  id,
+}: {
+  id: string;
+}) {
+  try {
+    const [row] = await db
+      .select()
+      .from(strategyVersion)
+      .where(eq(strategyVersion.id, id));
+    return row;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get strategy version',
+    );
+  }
+}
+
+export async function updateStrategyStatus({
+  id,
+  status,
+}: {
+  id: string;
+  status: 'draft' | 'proposed' | 'validated';
+}) {
+  try {
+    const [row] = await db
+      .update(strategy)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(strategy.id, id))
+      .returning();
+    return row;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update strategy status',
+    );
+  }
+}
+
+/**
+ * Fetch the latest message for a list of chats in a single query to avoid N+1 lookups.
+ * Returns one entry per chat id with the raw message parts.
+ */
+export async function getLastMessagesByChatIds({
+  chatIds,
+}: {
+  chatIds: string[];
+}) {
+  if (chatIds.length === 0) return [];
+  try {
+    const rows = await db
+      .select({
+        chatId: message.chatId,
+        parts: message.parts,
+        createdAt: message.createdAt,
+      })
+      .from(message)
+      .where(inArray(message.chatId, chatIds))
+      .orderBy(desc(message.createdAt));
+    const latest = new Map<string, { chatId: string; parts: unknown }>();
+    for (const row of rows) {
+      if (!latest.has(row.chatId)) {
+        latest.set(row.chatId, { chatId: row.chatId, parts: row.parts });
+      }
+    }
+    return Array.from(latest.values());
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get last messages by chat ids',
+    );
+  }
+}
+
+/**
+ * List all strategies for chats belonging to a user.
+ */
+export async function listStrategiesByUser({
+  userId,
+}: {
+  userId: string;
+}) {
+  try {
+    return await db
+      .select({ strategy, chat })
+      .from(strategy)
+      .innerJoin(chat, eq(strategy.chatId, chat.id))
+      .where(eq(chat.userId, userId))
+      .orderBy(desc(strategy.updatedAt));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to list strategies by user',
+    );
+  }
+}
+
+/**
+ * List analyses and research documents for chats belonging to a user.
+ */
+export async function listAnalysesAndResearchByUser({
+  userId,
+}: {
+  userId: string;
+}) {
+  try {
+    const analysesRows = await db
+      .select({
+        id: analysis.id,
+        chatId: analysis.chatId,
+        chatTitle: chat.title,
+        type: analysis.type,
+        date: analysis.createdAt,
+        title: analysis.type,
+        input: analysis.input,
+      })
+      .from(analysis)
+      .innerJoin(chat, eq(analysis.chatId, chat.id))
+      .where(eq(chat.userId, userId));
+
+    const researchRows = await db
+      .select({
+        id: research.id,
+        chatId: research.chatId,
+        chatTitle: chat.title,
+        type: research.kind,
+        date: research.updatedAt,
+        title: research.title,
+      })
+      .from(research)
+      .innerJoin(chat, eq(research.chatId, chat.id))
+      .where(eq(chat.userId, userId));
+
+    return [...analysesRows, ...researchRows];
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to list analyses and research by user',
     );
   }
 }

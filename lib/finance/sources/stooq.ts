@@ -1,6 +1,7 @@
 import Papa from 'papaparse';
-import { getCache, setCache } from '../cache';
+import { getCache, setCache, DAILY_TTL_MS } from '../cache';
 import { rateLimit } from '../rate-limit';
+import fetchWithRetry from '../request';
 
 export interface Candle {
   time: number; // unix timestamp
@@ -27,8 +28,7 @@ export async function fetchDailyStooq(symbol: string): Promise<Candle[]> {
   const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(sym)}&i=d`;
   const cached = getCache<Candle[]>(url);
   if (cached) return cached;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
+  const res = await fetchWithRetry(url);
   const text = await res.text();
   const { data } = Papa.parse(text.trim(), { header: true, dynamicTyping: true });
   const candles = (data as any[]).map((row) => ({
@@ -39,6 +39,6 @@ export async function fetchDailyStooq(symbol: string): Promise<Candle[]> {
     close: Number(row.Close),
     volume: Number(row.Volume) || 0,
   }));
-  setCache(url, candles, 300_000);
+  setCache(url, candles, DAILY_TTL_MS);
   return candles;
 }
