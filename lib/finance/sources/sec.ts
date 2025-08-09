@@ -1,6 +1,7 @@
 import { load } from 'cheerio';
 import { getCache, setCache } from '../cache';
 import { rateLimit } from '../rate-limit';
+import fetchWithRetry from '../request';
 
 /**
  * User agent string required by the SEC when scraping their APIs.
@@ -29,10 +30,10 @@ async function secJsonFetch<T>(
 ): Promise<T> {
   const cached = getCache<T>(url);
   if (cached) return cached;
-  const res = await fetchImpl(url, { headers: { 'User-Agent': USER_AGENT } });
-  if (!res.ok) {
-    throw new Error(`SEC request failed ${res.status} ${res.statusText}`);
-  }
+  const res = await fetchWithRetry(url, {
+    fetcher: fetchImpl,
+    init: { headers: { 'User-Agent': USER_AGENT } },
+  });
   const data = (await res.json()) as T;
   setCache(url, data, ttlMs);
   return data;
@@ -121,8 +122,10 @@ export async function fetchFilingDocument(
   fetchImpl: typeof fetch = fetch,
 ): Promise<string> {
   await rateLimit('sec');
-  const res = await fetchImpl(url, { headers: { 'User-Agent': USER_AGENT } });
-  if (!res.ok) throw new Error(`Failed to fetch filing ${res.status}`);
+  const res = await fetchWithRetry(url, {
+    fetcher: fetchImpl,
+    init: { headers: { 'User-Agent': USER_AGENT } },
+  });
   const html = await res.text();
   const $ = load(html);
   return $('body').text().replace(/\s+/g, ' ').trim();

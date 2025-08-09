@@ -7,6 +7,8 @@
     Chat SDK is a free, open-source template built with Next.js and the AI SDK that helps you quickly build powerful chatbot applications.
 </p>
 
+![Dashboard preview](public/dashboard.png)
+
 <p align="center">
   <a href="https://chat-sdk.dev"><strong>Read Docs</strong></a> ·
   <a href="#features"><strong>Features</strong></a> ·
@@ -33,6 +35,7 @@
   - [Vercel Blob](https://vercel.com/storage/blob) for efficient file storage
 - [Auth.js](https://authjs.dev)
   - Simple and secure authentication
+- Dashboard bento layout with live prices, latest news, strategy and analysis tiles
 
 ## Model Providers
 

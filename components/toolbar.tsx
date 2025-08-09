@@ -23,6 +23,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useToolbarStore } from './toolbar-store';
 
 import { ArrowUpIcon, StopIcon } from './icons';
 import { artifactDefinitions, type ArtifactKind } from './artifact';
@@ -31,13 +32,17 @@ import { financeToolbarItems } from './finance/toolbar-items';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { ChatMessage } from '@/lib/types';
 
+/**
+ * Toolbar listing quick actions. It now relies on the shared toolbar store
+ * so that other components, like the dashboard Menu tile, can toggle its
+ * visibility without rendering a global overlay.
+ */
+
 type ToolProps = {
   description: string;
   icon: ReactNode;
   selectedTool: string | null;
   setSelectedTool: Dispatch<SetStateAction<string | null>>;
-  isToolbarVisible?: boolean;
-  setIsToolbarVisible?: Dispatch<SetStateAction<boolean>>;
   isAnimating: boolean;
   sendMessage: UseChatHelpers<ChatMessage>['sendMessage'];
   onClick: ({
@@ -52,12 +57,11 @@ const Tool = ({
   icon,
   selectedTool,
   setSelectedTool,
-  isToolbarVisible,
-  setIsToolbarVisible,
   isAnimating,
   sendMessage,
   onClick,
 }: ToolProps) => {
+  const { isVisible, setIsVisible } = useToolbarStore();
   const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
@@ -67,8 +71,8 @@ const Tool = ({
   }, [selectedTool, description]);
 
   const handleSelect = () => {
-    if (!isToolbarVisible && setIsToolbarVisible) {
-      setIsToolbarVisible(true);
+    if (!isVisible) {
+      setIsVisible(true);
       return;
     }
 
@@ -89,7 +93,12 @@ const Tool = ({
   return (
     <Tooltip open={isHovered && !isAnimating}>
       <TooltipTrigger asChild>
+        {/* Each tool acts as a keyboard-focusable button with proper ARIA state */}
         <motion.div
+          role="button"
+          tabIndex={0}
+          aria-label={description}
+          aria-pressed={selectedTool === description}
           className={cx('p-3 rounded-full', {
             'bg-primary !text-primary-foreground': selectedTool === description,
           })}
@@ -245,22 +254,19 @@ const ReadingLevelSelector = ({
 };
 
 export const Tools = ({
-  isToolbarVisible,
   selectedTool,
   setSelectedTool,
   sendMessage,
   isAnimating,
-  setIsToolbarVisible,
   tools,
 }: {
-  isToolbarVisible: boolean;
   selectedTool: string | null;
   setSelectedTool: Dispatch<SetStateAction<string | null>>;
   sendMessage: UseChatHelpers<ChatMessage>['sendMessage'];
   isAnimating: boolean;
-  setIsToolbarVisible: Dispatch<SetStateAction<boolean>>;
   tools: Array<ArtifactToolbarItem>;
 }) => {
+  const { isVisible } = useToolbarStore();
   const [primaryTool, ...secondaryTools] = tools;
 
   return (
@@ -271,7 +277,7 @@ export const Tools = ({
       exit={{ opacity: 0, scale: 0.95 }}
     >
       <AnimatePresence>
-        {isToolbarVisible &&
+        {isVisible &&
           secondaryTools.map((secondaryTool) => (
             <Tool
               key={secondaryTool.description}
@@ -291,8 +297,6 @@ export const Tools = ({
         icon={primaryTool.icon}
         selectedTool={selectedTool}
         setSelectedTool={setSelectedTool}
-        isToolbarVisible={isToolbarVisible}
-        setIsToolbarVisible={setIsToolbarVisible}
         sendMessage={sendMessage}
         isAnimating={isAnimating}
         onClick={primaryTool.onClick}
@@ -302,22 +306,19 @@ export const Tools = ({
 };
 
 const PureToolbar = ({
-  isToolbarVisible,
-  setIsToolbarVisible,
   sendMessage,
   status,
   stop,
   setMessages,
   artifactKind,
 }: {
-  isToolbarVisible: boolean;
-  setIsToolbarVisible: Dispatch<SetStateAction<boolean>>;
   status: UseChatHelpers<ChatMessage>['status'];
   sendMessage: UseChatHelpers<ChatMessage>['sendMessage'];
   stop: UseChatHelpers<ChatMessage>['stop'];
   setMessages: UseChatHelpers<ChatMessage>['setMessages'];
   artifactKind: ArtifactKind;
 }) => {
+  const { isVisible, setIsVisible } = useToolbarStore();
   const toolbarRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
@@ -325,7 +326,7 @@ const PureToolbar = ({
   const [isAnimating, setIsAnimating] = useState(false);
 
   useOnClickOutside(toolbarRef, () => {
-    setIsToolbarVisible(false);
+    setIsVisible(false);
     setSelectedTool(null);
   });
 
@@ -336,7 +337,7 @@ const PureToolbar = ({
 
     timeoutRef.current = setTimeout(() => {
       setSelectedTool(null);
-      setIsToolbarVisible(false);
+      setIsVisible(false);
     }, 2000);
   };
 
@@ -356,9 +357,9 @@ const PureToolbar = ({
 
   useEffect(() => {
     if (status === 'streaming') {
-      setIsToolbarVisible(false);
+      setIsVisible(false);
     }
-  }, [status, setIsToolbarVisible]);
+  }, [status, setIsVisible]);
 
   const artifactDefinition = artifactDefinitions.find(
     (definition) => definition.kind === artifactKind,
@@ -379,12 +380,15 @@ const PureToolbar = ({
   }
 
   return (
-    <TooltipProvider delayDuration={0}>
+      <TooltipProvider delayDuration={0}>
+      {/* Toolbar container with ARIA role for assistive technologies */}
       <motion.div
-        className="cursor-pointer absolute right-6 bottom-6 p-1.5 border rounded-full shadow-lg bg-background flex flex-col justify-end"
+        role="toolbar"
+        aria-label="Outils rapides"
+        className="cursor-pointer p-1.5 border rounded-full shadow-lg bg-background flex flex-col justify-end"
         initial={{ opacity: 0, y: -20, scale: 1 }}
         animate={
-          isToolbarVisible
+          isVisible
             ? selectedTool === 'adjust-reading-level'
               ? {
                   opacity: 1,
@@ -408,7 +412,7 @@ const PureToolbar = ({
           if (status === 'streaming') return;
 
           cancelCloseTimer();
-          setIsToolbarVisible(true);
+          setIsVisible(true);
         }}
         onHoverEnd={() => {
           if (status === 'streaming') return;
@@ -449,21 +453,18 @@ const PureToolbar = ({
             key="tools"
             sendMessage={sendMessage}
             isAnimating={isAnimating}
-            isToolbarVisible={isToolbarVisible}
             selectedTool={selectedTool}
-            setIsToolbarVisible={setIsToolbarVisible}
             setSelectedTool={setSelectedTool}
             tools={toolsByArtifactKind}
           />
         )}
       </motion.div>
-    </TooltipProvider>
+      </TooltipProvider>
   );
 };
 
 export const Toolbar = memo(PureToolbar, (prevProps, nextProps) => {
   if (prevProps.status !== nextProps.status) return false;
-  if (prevProps.isToolbarVisible !== nextProps.isToolbarVisible) return false;
   if (prevProps.artifactKind !== nextProps.artifactKind) return false;
 
   return true;

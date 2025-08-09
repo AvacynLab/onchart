@@ -1,5 +1,6 @@
-import { getCache, setCache } from '../cache';
+import { getCache, setCache, INTRADAY_TTL_MS } from '../cache';
 import { rateLimit } from '../rate-limit';
+import fetchWithRetry from '../request';
 
 export interface Candle {
   time: number; // unix timestamp
@@ -29,8 +30,7 @@ export async function fetchKlinesBinance(
   const url = `https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(sym)}&interval=${interval}&limit=${limit}`;
   const cached = getCache<Candle[]>(url);
   if (cached) return cached;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
+  const res = await fetchWithRetry(url);
   const data = (await res.json()) as any[];
   const candles = data.map((d) => ({
     time: Math.floor(d[0] / 1000),
@@ -40,6 +40,6 @@ export async function fetchKlinesBinance(
     close: Number(d[4]),
     volume: Number(d[5]),
   }));
-  setCache(url, candles, 15_000);
+  setCache(url, candles, INTRADAY_TTL_MS);
   return candles;
 }

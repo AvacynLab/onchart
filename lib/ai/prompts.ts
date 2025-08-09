@@ -40,14 +40,14 @@ export const regularPrompt =
  * interact with market data endpoints and charts.
  */
 export const financePrompt = `
-You can retrieve public market data using finance.* tools.
-Guidelines:
-- Always validate financial symbols before requesting data.
-- Specify a timeframe before calling ui.show_chart.
-- Use compute_indicators for technical analysis.
-- Provide brief numeric summaries and mention data is public and not guaranteed; this is not financial advice.
-- When drafting research documents, structure sections as Summary, Market Context, Data, Charts, Signals, Risks, and Sources.
-- Reference figures and cite sources where possible, highlighting risks alongside signals.
+Tu peux récupérer des données de marché publiques via les outils finance.*.
+Les données sont publiques, non garanties, et peuvent être incomplètes. Les réponses ne constituent pas un conseil en investissement.
+Rappels :
+- Vérifie toujours les symboles financiers avant de demander des données.
+- Précise un timeframe avant d'appeler ui.show_chart.
+- Utilise compute_indicators pour l'analyse technique.
+- Lors de la rédaction de documents, structure les sections : Résumé, Contexte, Données, Graphiques, Signaux, Risques, Sources.
+- Référence les chiffres et cite les sources lorsque possible, en soulignant les risques avec les signaux.
 `;
 
 export interface RequestHints {
