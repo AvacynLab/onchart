@@ -1,19 +1,39 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { guestRegex, isDevelopmentEnvironment } from './lib/constants';
+import { i18n, type Locale } from './i18n/config';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const segments = pathname.split('/').filter(Boolean);
+  const potentialLocale = segments[0];
+  const hasLocale = i18n.locales.includes(potentialLocale as Locale);
+  const locale = hasLocale ? (potentialLocale as Locale) : i18n.defaultLocale;
+  const pathnameWithoutLocale = hasLocale
+    ? '/' + segments.slice(1).join('/')
+    : pathname;
+
+  // Redirect requests missing a locale prefix to the default locale.
+  if (
+    !hasLocale &&
+    !pathname.startsWith('/api') &&
+    !pathname.startsWith('/_next') &&
+    pathname !== '/favicon.ico'
+  ) {
+    return NextResponse.redirect(
+      new URL(`/${i18n.defaultLocale}${pathname}`, request.url),
+    );
+  }
 
   /*
    * Playwright starts the dev server and requires a 200 status to
    * begin the tests, so this ensures that the tests can start
    */
-  if (pathname.startsWith('/ping')) {
+  if (pathnameWithoutLocale.startsWith('/ping')) {
     return new Response('pong', { status: 200 });
   }
 
-  if (pathname.startsWith('/api/auth')) {
+  if (pathnameWithoutLocale.startsWith('/api/auth')) {
     return NextResponse.next();
   }
 
@@ -33,11 +53,18 @@ export async function middleware(request: NextRequest) {
 
   const isGuest = guestRegex.test(token?.email ?? '');
 
-  if (token && !isGuest && ['/login', '/register'].includes(pathname)) {
-    return NextResponse.redirect(new URL('/', request.url));
+  if (
+    token &&
+    !isGuest &&
+    ['/login', '/register'].includes(pathnameWithoutLocale)
+  ) {
+    return NextResponse.redirect(new URL(`/${locale}`, request.url));
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  // Expose the resolved locale so `getLocale()` can read it server-side.
+  response.headers.set('x-next-intl-locale', locale);
+  return response;
 }
 
 export const config = {

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useId } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import BentoCard from '../BentoCard';
 import StrategyWizard, { WizardAnswers } from '@/components/finance/StrategyWizard';
 import StrategyCard from '@/components/finance/StrategyCard';
@@ -12,35 +13,46 @@ interface Props {
   /** Cursor returned by the initial page; null when no more data. */
   initialCursor?: string | null;
   chatId?: string;
+  /** id of the title element so lists can reference it */
+  titleId?: string;
 }
 
 /**
  * Client component handling creation of strategies through the wizard and
  * rendering the list of existing entries.
  */
-export default function StrategiesTileClient({ initial, initialCursor, chatId }: Props) {
+export default function StrategiesTileClient({
+  initial,
+  initialCursor,
+  chatId,
+  titleId: externalTitleId,
+}: Props) {
+  const t = useTranslations('dashboard.strategies');
+  const locale = useLocale();
   const [items, setItems] = useState<Strategy[]>(initial);
   const [cursor, setCursor] = useState<string | null | undefined>(initialCursor);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  // Generate a title id if the parent did not provide one.
+  const titleId = externalTitleId ?? useId();
 
   async function handleComplete(data: WizardAnswers) {
     if (!chatId) return;
     try {
-      const res = await fetch('/api/finance/strategy', {
+      const res = await fetch('/api/finance/strategy/wizard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: 'demo',
           chatId,
+          locale,
           title: `Stratégie ${Date.now()}`,
-          universe: { note: data.universe },
-          constraints: { horizon: data.horizon, risk: data.risk, fees: data.fees },
+          answers: data,
         }),
       });
       if (res.ok) {
-        const created = (await res.json()) as Strategy;
-        setItems([...items, created]);
+        const created = (await res.json()) as { strategy: Strategy };
+        setItems([...items, created.strategy]);
       }
     } catch (err) {
       console.error('failed to create strategy', err);
@@ -69,11 +81,11 @@ export default function StrategiesTileClient({ initial, initialCursor, chatId }:
 
   function StrategyList({ items }: { items: Strategy[] }) {
     if (items.length === 0) {
-      return <StrategiesTileEmpty />;
+      return <StrategiesTileEmpty message={t('empty')} />;
     }
     return (
       <div>
-        <ul className="space-y-2">
+        <ul className="space-y-2" aria-labelledby={titleId}>
           {items.map((s) => (
             <li key={s.id}>
               <StrategyCard strategy={s} />
@@ -84,9 +96,9 @@ export default function StrategiesTileClient({ initial, initialCursor, chatId }:
           <button
             onClick={loadMore}
             disabled={loading}
-            className="mt-2 text-xs underline"
+            className="mt-2 text-xs underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
           >
-            {loading ? 'Chargement…' : 'Afficher plus'}
+            {loading ? t('loading') : t('loadMore')}
           </button>
         )}
       </div>
@@ -95,14 +107,22 @@ export default function StrategiesTileClient({ initial, initialCursor, chatId }:
 
   return (
     <BentoCard
-      title="Mes stratégies"
+      title={t('title')}
+      titleId={titleId}
       actions={
-        <button onClick={() => setOpen((v) => !v)} className="text-xs underline">
-          {open ? 'Annuler' : 'Créer'}
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="text-xs underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+        >
+          {open ? t('cancel') : t('create')}
         </button>
       }
     >
-      {open ? <StrategyWizard onComplete={handleComplete} /> : <StrategyList items={items} />}
+      {open ? (
+        <StrategyWizard onComplete={handleComplete} />
+      ) : (
+        <StrategyList items={items} />
+      )}
     </BentoCard>
   );
 }

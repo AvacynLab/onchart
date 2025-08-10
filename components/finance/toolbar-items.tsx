@@ -1,35 +1,42 @@
 import React from 'react';
 import { LineChartIcon, SummarizeIcon } from '../icons';
 import type { ArtifactToolbarItem } from '../create-artifact';
+import { useTranslations } from 'next-intl';
 
 /**
- * Finance related quick actions displayed in the main toolbar. Each item sends
- * a pre-defined message to the chat so the agent can execute finance tools.
+ * Build finance-related quick action items using the provided translator.
  */
-export const financeToolbarItems: ArtifactToolbarItem[] = [
-  {
-    icon: <LineChartIcon />, 
-    description: 'Afficher AAPL 1D',
-    onClick: ({ sendMessage }) => {
-      sendMessage({
-        role: 'user',
-        parts: [{ type: 'text', text: 'Affiche le graphique AAPL en 1D' }],
-      });
+export function getFinanceToolbarItems(
+  t: (path: string) => string,
+): ArtifactToolbarItem[] {
+  return [
+    {
+      icon: <LineChartIcon />,
+      description: t('toolbar.showAAPL.label'),
+      onClick: ({ sendMessage }) => {
+        sendMessage({
+          role: 'user',
+          parts: [{ type: 'text', text: t('toolbar.showAAPL.prompt') }],
+        });
+      },
     },
-  },
-  {
-    icon: <SummarizeIcon />,
-    description: 'Scanner opportunités FX',
-    onClick: ({ sendMessage }) => {
-      sendMessage({
-        role: 'user',
-        parts: [
-          {
-            type: 'text',
-            text: 'Scanne les opportunités sur les paires FX majeures',
-          },
-        ],
-      });
+    {
+      icon: <SummarizeIcon />,
+      description: t('toolbar.scanFx.label'),
+      onClick: ({ sendMessage }) => {
+        sendMessage({
+          role: 'user',
+          parts: [{ type: 'text', text: t('toolbar.scanFx.prompt') }],
+        });
+      },
     },
-  },
-];
+  ];
+}
+
+/**
+ * Hook returning localized finance quick actions for the active locale.
+ */
+export function useFinanceToolbarItems(): ArtifactToolbarItem[] {
+  const t = useTranslations('finance');
+  return getFinanceToolbarItems(t);
+}

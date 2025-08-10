@@ -2,6 +2,8 @@ import { Toaster } from 'sonner';
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
+import { NextIntlClientProvider } from 'next-intl';
+import { getMessages, getLocale } from 'next-intl/server';
 
 import './globals.css';
 import { SessionProvider } from 'next-auth/react';
@@ -54,9 +56,17 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+  // Gather all namespaces for the resolved locale so translations are available.
+  const messages = {
+    ...(await import(`../messages/${locale}/common.json`)).default,
+    ...(await import(`../messages/${locale}/dashboard.json`)).default,
+    ...(await import(`../messages/${locale}/finance.json`)).default,
+  };
+
   return (
     <html
-      lang="en"
+      lang={locale}
       // `next-themes` injects an extra classname to the body element to avoid
       // visual flicker before hydration. Hence the `suppressHydrationWarning`
       // prop is necessary to avoid the React hydration mismatch warning.
@@ -72,17 +82,19 @@ export default async function RootLayout({
         />
       </head>
       <body className="antialiased">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <Toaster position="top-center" />
-          <SessionProvider>
-            <ToolbarProvider>{children}</ToolbarProvider>
-          </SessionProvider>
-        </ThemeProvider>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <Toaster position="top-center" />
+            <SessionProvider>
+              <ToolbarProvider>{children}</ToolbarProvider>
+            </SessionProvider>
+          </ThemeProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

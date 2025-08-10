@@ -1,0 +1,44 @@
+{
+  "title": "Dashboard",
+  "prices": {
+    "title": "Current prices",
+    "symbol": "Symbol",
+    "price": "Price",
+    "change": "Chg. %",
+    "state": {
+      "label": "State",
+      "open": "Open",
+      "closed": "Closed"
+    },
+    "empty": "No prices to display"
+  },
+  "news": {
+    "title": "Latest news",
+    "empty": "No news available"
+  },
+  "strategies": {
+    "title": "My strategies",
+    "create": "Create",
+    "cancel": "Cancel",
+    "loadMore": "Show more",
+    "loading": "Loading…",
+    "empty": "No strategies saved"
+  },
+  "analyses": {
+    "title": "My analyses",
+    "filters": {
+      "allTypes": "All types",
+      "symbol": "Symbol",
+      "typeLabel": "Filter by type",
+      "symbolLabel": "Filter by symbol"
+    },
+    "empty": "No analyses saved"
+  },
+  "menu": {
+    "title": "Menu",
+    "toggle": "Toggle menu",
+    "open": "Open",
+    "close": "Close",
+    "hidden": "Menu hidden"
+  }
+}

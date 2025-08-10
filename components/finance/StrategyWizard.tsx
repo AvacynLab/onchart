@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 /**
  * Answers collected from the strategy creation wizard.
@@ -23,6 +24,7 @@ interface Props {
  * simple and testable.
  */
 export default function StrategyWizard({ onComplete }: Props) {
+  const t = useTranslations('finance.wizard');
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<WizardAnswers>({
     horizon: '',
@@ -36,10 +38,10 @@ export default function StrategyWizard({ onComplete }: Props) {
     name: keyof WizardAnswers;
     type: string;
   }> = [
-    { label: "Horizon d'investissement", name: 'horizon', type: 'text' },
-    { label: 'Tolérance au risque', name: 'risk', type: 'text' },
-    { label: 'Univers de titres', name: 'universe', type: 'text' },
-    { label: 'Frais (%)', name: 'fees', type: 'number' },
+    { label: t('horizon'), name: 'horizon', type: 'text' },
+    { label: t('risk'), name: 'risk', type: 'text' },
+    { label: t('universe'), name: 'universe', type: 'text' },
+    { label: t('fees'), name: 'fees', type: 'number' },
   ];
 
   const current = fields[step];
@@ -72,7 +74,7 @@ export default function StrategyWizard({ onComplete }: Props) {
         />
       </label>
       <button type="submit" className="self-end underline text-xs">
-        {step < fields.length - 1 ? 'Suivant' : 'Terminer'}
+        {step < fields.length - 1 ? t('next') : t('finish')}
       </button>
     </form>
   );

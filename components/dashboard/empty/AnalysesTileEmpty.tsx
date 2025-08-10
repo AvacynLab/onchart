@@ -1,7 +1,16 @@
 import React from 'react';
 import ListTileEmpty from './ListTileEmpty';
 
-/** Empty state for the Analyses tile. */
-export default function AnalysesTileEmpty() {
-  return <ListTileEmpty>Aucune analyse enregistrée.</ListTileEmpty>;
+/**
+ * Empty state wrapper for the analyses tile.
+ *
+ * @param message Localised text displayed when no analyses exist.
+ */
+export default function AnalysesTileEmpty({
+  message,
+}: {
+  /** Localised empty state text */
+  message: string;
+}) {
+  return <ListTileEmpty>{message}</ListTileEmpty>;
 }

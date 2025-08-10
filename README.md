@@ -18,6 +18,8 @@
 </p>
 <br/>
 
+> ℹ️ **Données publiques, non garanties – ce projet ne fournit aucun conseil en investissement.**
+
 ## Features
 
 - [Next.js](https://nextjs.org) App Router
@@ -36,6 +38,17 @@
 - [Auth.js](https://authjs.dev)
   - Simple and secure authentication
 - Dashboard bento layout with live prices, latest news, strategy and analysis tiles
+
+## Internationalisation
+
+L’interface est bilingue **FR/EN**. La langue active dépend du préfixe d’URL :
+
+```text
+https://votre-domaine.com/fr/...  → Français
+https://votre-domaine.com/en/...  → English
+```
+
+Un sélecteur de langue dans l’entête du dashboard permet aussi de basculer instantanément entre les locales.
 
 ## Model Providers
 
@@ -74,7 +87,7 @@ Les outils financiers s'appuient sur des sources ouvertes telles que Yahoo Finan
 
 ## Usage limits
 
-Les comptes invités sont destinés à l'exploration légère et peuvent être soumis à des limites sur les analyses coûteuses ou les scans massifs.
+Les scrapers maison respectent les politiques de chaque site ; en cas de réponse lente ou de blocage, un mécanisme de **rate-limit** et de **cache** se charge de retenter ou de fournir des données périmées. Les comptes invités sont destinés à l'exploration légère et peuvent être soumis à des limites sur les analyses coûteuses ou les scans massifs.
 
 ## Legal
 

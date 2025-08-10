@@ -12,7 +12,7 @@ import { DataSourceError } from './errors';
  * flaky public endpoints.
  *
  * @param url - Request URL.
- * @param options.timeoutMs - Abort request if it exceeds this time (default 8s).
+ * @param options.timeoutMs - Abort request if it exceeds this time (default 10s).
  * @param options.retries - Number of additional attempts after the first one.
  * @param options.backoffMs - Base delay in milliseconds used for exponential backoff (default 200ms).
  * @param options.fetcher - Custom fetch implementation for tests.
@@ -21,7 +21,7 @@ import { DataSourceError } from './errors';
 export async function fetchWithRetry(
   url: string,
   {
-    timeoutMs = 8_000,
+    timeoutMs = 10_000,
     retries = 2,
     backoffMs = 200,
     fetcher = fetch,

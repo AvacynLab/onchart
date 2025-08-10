@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useId } from 'react';
+import { useTranslations } from 'next-intl';
 import BentoCard from '../BentoCard';
-import { financeToolbarItems } from '@/components/finance/toolbar-items';
+import { useFinanceToolbarItems } from '@/components/finance/toolbar-items';
 import { useToolbarStore } from '@/components/toolbar-store';
 
 /**
@@ -8,9 +9,12 @@ import { useToolbarStore } from '@/components/toolbar-store';
  * It simply lists the finance quick actions and can be toggled open/closed.
  */
 export default function MenuTile() {
+  const t = useTranslations('dashboard.menu');
   const { isVisible, setIsVisible } = useToolbarStore();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  const items = useFinanceToolbarItems();
+  const titleId = useId();
 
   // When opening the menu, move focus to the first action. When closing,
   // return focus to the toggle button. This aids keyboard navigation.
@@ -25,17 +29,18 @@ export default function MenuTile() {
 
   return (
     <BentoCard
-      title="Menu"
+      title={t('title')}
+      titleId={titleId}
       actions={
         <button
           ref={buttonRef}
-          aria-label="Basculer le menu"
+          aria-label={t('toggle')}
           aria-expanded={isVisible}
           aria-controls="dashboard-menu-list"
-          className="text-xs underline"
+          className="text-xs underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
           onClick={() => setIsVisible((v) => !v)}
         >
-          {isVisible ? 'Fermer' : 'Ouvrir'}
+          {isVisible ? t('close') : t('open')}
         </button>
       }
     >
@@ -45,20 +50,21 @@ export default function MenuTile() {
           role="menu"
           ref={listRef}
           className="space-y-2"
+          aria-labelledby={titleId}
         >
-          {financeToolbarItems.map((item) => (
+          {items.map((item) => (
             <li
               key={item.description}
               role="menuitem"
               tabIndex={0}
-              className="text-sm focus:outline-none"
+              className="text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
             >
               {item.description}
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">Menu masqué</p>
+        <p className="text-sm text-muted-foreground">{t('hidden')}</p>
       )}
     </BentoCard>
   );

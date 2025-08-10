@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useId } from 'react';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 import type { Strategy } from '@/lib/db/schema';
 import StrategyCard from '@/components/finance/StrategyCard';
 import StrategiesTileClient from './StrategiesTileClient';
@@ -77,12 +79,19 @@ async function fetchStrategiesGrouped(): Promise<StrategyGroup[]> {
   }));
 }
 
-export function StrategyList({ items }: { items: Strategy[] }) {
+export function StrategyList({
+  items,
+  labelledBy,
+}: {
+  items: Strategy[];
+  labelledBy: string;
+}) {
+  const t = useTranslations('dashboard.strategies');
   if (items.length === 0) {
-    return <StrategiesTileEmpty />;
+    return <StrategiesTileEmpty message={t('empty')} />;
   }
   return (
-    <ul className="space-y-2">
+    <ul className="space-y-2" aria-labelledby={labelledBy}>
       {items.map((s) => (
         <li key={s.id}>
           <StrategyCard strategy={s} />
@@ -104,16 +113,26 @@ export interface StrategyGroup {
  * Render grouped strategies with chat context.
  * Exported for unit testing.
  */
-export function StrategyGroupList({ groups }: { groups: StrategyGroup[] }) {
+export function StrategyGroupList({
+  groups,
+  labelledBy,
+}: {
+  groups: StrategyGroup[];
+  labelledBy: string;
+}) {
+  const t = useTranslations('dashboard.strategies');
   if (groups.length === 0) {
-    return <StrategiesTileEmpty />;
+    return <StrategiesTileEmpty message={t('empty')} />;
   }
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" aria-labelledby={labelledBy}>
       {groups.map((g) => (
         <div key={g.chatId}>
           <h3 className="font-semibold text-sm">
-            <a href={`/chat/${g.chatId}`} className="hover:underline">
+            <a
+              href={`/chat/${g.chatId}`}
+              className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+            >
               {g.chatTitle}
             </a>
           </h3>
@@ -122,7 +141,7 @@ export function StrategyGroupList({ groups }: { groups: StrategyGroup[] }) {
               {g.lastMessage}
             </p>
           )}
-          <StrategyList items={g.items} />
+          <StrategyList items={g.items} labelledBy={labelledBy} />
         </div>
       ))}
     </div>
@@ -138,6 +157,8 @@ export default async function StrategiesTile({
 }: {
   chatId?: string;
 }) {
+  const titleId = useId();
+  const t = await getTranslations('dashboard.strategies');
   if (chatId) {
     const page = await fetchStrategies(chatId);
     return (
@@ -145,13 +166,14 @@ export default async function StrategiesTile({
         initial={page.items}
         chatId={chatId}
         initialCursor={page.nextCursor}
+        titleId={titleId}
       />
     );
   }
   const groups = await fetchStrategiesGrouped();
   return (
-    <BentoCard title="Mes stratégies">
-      <StrategyGroupList groups={groups} />
+    <BentoCard title={t('title')} titleId={titleId}>
+      <StrategyGroupList groups={groups} labelledBy={titleId} />
     </BentoCard>
   );
 }
