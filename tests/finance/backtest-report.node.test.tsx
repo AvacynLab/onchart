@@ -1,8 +1,10 @@
+import '../helpers/next-intl-stub';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { JSDOM } from 'jsdom';
+import { IntlProvider } from 'next-intl';
 import BacktestReport from '../../components/finance/BacktestReport';
 
 const dom = new JSDOM('<!doctype html><html><body></body></html>');
@@ -20,20 +22,26 @@ function tick() {
 test('renders metrics table', async () => {
   const container = document.createElement('div');
   createRoot(container).render(
-    <BacktestReport
-      metrics={{
-        cagr: 12.34,
-        sharpe: 1.2,
-        sortino: 1.1,
-        maxDrawdown: 5.6,
-        hitRate: 0.55,
-        profitFactor: 1.7,
-      }}
-      curve={[{ time: 0, value: 1 }, { time: 1, value: 1.1 }]}
-    />,
+    <IntlProvider
+      locale="en"
+      messages={{ finance: { backtest: { cagr: 'CAGR', sharpe: 'Sharpe', sortino: 'Sortino', mdd: 'MDD', hitRate: 'Hit rate', profitFactor: 'Profit factor' } } }}
+    >
+      <BacktestReport
+        metrics={{
+          cagr: 12.34,
+          sharpe: 1.2,
+          sortino: 1.1,
+          maxDrawdown: 5.6,
+          hitRate: 0.55,
+          profitFactor: 1.7,
+        }}
+        curve={[{ time: 0, value: 1 }, { time: 1, value: 1.1 }]}
+      />
+    </IntlProvider>,
   );
   await tick();
   const text = container.textContent || '';
+  assert.match(text, /CAGR/);
   assert.match(text, /12\.34%/);
   assert.match(text, /1\.20/);
   assert.match(text, /55\.0%/);

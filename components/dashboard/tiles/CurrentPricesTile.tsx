@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useId } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import BentoCard from '../BentoCard';
 import {
   fetchLiveQuotes,
@@ -8,8 +9,9 @@ import {
 } from '@/lib/finance/live';
 import PricesTileEmpty from '../empty/PricesTileEmpty';
 
-/** Default symbols shown when no user history is available */
-const DEFAULT_SYMBOLS = ['AAPL', 'MSFT', 'BTC-USD'];
+/** Default symbols shown when no user history is available. Exported so the
+ *  dashboard page can prefetch the same symbols on the server. */
+export const DEFAULT_SYMBOLS = ['AAPL', 'MSFT', 'BTC-USD'];
 
 /**
  * Client component responsible for rendering the list of quotes and refreshing
@@ -21,6 +23,15 @@ export function PricesClient({
   initialQuotes: QuoteResult[];
 }) {
   'use client';
+  const t = useTranslations('dashboard.prices');
+  const locale = useLocale();
+  const numberFmt = new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  // Generate a stable id so the table can reference the card's heading via
+  // `aria-labelledby` for better screen-reader announcements.
+  const titleId = useId();
   const [quotes, setQuotes] = useState(initialQuotes);
 
   useEffect(() => {
@@ -59,24 +70,27 @@ export function PricesClient({
   }, [initialQuotes]);
 
   return (
-    <BentoCard title="Cours actuels">
+    <BentoCard title={t('title')} titleId={titleId}>
       {quotes.length === 0 ? (
-        <PricesTileEmpty />
+        <PricesTileEmpty message={t('empty')} />
       ) : (
-        <table className="w-full text-sm">
+        <table
+          className="w-full text-sm"
+          aria-labelledby={titleId}
+        >
           <thead>
             <tr>
-              <th className="text-left">Symbole</th>
-              <th className="text-right">Prix</th>
-              <th className="text-right">Var. %</th>
-              <th className="text-right">État</th>
+              <th className="text-left">{t('symbol')}</th>
+              <th className="text-right">{t('price')}</th>
+              <th className="text-right">{t('change')}</th>
+              <th className="text-right">{t('state.label')}</th>
             </tr>
           </thead>
           <tbody>
             {quotes.map((q) => (
               <tr key={q.symbol}>
                 <td>{q.symbol}</td>
-                <td className="text-right">{q.price.toFixed(2)}</td>
+                <td className="text-right">{numberFmt.format(q.price)}</td>
                 <td
                   className={
                     q.changePercent >= 0
@@ -84,7 +98,7 @@ export function PricesClient({
                       : 'text-red-600 text-right'
                   }
                 >
-                  {q.changePercent.toFixed(2)}%
+                  {numberFmt.format(q.changePercent)}%
                 </td>
                 <td className="text-right">
                   <span
@@ -94,8 +108,9 @@ export function PricesClient({
                         : 'bg-gray-100 text-gray-800 px-2 py-0.5 rounded'
                     }
                   >
-                    {/* Localize market state for French users */}
-                    {q.marketState === 'REG' ? 'Ouvert' : 'Fermé'}
+                    {q.marketState === 'REG'
+                      ? t('state.open')
+                      : t('state.closed')}
                   </span>
                 </td>
               </tr>
@@ -108,18 +123,15 @@ export function PricesClient({
 }
 
 /**
- * Server wrapper that fetches initial quotes before rendering the client
- * component. This allows the tile to be server-side rendered with data and
- * then hydrated on the client for periodic updates.
+ * Server component expecting pre-fetched quotes from the dashboard page. The
+ * heavy lifting is done in {@link PricesClient} which hydrates on the client
+ * and keeps quotes up to date.
  */
-export default async function CurrentPricesTile() {
-  try {
-    const quotes = await fetchLiveQuotes(DEFAULT_SYMBOLS);
-    return <PricesClient initialQuotes={quotes} />;
-  } catch (err) {
-    // If the initial fetch fails (e.g. network error or rate limit), log the
-    // error and render an empty tile so the dashboard still loads.
-    console.error('failed to load initial quotes', err);
-    return <PricesClient initialQuotes={[]} />;
-  }
+export default function CurrentPricesTile({
+  initialQuotes,
+}: {
+  /** Quotes rendered on first paint */
+  initialQuotes: QuoteResult[];
+}) {
+  return <PricesClient initialQuotes={initialQuotes} />;
 }

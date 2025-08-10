@@ -30,6 +30,8 @@ export interface FinanceToolContext {
   userId: string;
   /** Identifier of the chat associated with the analysis */
   chatId: string;
+  /** Locale of the user interface (e.g. 'fr' or 'en') */
+  locale?: 'fr' | 'en';
 }
 
 /**
@@ -115,6 +117,8 @@ export function createFinanceTools(
   ctx: FinanceToolContext,
   deps: FinanceDeps = {},
 ) {
+  // Default to French if no locale is provided
+  const locale = ctx.locale ?? 'fr';
   const {
     fetchQuote = fetchQuoteYahoo,
     fetchOHLC = fetchOHLCYahoo,
@@ -433,15 +437,55 @@ export function createFinanceTools(
         description: 'List questions to gather strategy requirements',
         inputSchema: z.object({}).optional(),
         execute: async () => {
-          return [
-            { key: 'horizon', question: 'Quel est votre horizon de placement ?' },
-            { key: 'risk', question: 'Quel niveau de risque tolérez-vous ?' },
-            { key: 'universe', question: "Sur quels actifs souhaitez-vous vous concentrer ?" },
-            { key: 'frequency', question: 'À quelle fréquence souhaitez-vous trader ?' },
-            { key: 'costs', question: 'Quels frais et slippage souhaitez-vous modéliser ?' },
-            { key: 'esg', question: 'Avez-vous des restrictions ESG ?' },
-            { key: 'maxDrawdown', question: 'Quel drawdown maximum est acceptable ?' },
-          ];
+          const questions =
+            locale === 'fr'
+              ? [
+                  { key: 'horizon', question: 'Quel est votre horizon de placement ?' },
+                  { key: 'risk', question: 'Quel niveau de risque tolérez-vous ?' },
+                  {
+                    key: 'universe',
+                    question: "Sur quels actifs souhaitez-vous vous concentrer ?",
+                  },
+                  {
+                    key: 'frequency',
+                    question: 'À quelle fréquence souhaitez-vous trader ?',
+                  },
+                  {
+                    key: 'costs',
+                    question: 'Quels frais et slippage souhaitez-vous modéliser ?',
+                  },
+                  { key: 'esg', question: 'Avez-vous des restrictions ESG ?' },
+                  {
+                    key: 'maxDrawdown',
+                    question: 'Quel drawdown maximum est acceptable ?',
+                  },
+                ]
+              : [
+                  { key: 'horizon', question: 'What is your investment horizon?' },
+                  {
+                    key: 'risk',
+                    question: 'What level of risk can you tolerate?',
+                  },
+                  {
+                    key: 'universe',
+                    question: 'Which assets do you want to focus on?',
+                  },
+                  {
+                    key: 'frequency',
+                    question: 'How frequently do you want to trade?',
+                  },
+                  {
+                    key: 'costs',
+                    question: 'What fees and slippage should be modeled?',
+                  },
+                  { key: 'esg', question: 'Do you have any ESG restrictions?' },
+                  {
+                    key: 'maxDrawdown',
+                    question: 'What maximum drawdown is acceptable?',
+                  },
+                ];
+          await persistAnalysis('strategy_start_wizard', {}, questions);
+          return questions;
         },
       }),
 
@@ -449,13 +493,18 @@ export function createFinanceTools(
        * Propose an initial rule set for a strategy and persist it.
        */
       propose: tool({
-        description: 'Propose une stratégie initiale à partir des réponses du questionnaire',
-        inputSchema: z.object({
-          title: z.string(),
-          answers: z.record(z.any()),
-          universe: z.any().optional(),
-          constraints: z.any().optional(),
-        }),
+        description:
+          locale === 'fr'
+            ? 'Propose une stratégie initiale à partir des réponses du questionnaire'
+            : 'Propose a strategy from questionnaire answers',
+        inputSchema: z
+          .object({
+            title: z.string(),
+            answers: z.record(z.any()),
+            universe: z.any().optional(),
+            constraints: z.any().optional(),
+          })
+          .strict(),
         execute: async ({ title, answers, universe = {}, constraints = {} }) => {
           if (!createStrategyFn) {
             const mod = await import('../db/queries');
@@ -474,47 +523,65 @@ export function createFinanceTools(
           const rules = { type: 'ma_crossover', params: { short: 50, long: 200 } };
           const version = await createStrategyVersionFn({
             strategyId: strat.id,
-            description: 'Proposition initiale',
+            description:
+              locale === 'fr' ? 'Proposition initiale' : 'Initial proposal',
             rules,
             params: rules.params,
           });
-          return { strategy: strat, version };
+          const output = { strategy: strat, version };
+          await persistAnalysis(
+            'strategy_propose',
+            { title, answers, universe, constraints },
+            output,
+          );
+          return output;
         },
       }),
 
       /** List strategies for a given chat. */
       list: tool({
-        description: 'Lister les stratégies d\'un chat',
+        description:
+          locale === 'fr'
+            ? "Lister les stratégies d'un chat"
+            : 'List strategies for a chat',
         inputSchema: z
           .object({
             chatId: z.string().optional(),
             cursor: z.string().optional(),
             limit: z.number().int().positive().optional(),
           })
+          .strict()
           .optional(),
         execute: async ({ chatId, cursor, limit } = {}) => {
           if (!listStrategiesFn) {
             const mod = await import('../db/queries');
             listStrategiesFn = mod.listStrategiesByChat;
           }
-          return listStrategiesFn({
+          const output = await listStrategiesFn({
             chatId: chatId ?? ctx.chatId,
             cursor: cursor ? new Date(cursor) : undefined,
             limit,
           });
+          await persistAnalysis('strategy_list', { chatId, cursor, limit }, output);
+          return output;
         },
       }),
 
       /** Fetch a strategy by its identifier. */
       get: tool({
-        description: 'Récupérer une stratégie par identifiant',
-        inputSchema: z.object({ id: z.string() }),
+        description:
+          locale === 'fr'
+            ? 'Récupérer une stratégie par identifiant'
+            : 'Fetch a strategy by id',
+        inputSchema: z.object({ id: z.string() }).strict(),
         execute: async ({ id }) => {
           if (!getStrategyFn) {
             const mod = await import('../db/queries');
             getStrategyFn = mod.getStrategyById;
           }
-          return getStrategyFn({ id });
+          const output = await getStrategyFn({ id });
+          await persistAnalysis('strategy_get', { id }, output);
+          return output;
         },
       }),
 
@@ -522,15 +589,20 @@ export function createFinanceTools(
        * Run a backtest for a strategy version across one or more symbols.
        */
       backtest: tool({
-        description: 'Backtester une version de stratégie',
-        inputSchema: z.object({
-          versionId: z.string(),
-          symbols: z.array(z.string()),
-          timeframe: z.string(),
-          range: z.string().optional(),
-          costs: z.number().nonnegative().default(0),
-          slippage: z.number().nonnegative().default(0),
-        }),
+        description:
+          locale === 'fr'
+            ? 'Backtester une version de stratégie'
+            : 'Backtest a strategy version',
+        inputSchema: z
+          .object({
+            versionId: z.string(),
+            symbols: z.array(z.string()),
+            timeframe: z.string(),
+            range: z.string().optional(),
+            costs: z.number().nonnegative().default(0),
+            slippage: z.number().nonnegative().default(0),
+          })
+          .strict(),
         execute: async ({
           versionId,
           symbols,
@@ -576,6 +648,11 @@ export function createFinanceTools(
             equityCurve: bt.equityCurve,
             assumptions: { costs, slippage },
           });
+          await persistAnalysis(
+            'strategy_backtest',
+            { versionId, symbols, timeframe, range, costs, slippage },
+            bt,
+          );
           return bt;
         },
       }),
@@ -584,11 +661,16 @@ export function createFinanceTools(
        * Create a refined version of an existing strategy based on feedback.
        */
       refine: tool({
-        description: 'Créer une nouvelle version en incorporant le feedback',
-        inputSchema: z.object({
-          versionId: z.string(),
-          feedback: z.string(),
-        }),
+        description:
+          locale === 'fr'
+            ? 'Créer une nouvelle version en incorporant le feedback'
+            : 'Create a new version incorporating feedback',
+        inputSchema: z
+          .object({
+            versionId: z.string(),
+            feedback: z.string(),
+          })
+          .strict(),
         execute: async ({ versionId, feedback }) => {
           if (!getStrategyVersionFn || !createStrategyVersionFn) {
             const mod = await import('../db/queries');
@@ -604,14 +686,18 @@ export function createFinanceTools(
             params: prev.params,
             notes: feedback,
           });
+          await persistAnalysis('strategy_refine', { versionId, feedback }, next);
           return next;
         },
       }),
 
       /** Finalize a strategy by marking it as validated. */
       finalize: tool({
-        description: 'Marquer la stratégie comme validée',
-        inputSchema: z.object({ versionId: z.string() }),
+        description:
+          locale === 'fr'
+            ? 'Marquer la stratégie comme validée'
+            : 'Mark the strategy as validated',
+        inputSchema: z.object({ versionId: z.string() }).strict(),
         execute: async ({ versionId }) => {
           if (
             !getStrategyVersionFn ||
@@ -627,6 +713,7 @@ export function createFinanceTools(
             id: version.strategyId,
             status: 'validated',
           });
+          await persistAnalysis('strategy_finalize', { versionId }, strat);
           return strat;
         },
       }),

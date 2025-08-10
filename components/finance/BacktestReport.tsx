@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 
 export interface BacktestMetrics {
   cagr: number;
@@ -28,6 +29,7 @@ interface Props {
  */
 export default function BacktestReport({ metrics, curve }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  const t = useTranslations('finance.backtest');
 
   useEffect(() => {
     // Skip chart rendering in non-browser or test environments where
@@ -66,27 +68,27 @@ export default function BacktestReport({ metrics, curve }: Props) {
       <table className="text-xs w-full">
         <tbody>
           <tr>
-            <td>CAGR</td>
+            <td>{t('cagr')}</td>
             <td className="text-right">{metrics.cagr.toFixed(2)}%</td>
           </tr>
           <tr>
-            <td>Sharpe</td>
+            <td>{t('sharpe')}</td>
             <td className="text-right">{metrics.sharpe.toFixed(2)}</td>
           </tr>
           <tr>
-            <td>Sortino</td>
+            <td>{t('sortino')}</td>
             <td className="text-right">{metrics.sortino.toFixed(2)}</td>
           </tr>
           <tr>
-            <td>MDD</td>
+            <td>{t('mdd')}</td>
             <td className="text-right">{metrics.maxDrawdown.toFixed(2)}%</td>
           </tr>
           <tr>
-            <td>Hit rate</td>
+            <td>{t('hitRate')}</td>
             <td className="text-right">{(metrics.hitRate * 100).toFixed(1)}%</td>
           </tr>
           <tr>
-            <td>Profit factor</td>
+            <td>{t('profitFactor')}</td>
             <td className="text-right">{metrics.profitFactor.toFixed(2)}</td>
           </tr>
         </tbody>

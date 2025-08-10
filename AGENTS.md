@@ -1,424 +1,371 @@
-# AGENTS
+Parfait, on repart de la **version actuelle (v3)** et on te prépare une **checklist exhaustive à cocher** pour implémenter *tous* les points pertinents (y compris les petites améliorations), **fichier par fichier**, en restant **FR/EN** (bilingue) et **sources publiques sans clé** / **scrapers maison**.
 
-## Tasks
-
-Voici une **checklist opérationnelle, exhaustive et hiérarchisée** (avec sous-étapes imbriquées), **fichier par fichier**, pour étendre la version actuelle du code en y ajoutant :
-
-* Un **dashboard d’accueil** en **bento layout** (cours en direct, news, “Mes stratégies”, “Mes analyses”, menu en tuile non-superposé).
-* Un **système Stratégies** (questionnaire → boucle agent → génération → backtest → itérations → arguments).
-* Les **petites améliorations** relevées au dernier audit (prompt FR, tests supplémentaires, robustesse scraping).
-* **Uniquement des APIs publiques sans clé** et/ou **scrapers maison** (déjà compatibles avec votre code actuel).
-
-> Chaque bloc liste : **Tâches** (✅/☐), **Fichiers** précis, **Objectifs attendus**, **Correctifs**.
+> Nota bene (audit v3) : deux points à corriger en priorité
+> • Injection des tools `strategy.*` manquante dans `app/(chat)/api/chat/route.ts`
+> • 4 tests unitaires de tuiles dashboard manquants (`tests/dashboard/*.test.tsx`)
 
 ---
 
-# 1) Dashboard d’accueil “Bento”
+# ✅ Correctifs immédiats (avant d’étendre)
 
-## 1.1 Structure de page & grille Bento
+* [x] **Exposer `strategy.*` dans la route chat**
+  **Fichier** : `app/(chat)/api/chat/route.ts`
 
-* [x] Créer la **page d’accueil** (route `/`) qui héberge le bento
+  * [x] Déstructurer `strategy: strategyTools` depuis `createFinanceTools(...)`
+  * [x] Ajouter `...prefixTools('strategy', strategyTools as Record<string, Tool>)` au `financeToolMap`
+    **Objectif** : rendre accessibles `strategy.start_wizard/propose/backtest/refine/finalize/list/get` côté LLM.
+    **Critère** : `experimental_activeTools` inclut bien les clés `strategy.*` (via `Object.keys(financeToolMap)`).
 
-  * **Fichiers**
+* [x] **Ajouter les tests unitaires des tuiles Dashboard**
+  **Fichiers (nouveaux)** :
 
-    * [x] `app/page.tsx` (nouveau) — **SSR** + suspense edges
-    * [x] `components/dashboard/BentoGrid.tsx` (nouveau) — grille responsive (CSS Grid), slots nommés
-    * [x] `components/dashboard/BentoCard.tsx` (nouveau) — tuile stylée (titre, actions, body)
-  * **Objectifs**
-
-    * Layout fluide (2–4 colonnes selon largeur), tuile **Menu** intégrée (pas de superposition).
-  * **Correctifs**
-
-    * Éviter tout overlay global (désactiver backdrop, z-index élevés) dans l’ancien menu.
-
-## 1.2 Tuile “Cours actuels” (fenêtre principale)
-
-* [x] Afficher **watchlist** + **cours** (EQ/FX/CRYPTO) en quasi temps réel
-
-  * **Fichiers**
-
-    * [x] `components/dashboard/tiles/CurrentPricesTile.tsx` (nouveau)
-    * [x] `lib/finance/live.ts` (nouveau) — multiplex :
-
-      * equities/indices : **polling Yahoo** (5–10s TTL via `lib/finance/cache.ts`)
-      * crypto : **WebSocket Binance** (si dispo côté client) sinon polling
-    * [x] Utilise déjà `app/(chat)/api/finance/quote/route.ts` (existant) pour SSR/Hydrate
-  * **Objectifs**
-
-    * Lister symboles récents + favoris (fallback statique si pas d’historique).
-    * Variations %, marketState, badges “Open/Closed”.
-  * **Correctifs**
-
-    * Timeouts fetch explicites (8–10s) + retry (2×) côté `live.ts`.
-
-## 1.3 Tuile “Dernières news”
-
-* [x] Streamer **news publiques** (RSS) par univers/symboles
-
-  * **Fichiers**
-
-    * [x] `components/dashboard/tiles/NewsTile.tsx` (nouveau)
-    * [x] Réutiliser `app/(chat)/api/finance/news/route.ts` (existant)
-
-      * requête paramétrée `?symbol=...` + fallback “top business”
-  * **Objectifs**
-
-    * Liste chronologique, source + date relative, “ouvrir dans nouvel onglet”.
-  * **Correctifs**
-
-    * Limiter XSS (sanitizer sur `description` RSS).
-
-## 1.4 Tuile “Mes stratégies”
-
-* [x] Lister **stratégies** (nouvelle table) et actions rapides (ouvrir, backtester, affiner)
-
-  * **Fichiers**
-
-    * [x] `components/dashboard/tiles/StrategiesTile.tsx` (nouveau)
-    * [x] `components/finance/StrategyCard.tsx` (nouveau)
-    * [x] API : `app/(chat)/api/finance/strategy/route.ts` (nouveau, CRUD list/byId)
-  * **Objectifs**
-
-    * Groupé par **chat** courant (conserver historique), dernière mise à jour, statut (ébauche/validée).
-  * **Correctifs**
-
-    * Pagination infinie (lazy) + suspense.
-
-## 1.5 Tuile “Mes analyses”
-
-* [x] Lister **analyses/recherches** déjà persistées (existe via `analysis`/`research`)
-
-  * **Fichiers**
-
-    * [x] `components/dashboard/tiles/AnalysesTile.tsx` (nouveau)
-    * [x] Réutiliser `lib/db/queries.ts` (`listAnalysesByChatId`, `listResearchByChatId`)
-  * **Objectifs**
-
-    * Trier par date desc, badges type (OHLC, FT report, deep dive, opportunity), lien vers chat.
-  * **Correctifs**
-
-    * Ajout de filtres (type, symbole).
-
-## 1.6 Tuile “Menu (intégré, non superposé)”
-
-* [x] Remplacer le menu déroulant superposé par une **tuile Bento**
-
-  * **Fichiers**
-
-    * [x] `components/dashboard/tiles/MenuTile.tsx` (nouveau)
-    * [x] Modifier `components/toolbar.tsx` :
-
-      * [x] extraire la logique d’ouverture/fermeture vers un **store local** (React state/context)
-      * [x] **désactiver** l’overlay/backdrop ; rendre la liste du menu **inline** dans la tuile
-  * **Objectifs**
-
-    * Même mécanique d’ouverture, mais dans la grille → la tuile **disparaît/apparaît** (pas overlay).
-  * **Correctifs**
-
-    * Supprimer styles `position: fixed/absolute` + `z-index` du menu global.
+  * [x] `tests/dashboard/prices-tile.test.tsx`
+  * [x] `tests/dashboard/news-tile.test.tsx`
+  * [x] `tests/dashboard/strategies-tile.test.tsx`
+  * [x] `tests/dashboard/analyses-tile.test.tsx`
+    **Objectif** : valider rendu (loading/data/error), états vides, pagination/filtres.
+    **Critère** : `pnpm test` → green.
 
 ---
 
-# 2) Système “Stratégies” (questionnaire → boucle agent → backtest)
+# 🧩 I18N complet FR/EN (App Router)
 
-## 2.1 Schéma & persistance
+## 1) Infra i18n
 
-* [x] Étendre DB pour les stratégies
+* [x] **Installer i18n (sans clé, lib publique)**
+  **Fichier** : `package.json`
 
-  * **Fichiers**
+  * [x] Ajouter `next-intl` (ou équivalent App Router-friendly).
+    **Objectif** : localisation FR/EN côté serveur et client.
 
-    * [x] `lib/db/schema.ts`
+* [x] **Middlewares & config**
+  **Fichiers (nouveaux)** :
 
-      * [x] `Strategy`: `id`, `userId`, `chatId`, `title`, `universe (jsonb)`, `constraints (jsonb)`, `status ('draft'|'proposed'|'validated')`, `createdAt`, `updatedAt`
-      * [x] `StrategyVersion`: `id`, `strategyId`, `description`, `rules (jsonb)`, `params (jsonb)`, `notes (text)`, `createdAt`
-      * [x] `StrategyBacktest`: `id`, `strategyVersionId`, `symbolSet (jsonb)`, `window`, `metrics (jsonb)`, `equityCurve (jsonb)`, `assumptions (jsonb)`, `createdAt`
-    * [x] `lib/db/migrate.ts` — migration
-    * [x] `lib/db/queries.ts` — `createStrategy`, `listStrategiesByChat`, `getStrategyById`, `createStrategyVersion`, `saveBacktest`
-  * **Objectifs**
+  * [x] `middleware.ts` — détection locale (`/fr`, `/en`) + redirection propre.
+  * [x] `i18n/config.ts` — locales supportées (`['fr','en']`), locale par défaut (`'fr'`).
+    **Objectif** : URL propres type `/fr/...`, `/en/...`.
 
-    * Historiser **versions** et **résultats de backtest**.
-  * **Correctifs**
+* [x] **Dictionnaires**
+  **Fichiers (nouveaux)** :
 
-    * Index sur `(chatId, updatedAt)`.
+  * [x] `messages/fr/dashboard.json`
+  * [x] `messages/en/dashboard.json`
+  * [x] `messages/fr/finance.json`
+  * [x] `messages/en/finance.json`
+  * [x] `messages/fr/common.json`
+  * [x] `messages/en/common.json`
+    **Objectif** : traduire titres/labels (Dashboard, tuiles, toolbar, prompts UI).
 
-## 2.2 Orchestrateur & tools
+* [x] **Provider App**
+  **Fichier (modif)** : `app/layout.tsx`
 
-* [x] **Boucle agent** pilotée par tools (sans appels externes privés)
+  * [x] Envelopper avec le provider i18n, charger messages selon `locale`.
+    **Objectif** : `t('key')` utilisable partout.
 
-  * **Fichiers**
+* [x] **Sélecteur de langue**
+  **Fichiers (nouveaux)** :
 
-    * [x] `lib/ai/tools-finance.ts` — **ajouter namespace `strategy.*`** :
+  * [x] `components/i18n/LanguageSwitcher.tsx` — switch FR ↔ EN.
+  * [x] Intégration dans `app/page.tsx` (bento header).
+    **Objectif** : bascule instantanée, persistance par URL.
 
-      * [x] `strategy.start_wizard({})` → poser questions ciblées (horizon, risque, univers, fréquence, coûts, restrictions ESG, drawdown toléré)
-      * [x] `strategy.propose({ answers })` → propose règles initiales (utilise `lib/finance/strategies.ts`)
-      * [x] `strategy.backtest({ versionId, symbols, timeframe, range, costs, slippage })` → via `lib/finance/backtest.ts` (nouveau)
-      * [x] `strategy.refine({ versionId, feedback })` → modifie params/règles et **relance backtest**
-      * [x] `strategy.finalize({ versionId })` → statut “validated”
-      * [x] `strategy.list({ chatId })`, `strategy.get({ id })`
-    * [x] `lib/finance/backtest.ts` (nouveau)
-
-      * Moteur simple **bar-by-bar** (OHLC), exécution signaux “enter/exit”, coûts & slippage, equity curve, métriques (CAGR, Sharpe, Sortino, MDD, hit-rate, profit factor).
-  * **Objectifs**
-
-    * Itérations **garanties** : au moins 2 cycles *propose → backtest → refine*.
-  * **Correctifs**
-
-    * Validation d’entrées avec `zod`, garde-fous (fenêtres min OHLC, symboles valides).
-
-## 2.3 UI : Wizard & cartes
-
-* [x] **Questionnaire** avant génération
-
-  * **Fichiers**
-
-    * [x] `components/finance/StrategyWizard.tsx` (nouveau) — multistep (horizon, risque, univers, frais)
-    * [x] `components/dashboard/tiles/StrategiesTile.tsx` — bouton “Créer une stratégie”
-  * **Objectifs**
-
-    * Collecter contraintes → déclencher `strategy.start_wizard` / `strategy.propose`.
-* [x] **Affichage & gestion**
-
-  * **Fichiers**
-
-    * [x] `components/finance/StrategyCard.tsx` — statut, dernière perfo, actions (backtester, affiner)
-    * [x] `components/finance/BacktestReport.tsx` (nouveau) — equity curve (mini chart), tableau des métriques
-  * **Correctifs**
-
-    * Réutiliser `lightweight-charts` pour equity curve ; limiter points (resample).
-
-## 2.4 API & intégration chat
-
-* [x] Exposer **endpoints** Stratégie
-
-  * **Fichiers**
-
-    * [x] `app/(chat)/api/finance/strategy/route.ts` — `GET list`, `POST create`, `GET byId`, `POST backtest`, `PATCH refine`, `POST finalize`
-* [x] Brancher **tools** au chat (déjà en place via `financeToolMap`)
-
-  * **Fichiers**
-
-    * [x] `app/(chat)/api/chat/route.ts` — rien à changer côté injection (namespacing existant), seulement activer les clés `strategy.*` dans `activeTools` si filtrage.
+* [x] **Tests i18n**
+  **Fichier (nouveau)** : `tests/i18n/i18n-routing.test.ts`
+  **Objectif** : `/` → `/fr`, `/en/page` charge EN, formats `Intl.DateTimeFormat` ok.
 
 ---
 
-# 3) “Mes analyses” & “Mes stratégies” — affichage par chat + historique conservé
+# 🏠 Dashboard Bento (accueil)
 
-* [x] Sous les titres, afficher **liste historisée** **par chat**
+## 2) Structure & layout
 
-  * **Fichiers**
+* [x] **BentoGrid & BentoCard** *(déjà présents)*
+  **Fichiers (modif)** :
 
-    * [x] `components/dashboard/tiles/AnalysesTile.tsx` — groupe par `chatId`, montre **dernier message** du chat associé
-    * [x] `components/dashboard/tiles/StrategiesTile.tsx` — idem (stratégies attachées à chat)
-  * **Objectifs**
+  * [x] `components/dashboard/BentoGrid.tsx`
+  * [x] `components/dashboard/BentoCard.tsx`
+    **Objectif** : ajouter props `title`, `actions`, `aria-labelledby`; traduire titres via `t('...')`.
+    **Critère** : responsive 2–4 colonnes, A11y OK.
 
-    * Lien “Ouvrir le chat” (`/chat/[id]`), conserver contexte d’origine.
-  * **Correctifs**
+* [x] **Page d’accueil**
+  **Fichier (modif)** : `app/page.tsx`
 
-    * [x] `lib/db/queries.ts` — ajouter batch queries “by chat ids” pour limiter N+1.
+  * [x] Charger données initiales (SSR) pour **Prices** (symbols récents/favoris) + **News** (flux par défaut).
+  * [x] Injecter `LanguageSwitcher`.
+    **Objectif** : first contentful paint utile.
 
----
+## 3) Tuile “Cours actuels”
 
-# 4) Menu déroulant → **tuile** (non superposée)
+* [x] **CurrentPricesTile** *(existe)*
+  **Fichier (modif)** : `components/dashboard/tiles/CurrentPricesTile.tsx`
 
-* [x] Refonte visuelle & comportement
+  * [x] Utiliser `t('prices.title')`, unité locale, format nombres `Intl.NumberFormat`.
+  * [x] Polling serveur via `app/(chat)/api/finance/quote/route.ts` (TTL 10–15s).
+  * [x] Si crypto, WebSocket Binance côté client (fallback polling).
+    **Objectif** : données quasi-temps-réel **sans clé**.
+    **Tests** : `tests/dashboard/prices-tile.test.tsx`.
 
-  * **Fichiers**
+## 4) Tuile “Dernières news”
 
-    * [x] `components/toolbar.tsx` — extraire `financeToolbarItems` (déjà en place) vers tuile
-    * [x] `components/dashboard/tiles/MenuTile.tsx` — affiche/masque inline
-  * **Objectifs**
+* [x] **NewsTile** *(existe)*
+  **Fichier (modif)** : `components/dashboard/tiles/NewsTile.tsx`
 
-    * **Plus d’overlay** : la tuile **disparaît** de la grille quand fermée.
-  * **Correctifs**
+  * [x] Récup via `app/(chat)/api/finance/news/route.ts`.
+  * [x] Sanitize `description` (cheerio/DOMPurify côté client si besoin).
+  * [x] Labels traduits ; dates relatives via `Intl.RelativeTimeFormat`.
+    **Tests** : `tests/dashboard/news-tile.test.tsx`.
 
-    * Supprimer styles overlay/backdrop/global capture ; gérer focus à l’intérieur de la tuile.
+## 5) Tuile “Mes stratégies”
 
----
+* [x] **StrategiesTile** *(existe)*
+  **Fichier (modif)** : `components/dashboard/tiles/StrategiesTile.tsx`
 
-# 5) Prompts & conformité FR
+  * [x] Lister par `chatId`, statut `draft/proposed/validated`, liens vers détail.
+  * [x] Bouton “Créer une stratégie” → **StrategyWizard**.
+    **Tests** : `tests/dashboard/strategies-tile.test.tsx`.
 
-* [x] Ajouter **disclaimer FR** et consignes UI/finance
+* [x] **StrategyWizard**
+  **Fichier (modif)** : `components/finance/StrategyWizard.tsx`
 
-  * **Fichiers**
+  * [x] Questions **bilingues** (`t('wizard.horizon')` …).
+  * [x] Appel tool `strategy.start_wizard` puis `strategy.propose`.
+    **Objectif** : collecte contraintes utilisateur **FR/EN**.
 
-    * [x] `lib/ai/prompts.ts` — section FR :
+* [x] **StrategyCard & BacktestReport**
+  **Fichiers (modif)** :
 
-      * *“Les données sont publiques, non garanties, et peuvent être incomplètes. Les réponses ne constituent pas un conseil en investissement.”*
-      * Rappels : “préciser timeframe avant `ui.show_chart`”, “utiliser `compute_indicators` pour TA”, “structurer documents (Résumé, Contexte, Données, Graphiques, Signaux, Risques, Sources)”.
-  * **Objectifs**
+  * [x] `components/finance/StrategyCard.tsx` — actions `Backtest`, `Refine`, `Finalize`.
+  * [x] `components/finance/BacktestReport.tsx` — metrics (CAGR, Sharpe, Sortino, MDD…), equity curve (lightweight-charts).
+    **Objectif** : lisibilité + t().
 
-    * Alignement FR/EN + robustesse du raisonnement agent.
-  * **Correctifs**
+## 6) Tuile “Mes analyses”
 
-    * Vérifier qu’`experimental_activeTools` liste bien `strategy.*` si filtrage par modèle.
+* [x] **AnalysesTile** *(existe)*
+  **Fichier (modif)** : `components/dashboard/tiles/AnalysesTile.tsx`
 
----
+  * [x] Lister `Analysis` & `Research` par `chatId` (via `queries.ts`).
+  * [x] Filtres (type, symbole), liens vers chat d’origine `/chat/[id]`.
+    **Tests** : `tests/dashboard/analyses-tile.test.tsx`.
 
-# 6) Tests
+## 7) Tuile “Menu” (non superposée)
 
-## 6.1 Unitaires
+* [x] **MenuTile** *(existe)*
+  **Fichier (modif)** : `components/dashboard/tiles/MenuTile.tsx`
 
-* [x] **Backtest engine**
-
-  * **Fichiers** : `tests/finance/backtest.test.ts` (nouveau)
-  * **Objectifs** : signaux simples, coûts, MDD, Sharpe/Sortino, régresseurs.
-* [x] **Strategy tools**
-
-  * **Fichiers** : `tests/ai/tools-finance.strategy.test.ts` (nouveau)
-  * **Objectifs** : `start_wizard`→`propose`→`backtest`→`refine`→`finalize`, mocks de persistance/événements.
-* [x] **Dashboard tiles**
-
-  * **Fichiers** :
-    * [x] `tests/dashboard/prices-tile.node.test.tsx`
-    * [x] `tests/dashboard/news-tile.node.test.tsx`
-    * [x] `tests/dashboard/strategies-tile.test.tsx`
-    * [x] `tests/dashboard/analyses-tile.test.tsx`
-  * **Objectifs** : rendu, états vides, erreurs, pagination.
-
-## 6.2 API
-
-* [x] **Stratégie CRUD & backtest**
-
-  * **Fichiers** : [x] `tests/api/finance/strategy.test.ts` (nouveau)
-  * **Objectifs** : endpoints, validation `zod`, erreurs.
-
-## 6.3 E2E (Playwright)
-
-* [x] **Parcours Stratégie**
-
-  * **Fichier** : `tests/e2e/strategy-wizard.spec.ts` (nouveau)
-  * **Scénario** : ouvre dashboard → lance wizard → propose stratégie → backtest → raffinement → validation → cartographie des tuiles mises à jour.
-* [x] **Dashboard**
-
-  * **Fichier** : `tests/e2e/dashboard.spec.ts` (nouveau)
-  * **Scénario** : flux d’accueil, news, interaction tuile menu (pas d’overlay), clic vers chat d’origine.
+  * [x] Reprendre items `financeToolbarItems` **dans la tuile**.
+  * [x] Supprimer overlay global.
+    **Fichier (modif)** : `components/toolbar.tsx`
+  * [x] Retirer styles `position: fixed`, `backdrop`, `z-index` élevés.
+    **Tests** : inclure dans `tests/e2e/dashboard.spec.ts`.
 
 ---
 
-# 7) Robustesse scraping & perfs
+# 🤖 Tools IA & prompts (bilingues)
 
-* [x] **Timeouts & retries** (si absent)
+## 8) Tools mapping & validation
 
-  * **Fichiers** : `lib/finance/sources/{yahoo.ts, stooq.ts, binance.ts, sec.ts, news.ts}`, `lib/finance/live.ts`
-  * **Objectifs** : timeout 8–10s, 2 retries exponentiels, fallback Stooq/Yahoo selon classe d’actif.
-  * [x] Ajouter un backoff exponentiel dans `lib/finance/request.ts` avec tests dédiés
-* [x] **Cache TTL** affiné
+* [x] **Route Chat**
+  **Fichier (modif)** : `app/(chat)/api/chat/route.ts`
 
-  * **Fichiers** : `lib/finance/cache.ts`
-  * **Objectifs** : intraday 10–15s ; daily 5–10 min ; invalidation si WebSocket ouvert.
+  * [x] ✅ Intégrer `strategyTools` (voir “Correctifs immédiats”).
+  * [x] Confirmer `experimental_activeTools` alimenté par `Object.keys(financeToolMap)`.
+    **Objectif** : tous les tools disponibles, nommés `finance.* / ui.* / research.* / strategy.*`.
+
+* [x] **Validation d’entrées**
+  **Fichier (modif)** : `lib/ai/tools-finance.ts`
+
+  * [x] `zod` schema multilingue : les textes utilisateurs restent libres, mais tool args stricts.
+    **Objectif** : robustesse aux prompts FR/EN.
+
+## 9) Prompts système FR/EN
+
+* [x] **Prompts**
+  **Fichier (modif)** : `lib/ai/prompts.ts`
+
+  * [x] Ajouter un **bloc FR** parallèle au bloc EN :
+
+    * “Les données sont **publiques** et **non garanties** (scraping Yahoo/SEC/RSS). **Pas un conseil en investissement.**”
+    * “Toujours préciser **timeframe** avant `ui.show_chart`.”
+    * “Utiliser `compute_indicators` pour l’analyse technique.”
+    * “Structurer les documents : **Résumé, Contexte, Données, Graphiques, Signaux, Risques, Sources**.”
+  * [x] Injecter `locale` dans le `systemPrompt({ selectedChatModel, requestHints, locale })` (si non présent : adapter signature).
+    **Objectif** : consignes claires **dans la langue de l’UI**.
+
+* [x] **Tests prompts**
+  **Fichier (nouveau)** : `tests/ai/prompts-i18n.test.ts`
+  **Objectif** : vérifier présence disclaimers & sections en FR/EN.
 
 ---
 
-# 8) UI/UX polissage
+# 📊 Données publiques & Scrapers
 
-* [x] **Skeletons/Loaders** pour tuiles
+## 10) Timeouts, retries, fallback
 
-  * **Fichiers** : `components/dashboard/skeletons/*.tsx` (nouveaux)
+* [x] **Sources**
+  **Fichiers (modif)** :
 
-* [x] **Empty states** guidés (FR)
+  * [x] `lib/finance/sources/{yahoo.ts, stooq.ts, binance.ts, sec.ts, news.ts}`
+  * [x] Ajouter `AbortController` + timeout 10s, retries 2× (expo backoff), chaînes de **fallback** :
 
-  * **Fichiers** : `components/dashboard/empty/*.tsx` (nouveaux)
-* [x] **Accessibilité** (focus management, aria)
+    * OHLC : Yahoo → Stooq (daily) → message explicite.
+    * Crypto : Binance WS → REST klines.
+      **Objectif** : **zéro** clé API, robustesse réseau.
 
-  * **Fichiers** : tuiles & toolbar
-* [x] **I18N cohérente** (FR)
+* [x] **Cache & rate-limit**
+  **Fichiers (modif)** :
 
-  * **Fichiers** : tuiles + prompts
+  * [x] `lib/finance/cache.ts` — TTL intraday 10–15s, daily 5–10 min.
+  * [x] `lib/finance/rate-limit.ts` — bucket par domaine (Yahoo, SEC…).
+    **Tests** : `tests/finance/{yahoo.test.ts, stooq.test.ts, sec.test.ts}`.
 
 ---
 
-# 9) Documentation & exemples
+# 🧠 Stratégies (boucle agent & backtest)
 
-* [x] **AGENTS.md** (mettre à jour)
+## 11) DB & queries (déjà présentes, vérifier)
 
-  * **Fichiers** : `AGENTS.md`
-  * **Objectifs** : spécs `strategy.*`, `ui.*`, formats E/S, exemples d’appels.
+* [x] **Schéma**
+  **Fichier (check/modif)** : `lib/db/schema.ts`
+
+  * [x] Tables **Strategy**, **StrategyVersion**, **StrategyBacktest** complètes.
+* [x] **Queries**
+  **Fichier (modif)** : `lib/db/queries.ts`
+
+  * [x] `createStrategy`, `listStrategiesByChat`, `getStrategyById`, `createStrategyVersion`, `saveBacktest` (déjà là), ajouter `updateStrategyStatus` si manquant.
+    **Tests** : `tests/api/finance/strategy.test.ts`.
+
+## 12) Backtest engine
+
+* [x] **Moteur**
+  **Fichier (modif)** : `lib/finance/backtest.ts`
+
+  * [x] Bar-by-bar, coûts & slippage, equity curve.
+  * [x] Metrics : CAGR, Sharpe, Sortino, MDD, Profit Factor, Hit-rate.
+    **Tests** : `tests/finance/backtest.test.ts`.
+
+## 13) Tools `strategy.*` (déjà présents)
+
+* [x] **Wizard → propose → backtest → refine → finalize**
+  **Fichier (modif)** : `lib/ai/tools-finance.ts`
+
+  * [x] Vérifier messages de retour **bilingues** (titres/notes) en fonction de `locale` (passée via contexte si nécessaire).
+  * [x] Journaliser via `persistAnalysis('strategy_*', ...)`.
+    **E2E** : `tests/e2e/strategy-wizard.spec.ts`.
+
+---
+
+# 🧷 Menu & Toolbar (tuile, pas overlay)
+
+## 14) Toolbar → tuile
+
+* [x] **MenuTile**
+  **Fichier (modif)** : `components/dashboard/tiles/MenuTile.tsx`
+
+  * [x] Utiliser `financeToolbarItems` (déjà présent `components/finance/toolbar-items.tsx`).
+* [x] **Toolbar overlay cleanup**
+  **Fichier (modif)** : `components/toolbar.tsx`
+
+  * [x] Retirer styles overlay (`position: fixed`, `backdrop`, `z-index` élevés`).
+    **E2E** : `tests/e2e/dashboard.spec.ts` (vérifier absence overlay).
+
+---
+
+# 🧪 Tests complémentaires & CI
+
+## 15) API & tools
+
+* [x] **tools-finance.strategy**
+  **Fichier (nouveau)** : `tests/ai/tools-finance.strategy.test.ts`
+
+  * [x] Mock `persistAnalysis` & `emitUIEvent` ; valider transitions (wizard → propose → backtest → refine → finalize).
+
+* [x] **Dashboard E2E**
+  **Fichier (nouveau)** : `tests/e2e/dashboard.test.ts`
+
+  * [x] Parcours : affichage bento, bascule FR/EN, open stratégie, voir analyses.
+
+## 16) Qualité & a11y
+
+* [x] **Skeletons/Empty states**
+  **Fichiers (nouveaux)** : `components/dashboard/skeletons/*.tsx`, `components/dashboard/empty/*.tsx`
+  **Objectif** : UX fluide.
+* [x] **A11y** :
+  **Fichiers (modif)** : toutes les tuiles — `aria-label`, `aria-labelledby`, focus visible.
+
+---
+
+# 📚 Documentation
+
+## 17) AGENTS & README
+
+* [x] **AGENTS.md**
+  **Fichier (modif)** : specs mises à jour pour `strategy.*`, `ui.*`, `research.*`, formats E/S, exemples FR/EN.
 * [x] **README.md**
+  **Fichier (modif)** :
 
-  * **Fichiers** : `README.md`
-  * **Objectifs** : capture d’écran dashboard, disclaimer FR, démarrage, limites “public only”.
-
----
-
-## Récapitulatif par fichiers (créations/modifs)
-
-### Nouveaux
-
-* `app/page.tsx`
-* `components/dashboard/BentoGrid.tsx`
-* `components/dashboard/BentoCard.tsx`
-* `components/dashboard/tiles/{CurrentPricesTile.tsx, NewsTile.tsx, StrategiesTile.tsx, AnalysesTile.tsx, MenuTile.tsx}`
-* `components/finance/{StrategyWizard.tsx, StrategyCard.tsx, BacktestReport.tsx}`
-* `lib/finance/{backtest.ts, live.ts}`
-* `app/(chat)/api/finance/strategy/route.ts`
-* **Tests** :
-  `tests/finance/backtest.test.ts`,
-  `tests/ai/tools-finance.strategy.test.ts`,
-  `tests/dashboard/*.test.tsx`,
-  `tests/api/finance/strategy.test.ts`,
-  `tests/e2e/{strategy-wizard.spec.ts, dashboard.spec.ts}`
-
-### Modifiés
-
-* `components/toolbar.tsx` (menu → tuile inline, pas overlay)
-* `components/finance/FinancePanel.tsx` (si intégration liens dashboard)
-* `lib/ai/tools-finance.ts` (ajout namespace `strategy.*`)
-* `lib/ai/prompts.ts` (disclaimer & consignes FR)
-* `lib/db/schema.ts`, `lib/db/migrate.ts`, `lib/db/queries.ts` (schéma stratégie)
-* `lib/finance/sources/*` (timeouts/retries si manquants)
-* `lib/finance/cache.ts` (TTL ajustés)
+  * [x] Captures dashboard, note **“données publiques, non garanties, pas de conseil en investissement”**.
+  * [x] i18n : comment changer la langue (URL/switcher).
+  * [x] Limites scraping et rate limits.
 
 ---
 
-## Objectifs attendus (acceptance)
+## Critères d’acceptation (résumé)
 
-* Le **dashboard** à `/` affiche :
-
-  * **Cours** (watchlist/récents) live/pollés,
-  * **News** (RSS) récentes,
-  * **Mes stratégies** (CRUD, états, backtests),
-  * **Mes analyses** (OHLC, FT reports, deep-dives) **par chat**,
-  * **Menu** comme **tuile** (pas d’overlay).
-* L’**agent** peut :
-
-  * Poser les **bonnes questions**, **proposer** une stratégie,
-  * **Backtester**, **affiner** en boucle,
-  * **Finaliser** la stratégie et **sauvegarder** versions/backtests.
-* Les **tests** passent (unitaires, API, E2E) ; prompts FR présents.
+* Le **dashboard** `/` affiche **Prices**, **News**, **Mes stratégies**, **Mes analyses**, et un **Menu** sous forme **de tuile** (non superposée).
+* L’**agent** peut **poser les questions** (FR/EN), **proposer**, **backtester**, **affiner**, **finaliser** une stratégie, et **persister** versions/backtests.
+* Les **prompts** et **UI** sont **bilingues FR/EN**, avec disclaimers explicites.
+* **Aucune clé API** ; uniquement **Yahoo/SEC/RSS/Binance public** + **analyse locale**.
+* **Tests** : unitaires/API/E2E **verts** (incluant les 4 tuiles manquantes).
 
 ---
 
+Si tu veux, je te fournis ensuite des **squelettes** prêts à coller pour :
+
+* le patch `route.ts` (strategy prefix),
+* les 4 tests de tuiles,
+* l’infra i18n minimale (config + provider + messages FR/EN + switcher).
+
+## Specs
+
+### strategy.*
+- **Entrée** : paramètres stricts (`symbolSet`, `constraints`, `rules`...).
+- **Sortie** : objets `Strategy`, `StrategyVersion`, `StrategyBacktest` stockés en base.
+- **Exemple EN** : “Start a strategy wizard for AAPL.”
+- **Exemple FR** : « Lance l’assistant de stratégie pour AAPL. »
+
+### ui.*
+- **Entrée** : texte libre décrivant l’action. Mentionner toujours la **timeframe** avant `ui.show_chart`.
+- **Sortie** : évènements UI (ex : affichage d’un graphique ou d’une table).
+- **Exemple EN** : “show a daily chart of EURUSD.”
+- **Exemple FR** : « affiche un graphique quotidien de EURUSD. »
+
+### research.*
+- **Entrée** : symbole ou sujet de recherche.
+- **Sortie** : analyses `Research` persistées avec sections JSON.
+- **Exemple EN** : “Research latest filings for TSLA.”
+- **Exemple FR** : « Analyse les dernières publications de TSLA. »
 
 ## Info
-- Aucune donnée sensible, sources publiques uniquement.
-- Objectif: intégrer un agent financier avec dashboard bento et système de stratégies.
+- Aucune donnée sensible, sources publiques sans clé, scrapers maison.
 
 ## History
-- Reset AGENTS.md with new dashboard and strategies roadmap; no tasks started yet.
-- Implemented Bento dashboard skeleton with page, grid, card and menu tile; added toolbar store and basic component tests.
-- Added live quotes tile and polling helper with timeout/retry; covered with node test.
-- Implemented News tile fetching RSS via API with XSS sanitisation and accompanying unit test.
-- Added French disclaimer and finance guidelines to prompts with accompanying unit test.
-- Added strategy schema, queries and migration; implemented strategy API, card and tile with corresponding tests.
-- Switched live quotes helper to reuse internal quote API and added analyses tile with filtering and tests.
-- Centralised toolbar visibility in a shared context, removed floating overlay and wired the dashboard menu tile to that store with updated tests.
-- Implemented bar-by-bar backtest engine with equity curve and metrics plus unit test.
-- Added strategy tool namespace handling wizard, proposal, backtest, refine and finalize operations with corresponding lifecycle test.
-- Added strategy creation wizard, backtest report component and tile integration with basic actions and tests.
-- Added request helper with timeout/retry, applied across finance sources with Stooq fallback and cache TTL constants.
-- Added skeleton placeholders for dashboard tiles and replaced Suspense fallbacks with them; added corresponding unit test.
-- Implemented guided empty states for dashboard tiles with French messages and unit tests.
-- Added ARIA roles and keyboard focus management to the dashboard menu tile and toolbar; localized market-state badges to French.
-- Added chat-scoped listing for analyses and strategies with last message snippets and batch DB queries to avoid N+1; updated tile tests accordingly.
-- Added Playwright spec tests for strategy wizard lifecycle and inline dashboard menu; documented dashboard features in README.
-- Extended strategy API with backtest, refine and finalize endpoints and expanded API tests accordingly.
-- Implemented cursor-based infinite pagination for strategies tile and API with accompanying tests.
-- Re-ran full node and Playwright test suites; all tests passed, no remaining tasks.
-- Added Binance WebSocket streaming for crypto quotes with unit test and refreshed dashboard prices logic; reran node and Playwright suites.
-- Localised strategy status labels in StrategyCard with French translations and ARIA-labelled actions; added unit test and reran dashboard tests.
-- Added exponential backoff to fetchWithRetry and covered the helper with dedicated unit tests.
-- Documented backtest metric formulas and extended unit test to cover CAGR, Sharpe and Sortino ratios.
-- Added error handling for the prices tile initial fetch and cleared request timeouts, adding a unit test for the failure path.
-- Executed full node and Playwright test suites to validate dashboard tiles and strategy workflow end-to-end; all checks passed.
-- Guarded BacktestReport chart setup behind a matchMedia check to silence test warnings and reran full node and Playwright suites successfully.
-- Re-ran node and Playwright test suites to verify all tasks; no missing work found.
+- Stubbed `next-intl` for server-side tests, documented tool specs, updated DB query tasks, and refreshed README with i18n and data disclaimers.
+- Reset AGENTS.md with provided tasks; no tasks completed yet.
+- Exposed strategy tools in chat route and added dashboard tile tests; attempted test runs (Playwright tests failing).
+- Introduced initial i18n infrastructure (next-intl, config, messages, language switcher) and ignored dashboard unit tests in Playwright.
+- Added locale-aware middleware, wrapped app with NextIntl provider, and created routing tests; unit tests green, Playwright still failing (React child error).
+- Added a11y props to Bento components, localized CurrentPricesTile with next-intl, expanded dictionaries, and updated tests; unit tests pass, Playwright still fails (React child error).
+- Localised News tile with translations and relative time formatting; installed missing next-intl package and ensured dashboard tests pass; Playwright tests still failing with React child error.
+- Prefetched prices and news in home page, wired tiles to accept data via props, updated tests; Playwright tests still failing (React child error).
+- Localised strategies tile, wizard, and card; added FR/EN messages and updated unit tests accordingly.
+- Localised analyses tile with translations, relative timestamps, and filter labels; expanded dictionaries and updated unit tests.
+- Excluded node-only tests from Playwright to resolve React child errors, added a menu tile E2E test, installed `next-intl` dependency, and verified dashboard tile unit tests pass.
+- Added bilingual finance/system prompts with locale-aware systemPrompt and created tests ensuring disclaimers exist in FR/EN; unit test run failing due to missing next-intl modules.
+- Passed locale header to chat route tools and system prompt, localized strategy wizard questions and descriptions, persisted strategy operations, tightened zod schemas, and expanded strategy tool tests with localization coverage.
+- Localized the dashboard menu tile, refactored finance toolbar items into a locale-aware hook, removed the floating overlay toolbar, and updated translations, tests, and E2E coverage accordingly.
+- Installed missing `next-intl` dependency, expanded dashboard E2E test to cover FR/EN switching and strategy wizard, and ensured unit and Playwright suites pass.
+- Added `aria-labelledby` ids and focus-visible styles across dashboard tiles, switched server translations to dynamic imports, installed `next-intl`, and verified unit/E2E tests pass.
+- Added wizard endpoint invoking `strategy.start_wizard` and `strategy.propose`, localized backtest report metrics with FR/EN labels, updated tests, and confirmed all suites pass.
+- Hardened public data fetchers with a 10s timeout, retry/backoff strategy, and explicit Stooq/Binance fallbacks; documented cache TTL ranges and verified finance source tests.
+- Verified `pnpm test` runs cleanly with 76 passing checks and no React rendering errors.
+- Re-ran full test suite (`pnpm test`): 75 passed, 34 skipped; confirmed dashboard tile tests and strategy tool exposure work end-to-end.

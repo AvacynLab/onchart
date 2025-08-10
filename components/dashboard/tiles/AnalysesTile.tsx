@@ -1,9 +1,26 @@
-import React from 'react';
+import React, { useId } from 'react';
 import BentoCard from '../BentoCard';
 import type { Analysis, Research } from '@/lib/db/schema';
-import { formatDistanceToNow } from 'date-fns';
-import { fr } from 'date-fns/locale';
 import AnalysesTileEmpty from '../empty/AnalysesTileEmpty';
+import { useTranslations, useLocale } from 'next-intl';
+
+/**
+ * Format a date into a human readable relative string using
+ * Intl.RelativeTimeFormat. Chooses the largest appropriate unit among
+ * seconds, minutes, hours and days.
+ */
+function formatRelative(date: Date, locale: string): string {
+  const diffMs = date.getTime() - Date.now();
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+  const seconds = Math.round(diffMs / 1000);
+  if (Math.abs(seconds) < 60) return rtf.format(seconds, 'second');
+  const minutes = Math.round(seconds / 60);
+  if (Math.abs(minutes) < 60) return rtf.format(minutes, 'minute');
+  const hours = Math.round(minutes / 60);
+  if (Math.abs(hours) < 24) return rtf.format(hours, 'hour');
+  const days = Math.round(hours / 24);
+  return rtf.format(days, 'day');
+}
 
 /** Summary information used by the analyses tile list */
 export interface AnalysisSummary {
@@ -27,23 +44,34 @@ export interface AnalysisGroup {
  * Pure presentational component rendering a list of analysis summaries.
  * Exported for unit testing.
  */
-export function AnalysisList({ items }: { items: AnalysisSummary[] }) {
+export function AnalysisList({
+  items,
+  locale,
+  emptyLabel,
+  labelledBy,
+}: {
+  /** Analyses and research summaries to render */
+  items: AnalysisSummary[];
+  /** Active UI locale */
+  locale: string;
+  /** Localised empty state text */
+  emptyLabel: string;
+  /** id of title used for aria-labelledby */
+  labelledBy: string;
+}) {
   if (items.length === 0) {
-    return <AnalysesTileEmpty />;
+    return <AnalysesTileEmpty message={emptyLabel} />;
   }
 
   return (
-    <ul className="space-y-2">
+    <ul className="space-y-2" aria-labelledby={labelledBy}>
       {items.map((item) => {
-        const relativeDate = formatDistanceToNow(item.date, {
-          addSuffix: true,
-          locale: fr,
-        });
+        const relativeDate = formatRelative(item.date, locale);
         return (
           <li key={item.id} className="text-sm">
             <a
               href={`/chat/${item.chatId}`}
-              className="font-medium hover:underline"
+              className="font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
             >
               {item.title}
             </a>
@@ -63,16 +91,33 @@ export function AnalysisList({ items }: { items: AnalysisSummary[] }) {
  * Render analysis summaries grouped by chat with optional last-message context.
  * Exported for unit testing.
  */
-export function AnalysisGroupList({ groups }: { groups: AnalysisGroup[] }) {
+export function AnalysisGroupList({
+  groups,
+  locale,
+  emptyLabel,
+  labelledBy,
+}: {
+  /** Groups of analyses keyed by chat */
+  groups: AnalysisGroup[];
+  /** Active UI locale */
+  locale: string;
+  /** Localised empty state text */
+  emptyLabel: string;
+  /** id of title announcing the list */
+  labelledBy: string;
+}) {
   if (groups.length === 0) {
-    return <AnalysesTileEmpty />;
+    return <AnalysesTileEmpty message={emptyLabel} />;
   }
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" aria-labelledby={labelledBy}>
       {groups.map((g) => (
         <div key={g.chatId}>
           <h3 className="font-semibold text-sm">
-            <a href={`/chat/${g.chatId}`} className="hover:underline">
+            <a
+              href={`/chat/${g.chatId}`}
+              className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+            >
               {g.chatTitle}
             </a>
           </h3>
@@ -81,7 +126,12 @@ export function AnalysisGroupList({ groups }: { groups: AnalysisGroup[] }) {
               {g.lastMessage}
             </p>
           )}
-          <AnalysisList items={g.items} />
+          <AnalysisList
+            items={g.items}
+            locale={locale}
+            emptyLabel={emptyLabel}
+            labelledBy={labelledBy}
+          />
         </div>
       ))}
     </div>
@@ -89,8 +139,16 @@ export function AnalysisGroupList({ groups }: { groups: AnalysisGroup[] }) {
 }
 
 /** Client component implementing simple filtering by type and symbol */
-export function AnalysesClient({ items }: { items: AnalysisSummary[] }) {
+export function AnalysesClient({
+  items,
+  titleId,
+}: {
+  items: AnalysisSummary[];
+  titleId: string;
+}) {
   'use client';
+  const t = useTranslations('dashboard.analyses');
+  const locale = useLocale();
   const [typeFilter, setTypeFilter] = React.useState('');
   const [symbolFilter, setSymbolFilter] = React.useState('');
 
@@ -108,28 +166,33 @@ export function AnalysesClient({ items }: { items: AnalysisSummary[] }) {
     <div>
       <div className="flex gap-2 mb-2">
         <select
-          aria-label="Filtrer par type"
+          aria-label={t('filters.typeLabel')}
           className="border p-1 text-sm"
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
         >
-          <option value="">Tous les types</option>
-          {uniqueTypes.map((t) => (
-            <option key={t} value={t} className="capitalize">
-              {t}
+          <option value="">{t('filters.allTypes')}</option>
+          {uniqueTypes.map((tVal) => (
+            <option key={tVal} value={tVal} className="capitalize">
+              {tVal}
             </option>
           ))}
         </select>
         <input
-          aria-label="Filtrer par symbole"
+          aria-label={t('filters.symbolLabel')}
           type="text"
-          placeholder="Symbole"
+          placeholder={t('filters.symbol')}
           className="border p-1 text-sm flex-1"
           value={symbolFilter}
           onChange={(e) => setSymbolFilter(e.target.value)}
         />
       </div>
-      <AnalysisList items={filtered} />
+      <AnalysisList
+        items={filtered}
+        locale={locale}
+        emptyLabel={t('empty')}
+        labelledBy={titleId}
+      />
     </div>
   );
 }
@@ -227,18 +290,28 @@ export default async function AnalysesTile({
 }: {
   chatId?: string;
 }) {
+  const { getLocale, getTranslator } = await import('next-intl/server');
+  const locale = await getLocale();
+  const t = await getTranslator(locale, 'dashboard');
+  const titleId = useId();
+
   if (chatId) {
     const items = await fetchAnalyses(chatId);
     return (
-      <BentoCard title="Mes analyses">
-        <AnalysesClient items={items} />
+      <BentoCard title={t('analyses.title')} titleId={titleId}>
+        <AnalysesClient items={items} titleId={titleId} />
       </BentoCard>
     );
   }
   const groups = await fetchAnalysesGrouped();
   return (
-    <BentoCard title="Mes analyses">
-      <AnalysisGroupList groups={groups} />
+    <BentoCard title={t('analyses.title')} titleId={titleId}>
+      <AnalysisGroupList
+        groups={groups}
+        locale={locale}
+        emptyLabel={t('analyses.empty')}
+        labelledBy={titleId}
+      />
     </BentoCard>
   );
 }

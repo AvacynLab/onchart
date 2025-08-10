@@ -46,11 +46,14 @@ export function subscribeBinanceTicker(
  * market data providers and caches results for a short TTL to avoid hammering
  * them. If a request takes longer than the timeout it is considered failed and
  * retried up to the specified number of attempts.
+ *
+ * The default timeout is aligned with the 10s guidance for public data
+ * sources, balancing responsiveness with avoiding unnecessary retries.
  */
 async function fetchQuoteWithRetry(
   symbol: string,
   {
-    timeoutMs = 8_000,
+    timeoutMs = 10_000,
     retries = 2,
     ttlMs = INTRADAY_TTL_MS,
   }: { timeoutMs?: number; retries?: number; ttlMs?: number } = {},

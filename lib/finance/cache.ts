@@ -15,9 +15,16 @@ interface CacheEntry<T> {
 const CAPACITY = 100; // maximum number of entries
 const store = new Map<string, CacheEntry<unknown>>();
 
-/** Default TTL for intraday data (approx. 15s). */
+/**
+ * Default TTL for intraday data (~15s). Keeping this under 20s respects the
+ * 10–15s refresh window noted in the project spec while avoiding excessive
+ * hammering of free APIs.
+ */
 export const INTRADAY_TTL_MS = 15_000;
-/** Default TTL for daily data (approx. 5min). */
+/**
+ * Default TTL for daily data (~5min). Falls inside the recommended 5–10 minute
+ * caching window for slower‑moving end of day information.
+ */
 export const DAILY_TTL_MS = 300_000;
 
 /**
@@ -67,6 +74,9 @@ export async function cachedJsonFetch<T>(
 ): Promise<T> {
   const cached = getCache<T>(url);
   if (cached) return cached;
+  // All network requests go through fetchWithRetry to enforce a 10s timeout and
+  // small exponential backoff. This protects the app from hanging on slow
+  // public endpoints while remaining keyless.
   const res = await fetchWithRetry(url, { fetcher: fetchImpl });
   let data: T;
   try {

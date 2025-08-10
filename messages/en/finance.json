@@ -1,0 +1,40 @@
+{
+  "pricesTitle": "Current prices",
+  "strategy": {
+    "status": {
+      "draft": "Draft",
+      "proposed": "Proposed",
+      "validated": "Validated"
+    },
+    "actions": {
+      "backtest": "Backtest",
+      "refine": "Refine"
+    }
+  },
+  "wizard": {
+    "horizon": "Investment horizon",
+    "risk": "Risk tolerance",
+    "universe": "Universe of assets",
+    "fees": "Fees (%)",
+    "next": "Next",
+    "finish": "Finish"
+  },
+  "toolbar": {
+    "showAAPL": {
+      "label": "Show AAPL 1D",
+      "prompt": "Show the AAPL chart on 1D"
+    },
+    "scanFx": {
+      "label": "Scan FX opportunities",
+      "prompt": "Scan for opportunities on major FX pairs"
+    }
+  },
+  "backtest": {
+    "cagr": "CAGR",
+    "sharpe": "Sharpe",
+    "sortino": "Sortino",
+    "mdd": "MDD",
+    "hitRate": "Hit rate",
+    "profitFactor": "Profit factor"
+  }
+}

@@ -1,8 +1,6 @@
-import React from 'react';
+import React, { useId } from 'react';
 import BentoCard from '../BentoCard';
 import type { NewsItem } from '@/lib/finance/sources/news';
-import { formatDistanceToNow } from 'date-fns';
-import { fr } from 'date-fns/locale';
 import NewsTileEmpty from '../empty/NewsTileEmpty';
 
 /**
@@ -14,16 +12,49 @@ function stripHtml(input: string): string {
 }
 
 /**
+ * Format a JavaScript date into a human readable relative string using the
+ * Intl.RelativeTimeFormat API. The function chooses the largest sensible unit
+ * (seconds, minutes, hours or days) and returns a locale aware relative time,
+ * e.g. "2 h ago" or "il y a 2 h".
+ */
+function formatRelative(date: Date, locale: string): string {
+  const diffMs = date.getTime() - Date.now();
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+  const seconds = Math.round(diffMs / 1000);
+  if (Math.abs(seconds) < 60) return rtf.format(seconds, 'second');
+  const minutes = Math.round(seconds / 60);
+  if (Math.abs(minutes) < 60) return rtf.format(minutes, 'minute');
+  const hours = Math.round(minutes / 60);
+  if (Math.abs(hours) < 24) return rtf.format(hours, 'hour');
+  const days = Math.round(hours / 24);
+  return rtf.format(days, 'day');
+}
+
+/**
  * Pure presentational component rendering a list of news entries.
  * Exported for unit testing.
  */
-export function NewsList({ items }: { items: NewsItem[] }) {
+export function NewsList({
+  items,
+  locale,
+  emptyLabel,
+  labelledBy,
+}: {
+  /** News articles to render */
+  items: NewsItem[];
+  /** Current UI locale */
+  locale: string;
+  /** Localised empty-state message */
+  emptyLabel: string;
+  /** id of the title element announcing this list */
+  labelledBy: string;
+}) {
   if (items.length === 0) {
-    return <NewsTileEmpty />;
+    return <NewsTileEmpty message={emptyLabel} />;
   }
 
   return (
-    <ul className="space-y-3">
+    <ul className="space-y-3" aria-labelledby={labelledBy}>
       {items.map((item) => {
         const hostname = (() => {
           try {
@@ -33,10 +64,7 @@ export function NewsList({ items }: { items: NewsItem[] }) {
           }
         })();
 
-        const relativeDate = formatDistanceToNow(new Date(item.pubDate), {
-          addSuffix: true,
-          locale: fr,
-        });
+        const relativeDate = formatRelative(new Date(item.pubDate), locale);
 
         return (
           <li key={item.link} className="text-sm">
@@ -44,7 +72,7 @@ export function NewsList({ items }: { items: NewsItem[] }) {
               href={item.link}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-medium hover:underline"
+              className="font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
             >
               {item.title}
             </a>
@@ -62,31 +90,25 @@ export function NewsList({ items }: { items: NewsItem[] }) {
 }
 
 /**
- * Server component fetching latest business news via the existing API route
- * and rendering them within a Bento card. Results are fetched on the server
- * to allow initial render with data before hydration.
+ * Server component rendering a list of pre-fetched news items. Fetching happens
+ * in the dashboard page so this component simply formats and displays the
+ * articles with proper localisation.
  */
-export default async function NewsTile() {
-  let items: NewsItem[] = [];
-  try {
-    const baseUrl =
-      process.env.NEXT_PUBLIC_VERCEL_URL
-        ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-        : 'http://localhost:3000';
-    const res = await fetch(`${baseUrl}/api/finance/news?query=business`, {
-      cache: 'no-store',
-    });
-    if (res.ok) {
-      items = (await res.json()) as NewsItem[];
-    }
-  } catch (err) {
-    console.error('failed to load news', err);
-  }
+export default async function NewsTile({ items }: { items: NewsItem[] }) {
+  const { getLocale, getTranslator } = await import('next-intl/server');
+  const locale = await getLocale();
+  const t = await getTranslator(locale, 'dashboard');
+  // Generate a unique id so the list can reference the tile's heading.
+  const titleId = useId();
 
   return (
-    <BentoCard title="Dernières news">
-      <NewsList items={items} />
+    <BentoCard title={t('news.title')} titleId={titleId}>
+      <NewsList
+        items={items}
+        locale={locale}
+        emptyLabel={t('news.empty')}
+        labelledBy={titleId}
+      />
     </BentoCard>
   );
 }
-

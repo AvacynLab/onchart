@@ -16,7 +16,11 @@ function normalizeSymbol(symbol: string): string {
 }
 
 /**
- * Fetch klines (candlesticks) from Binance public API.
+ * Fetch klines (candlesticks) from Binance's public REST API. The dashboard
+ * streams live crypto quotes via WebSocket, but historical candles are pulled
+ * using this keyless endpoint as a fallback when WebSocket data is
+ * unavailable.
+ *
  * @param interval Candle interval like '1m', '5m', '1h'
  * @param limit Number of candles to retrieve (default 500)
  */

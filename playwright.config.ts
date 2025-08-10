@@ -24,6 +24,11 @@ const baseURL = `http://localhost:${PORT}`;
  */
 export default defineConfig({
   testDir: './tests',
+  // Ignore unit tests executed with Node's test runner so Playwright only runs
+  // browser-driven suites. These node-specific tests end with `.node.test.tsx`
+  // or `.node.test.ts` and would otherwise trigger React rendering errors when
+  // Playwright attempts to execute them.
+  testIgnore: ['dashboard/**/*.test.tsx', '**/*.node.test.tsx', '**/*.node.test.ts'],
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */

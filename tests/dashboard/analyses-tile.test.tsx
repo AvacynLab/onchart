@@ -1,3 +1,4 @@
+import '../helpers/next-intl-stub';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
@@ -23,7 +24,14 @@ test('renders analysis summaries', () => {
       symbol: 'AAPL',
     },
   ];
-  const html = renderToString(<AnalysisList items={items} />);
+  const html = renderToString(
+    <AnalysisList
+      items={items}
+      locale="fr"
+      emptyLabel="Aucune analyse enregistrée"
+      labelledBy="title"
+    />,
+  );
   assert.match(html, /Analyse AAPL/);
   assert.match(html, /ohlc/);
 });
@@ -32,7 +40,9 @@ test('renders analysis summaries', () => {
  * Empty list should display placeholder text.
  */
 test('renders empty state', () => {
-  const html = renderToString(<AnalysisList items={[]} />);
+  const html = renderToString(
+    <AnalysisList items={[]} locale="fr" emptyLabel="Aucune analyse enregistrée" labelledBy="title" />,
+  );
   assert.match(html, /Aucune analyse enregistrée/);
 });
 
@@ -56,7 +66,14 @@ test('renders grouped analyses', () => {
       ],
     },
   ];
-  const html = renderToString(<AnalysisGroupList groups={groups} />);
+  const html = renderToString(
+    <AnalysisGroupList
+      groups={groups}
+      locale="fr"
+      emptyLabel="Aucune analyse enregistrée"
+      labelledBy="title"
+    />,
+  );
   assert.match(html, /Chat A/);
   assert.match(html, /Dernier message/);
   assert.match(html, /Analyse AAPL/);

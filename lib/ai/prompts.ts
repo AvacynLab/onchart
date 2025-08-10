@@ -32,23 +32,43 @@ This is a guide for using artifacts tools: \`createDocument\` and \`updateDocume
 Do not update document right after creating it. Wait for user feedback or request to update it.
 `;
 
-export const regularPrompt =
-  'You are a friendly assistant! Keep your responses concise and helpful.';
+/**
+ * Generic chat guidance translated in English and French so the system prompt
+ * can match the language of the user interface.
+ */
+export const regularPrompts = {
+  en: 'You are a friendly assistant! Keep your responses concise and helpful.',
+  fr: 'Tu es un assistant amical ! Réponds de façon concise et utile.',
+} as const;
 
 /**
  * Additional instructions specific to finance tools so the model knows how to
  * interact with market data endpoints and charts.
  */
-export const financePrompt = `
-Tu peux récupérer des données de marché publiques via les outils finance.*.
-Les données sont publiques, non garanties, et peuvent être incomplètes. Les réponses ne constituent pas un conseil en investissement.
+/**
+ * Finance‑specific instructions. Each locale carries its own disclaimer and
+ * reminders so that the model always communicates in the user's language.
+ */
+export const financePrompts = {
+  en: `You can retrieve public market data via the finance.* tools.
+The data is public and not guaranteed (scraping Yahoo/SEC/RSS). Not investment advice.
+Reminders:
+- Always verify financial symbols before requesting data.
+- Always specify a timeframe before calling ui.show_chart.
+- Use compute_indicators for technical analysis.
+- When writing documents, structure sections: Summary, Context, Data, Charts, Signals, Risks, Sources.
+- Reference figures and cite sources when possible, highlighting risks alongside signals.
+`,
+  fr: `Tu peux récupérer des données de marché publiques via les outils finance.*.
+Les données sont publiques et non garanties (scraping Yahoo/SEC/RSS). Pas un conseil en investissement.
 Rappels :
 - Vérifie toujours les symboles financiers avant de demander des données.
-- Précise un timeframe avant d'appeler ui.show_chart.
-- Utilise compute_indicators pour l'analyse technique.
-- Lors de la rédaction de documents, structure les sections : Résumé, Contexte, Données, Graphiques, Signaux, Risques, Sources.
+- Toujours préciser un timeframe avant d'appeler ui.show_chart.
+- Utiliser compute_indicators pour l'analyse technique.
+- Structurer les documents : Résumé, Contexte, Données, Graphiques, Signaux, Risques, Sources.
 - Référence les chiffres et cite les sources lorsque possible, en soulignant les risques avec les signaux.
-`;
+`,
+} as const;
 
 export interface RequestHints {
   latitude: Geo['latitude'];
@@ -68,12 +88,14 @@ About the origin of user's request:
 export const systemPrompt = ({
   selectedChatModel,
   requestHints,
+  locale,
 }: {
   selectedChatModel: string;
   requestHints: RequestHints;
+  locale: keyof typeof financePrompts;
 }) => {
   const requestPrompt = getRequestPromptFromHints(requestHints);
-  const base = `${regularPrompt}\n\n${financePrompt}\n\n${requestPrompt}`;
+  const base = `${regularPrompts[locale]}\n\n${financePrompts[locale]}\n\n${requestPrompt}`;
 
   if (selectedChatModel === 'gpt-5o') {
     return base;

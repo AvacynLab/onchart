@@ -28,7 +28,7 @@ import { useToolbarStore } from './toolbar-store';
 import { ArrowUpIcon, StopIcon } from './icons';
 import { artifactDefinitions, type ArtifactKind } from './artifact';
 import type { ArtifactToolbarItem } from './create-artifact';
-import { financeToolbarItems } from './finance/toolbar-items';
+import { useFinanceToolbarItems } from './finance/toolbar-items';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { ChatMessage } from '@/lib/types';
 
@@ -370,10 +370,9 @@ const PureToolbar = ({
   }
 
   const baseTools = artifactDefinition.toolbar;
+  const financeToolbarItems = useFinanceToolbarItems();
   const toolsByArtifactKind =
-    artifactKind === 'text'
-      ? [...baseTools, ...financeToolbarItems]
-      : baseTools;
+    artifactKind === 'text' ? [...baseTools, ...financeToolbarItems] : baseTools;
 
   if (toolsByArtifactKind.length === 0) {
     return null;

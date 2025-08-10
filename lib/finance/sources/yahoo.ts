@@ -105,7 +105,9 @@ export async function fetchOHLCYahoo(
       volume: quote.volume[i],
     }));
   } catch (err) {
-    // If Yahoo fails for daily data, fallback to Stooq.
+    // If Yahoo fails for daily data, attempt Stooq as a free fallback source
+    // before surfacing the original error to callers. This keeps the app
+    // functional even when Yahoo temporarily rate-limits requests.
     if (/d$/.test(interval)) {
       return fetchDailyStooq(symbol);
     }

@@ -185,15 +185,24 @@ export async function POST(request: Request) {
     await createStreamId({ streamId, chatId: id });
 
     // Build finance toolset with context-specific persistence and namespacing.
+    const locale =
+      (request.headers.get('x-next-intl-locale') as 'fr' | 'en') || 'fr';
     const ft = createFinanceTools({
       userId: session.user.id,
       chatId: id,
+      locale,
     });
-    const { ui: uiTools, research: researchTools, ...finance } = ft;
+    const {
+      ui: uiTools,
+      research: researchTools,
+      strategy: strategyTools,
+      ...finance
+    } = ft;
     const financeToolMap = {
       ...prefixTools('finance', finance as Record<string, Tool>),
       ...prefixTools('ui', uiTools as Record<string, Tool>),
       ...prefixTools('research', researchTools as Record<string, Tool>),
+      ...prefixTools('strategy', strategyTools as Record<string, Tool>),
     };
     const activeTools = [
       'getWeather',
@@ -207,7 +216,11 @@ export async function POST(request: Request) {
       execute: ({ writer: dataStream }) => {
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
-          system: systemPrompt({ selectedChatModel, requestHints }),
+          system: systemPrompt({
+            selectedChatModel,
+            requestHints,
+            locale,
+          }),
           messages: convertToModelMessages(uiMessages),
           stopWhen: stepCountIs(5),
           experimental_activeTools:

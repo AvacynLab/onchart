@@ -1,3 +1,4 @@
+import '../helpers/next-intl-stub';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
@@ -9,6 +10,12 @@ import {
   type StrategyGroup,
 } from '../../components/dashboard/tiles/StrategiesTile';
 import type { Strategy } from '../../lib/db/schema';
+import { IntlProvider } from 'next-intl';
+
+const messages = {
+  dashboard: { strategies: { empty: 'Aucune stratégie enregistrée' } },
+  finance: { strategy: { status: { draft: 'Ébauche' } } },
+};
 
 /**
  * Ensure the strategies tile renders provided items.
@@ -27,7 +34,11 @@ test('renders strategies list', () => {
       updatedAt: new Date(),
     },
   ];
-  const html = renderToString(<StrategyList items={items} />);
+  const html = renderToString(
+    <IntlProvider locale="fr" messages={messages}>
+      <StrategyList items={items} labelledBy="title" />
+    </IntlProvider>,
+  );
   assert.match(html, /Ma stratégie/);
 });
 
@@ -35,7 +46,11 @@ test('renders strategies list', () => {
  * Empty list should show guidance.
  */
 test('renders empty state', () => {
-  const html = renderToString(<StrategyList items={[]} />);
+  const html = renderToString(
+    <IntlProvider locale="fr" messages={messages}>
+      <StrategyList items={[]} labelledBy="title" />
+    </IntlProvider>,
+  );
   assert.match(html, /Aucune stratégie enregistrée/);
 });
 
@@ -63,7 +78,11 @@ test('renders grouped strategies', () => {
       ],
     },
   ];
-  const html = renderToString(<StrategyGroupList groups={groups} />);
+  const html = renderToString(
+    <IntlProvider locale="fr" messages={messages}>
+      <StrategyGroupList groups={groups} labelledBy="title" />
+    </IntlProvider>,
+  );
   assert.match(html, /Chat A/);
   assert.match(html, /Bonjour/);
   assert.match(html, /Ma stratégie/);

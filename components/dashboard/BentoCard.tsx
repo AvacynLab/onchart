@@ -1,4 +1,4 @@
-import React, { type ReactNode } from 'react';
+import React, { useId, type ReactNode } from 'react';
 
 /**
  * Generic tile used inside the dashboard grid.
@@ -11,16 +11,40 @@ interface BentoCardProps {
   actions?: ReactNode;
   /** Card body content. */
   children: ReactNode;
+  /**
+   * Optional id for the title element. When not provided we generate an
+   * accessible id so the surrounding section can reference it via
+   * `aria-labelledby`.
+   */
+  titleId?: string;
 }
 
-export default function BentoCard({ title, actions, children }: BentoCardProps) {
+/**
+ * Accessible card wrapper used inside the dashboard grid. Titles are bound to
+ * the container via `aria-labelledby` so assistive technologies can announce
+ * them when focusing the tile.
+ */
+export default function BentoCard({
+  title,
+  actions,
+  children,
+  titleId,
+}: BentoCardProps) {
+  const headingId = titleId ?? useId();
   return (
-    <div className="rounded-lg border p-4 bg-background shadow-sm flex flex-col min-h-[200px]">
+    <section
+      className="rounded-lg border p-4 bg-background shadow-sm flex flex-col min-h-[200px]"
+      aria-labelledby={headingId}
+    >
       <div className="flex items-center justify-between mb-2">
-        <h2 className="text-sm font-semibold">{title}</h2>
+        <h2 id={headingId} className="text-sm font-semibold">
+          {title}
+        </h2>
         {actions}
       </div>
-      <div className="flex-1 overflow-auto text-sm text-foreground/80">{children}</div>
-    </div>
+      <div className="flex-1 overflow-auto text-sm text-foreground/80">
+        {children}
+      </div>
+    </section>
   );
 }

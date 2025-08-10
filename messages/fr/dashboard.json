@@ -1,0 +1,44 @@
+{
+  "title": "Tableau de bord",
+  "prices": {
+    "title": "Cours actuels",
+    "symbol": "Symbole",
+    "price": "Prix",
+    "change": "Var. %",
+    "state": {
+      "label": "État",
+      "open": "Ouvert",
+      "closed": "Fermé"
+    },
+    "empty": "Aucun cours à afficher"
+  },
+  "news": {
+    "title": "Dernières news",
+    "empty": "Aucune news disponible"
+  },
+  "strategies": {
+    "title": "Mes stratégies",
+    "create": "Créer",
+    "cancel": "Annuler",
+    "loadMore": "Afficher plus",
+    "loading": "Chargement…",
+    "empty": "Aucune stratégie enregistrée"
+  },
+  "analyses": {
+    "title": "Mes analyses",
+    "filters": {
+      "allTypes": "Tous les types",
+      "symbol": "Symbole",
+      "typeLabel": "Filtrer par type",
+      "symbolLabel": "Filtrer par symbole"
+    },
+    "empty": "Aucune analyse enregistrée"
+  },
+  "menu": {
+    "title": "Menu",
+    "toggle": "Basculer le menu",
+    "open": "Ouvrir",
+    "close": "Fermer",
+    "hidden": "Menu masqué"
+  }
+}
