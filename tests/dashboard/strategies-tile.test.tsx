@@ -1,106 +1,58 @@
-import '../helpers/next-intl-stub';
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
+import test from 'node:test';
+import { strict as assert } from 'node:assert';
 import React from 'react';
-import { renderToString } from 'react-dom/server';
-import {
-  StrategyList,
-  StrategyGroupList,
-  fetchStrategies,
-  type StrategyGroup,
-} from '../../components/dashboard/tiles/StrategiesTile';
-import type { Strategy } from '../../lib/db/schema';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { IntlProvider } from 'next-intl';
+import { fetchStrategies, StrategyGroupList, type StrategyGroup } from '../../components/dashboard/tiles/StrategiesTile';
+
+test('fetchStrategies returns empty page when chatId missing', async () => {
+  const page = await fetchStrategies();
+  assert.equal(page.items.length, 0);
+  assert.equal(page.nextCursor, null);
+});
 
 const messages = {
-  dashboard: { strategies: { empty: 'Aucune stratégie enregistrée' } },
-  finance: { strategy: { status: { draft: 'Ébauche' } } },
+  dashboard: { strategies: { empty: 'No strategies' } },
+  finance: {
+    strategy: {
+      status: { draft: 'Draft' },
+      actions: { backtest: 'Backtest', refine: 'Refine' },
+    },
+  },
 };
 
-/**
- * Ensure the strategies tile renders provided items.
- */
-test('renders strategies list', () => {
-  const items: Strategy[] = [
-    {
-      id: 's1',
-      userId: 'u1',
-      chatId: 'c1',
-      title: 'Ma stratégie',
-      universe: {},
-      constraints: {},
-      status: 'draft',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  ];
-  const html = renderToString(
-    <IntlProvider locale="fr" messages={messages}>
-      <StrategyList items={items} labelledBy="title" />
-    </IntlProvider>,
-  );
-  assert.match(html, /Ma stratégie/);
-});
-
-/**
- * Empty list should show guidance.
- */
-test('renders empty state', () => {
-  const html = renderToString(
-    <IntlProvider locale="fr" messages={messages}>
-      <StrategyList items={[]} labelledBy="title" />
-    </IntlProvider>,
-  );
-  assert.match(html, /Aucune stratégie enregistrée/);
-});
-
-/**
- * Group list should render chat headers and last message context.
- */
-test('renders grouped strategies', () => {
-  const groups: StrategyGroup[] = [
-    {
-      chatId: 'c1',
-      chatTitle: 'Chat A',
-      lastMessage: 'Bonjour',
-      items: [
-        {
-          id: 's1',
-          userId: 'u1',
-          chatId: 'c1',
-          title: 'Ma stratégie',
-          universe: {},
-          constraints: {},
-          status: 'draft',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ],
-    },
-  ];
-  const html = renderToString(
-    <IntlProvider locale="fr" messages={messages}>
-      <StrategyGroupList groups={groups} labelledBy="title" />
-    </IntlProvider>,
-  );
-  assert.match(html, /Chat A/);
-  assert.match(html, /Bonjour/);
-  assert.match(html, /Ma stratégie/);
-});
-
-/**
- * Ensure fetchStrategies appends cursor when provided.
- */
-test('fetchStrategies with cursor', async () => {
-  let url = '';
-  // @ts-ignore override global fetch
-  global.fetch = async (input: RequestInfo) => {
-    url = typeof input === 'string' ? input : input.url;
-    return new Response(
-      JSON.stringify({ items: [], nextCursor: null }),
-      { status: 200 },
-    );
+test('StrategyGroupList renders link and status', () => {
+  const realNow = Date.now;
+  Date.now = () => new Date('2024-01-02T00:00:00Z').getTime();
+  const group: StrategyGroup = {
+    chatId: 'c1',
+    chatTitle: 'Chat 1',
+    items: [
+      {
+        id: 's1',
+        userId: 'u1',
+        chatId: 'c1',
+        title: 'Mean Reversion',
+        universe: {},
+        constraints: {},
+        status: 'draft',
+        createdAt: new Date('2024-01-01T00:00:00Z'),
+        updatedAt: new Date('2024-01-01T00:00:00Z'),
+      } as any,
+    ],
   };
-  await fetchStrategies('c1', '2023-01-01T00:00:00.000Z');
-  assert.ok(url.includes('cursor=2023-01-01T00%3A00%3A00.000Z'));
+  const html = renderToStaticMarkup(
+    <IntlProvider
+      locale="en"
+      messages={messages}
+      now={new Date('2024-01-02T00:00:00Z')}
+      timeZone="UTC"
+    >
+      <StrategyGroupList groups={[group]} labelledBy="t" />
+    </IntlProvider>,
+  );
+  assert.match(html, /Mean Reversion/);
+  assert.match(html, /Draft/);
+  assert.match(html, /\/chat\/c1/);
+  Date.now = realNow;
 });

@@ -95,3 +95,57 @@ test('setData, overlays, focusArea and crosshair events operate on the chart', a
   });
   assert.equal(ref.current?.getChart(), chartStub);
 });
+
+test('renders overlays, studies and annotations passed via props', async () => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+
+  let overlayData: any = null;
+  const overlayStub = { setData: (d: any) => (overlayData = d) } as any;
+  let studyData: any = null;
+  const studyStub = { setData: (d: any) => (studyData = d) } as any;
+  let annotationOpts: any = null;
+  const seriesStub = {
+    createPriceLine: (opts: any) => {
+      annotationOpts = opts;
+      return { remove: () => {} };
+    },
+  } as any;
+  let lineCall = 0;
+  const chartStub = {
+    addCandlestickSeries: () => seriesStub,
+    addLineSeries: () => (lineCall++ === 0 ? overlayStub : studyStub),
+    timeScale: () => ({ setVisibleRange: () => {} }),
+    subscribeCrosshairMove: () => {},
+    remove: () => {},
+    applyOptions: () => {},
+  } as any;
+
+  const ref = createRef<ChartPanelRef>();
+  createRoot(container).render(
+    React.createElement(ChartPanel, {
+      ref,
+      symbol: 'BTCUSD',
+      timeframe: '1h',
+      overlays: [{ id: 'ma', data: [{ time: 1, value: 1 }], color: 'red' }],
+      studies: [{ id: 'rsi', data: [{ time: 1, value: 50 }] }],
+      annotations: [{ id: 'note', price: 1, text: 'hi' }],
+      createChartFn: () => chartStub,
+    }),
+  );
+
+  // Wait for asynchronous chart initialisation.
+  await new Promise((r) => setTimeout(r, 0));
+  await new Promise((r) => setTimeout(r, 0));
+  await new Promise((r) => setTimeout(r, 0));
+
+  assert.deepEqual(overlayData, [{ time: 1, value: 1 }]);
+  assert.deepEqual(studyData, [{ time: 1, value: 50 }]);
+  assert.deepEqual(annotationOpts, {
+    price: 1,
+    title: 'hi',
+    color: '#ff4976',
+    lineWidth: 2,
+  });
+  assert.equal(ref.current?.getChart(), chartStub);
+});

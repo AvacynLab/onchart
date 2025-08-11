@@ -155,4 +155,3 @@ export function backtest({
   return { equityCurve: curve, metrics };
 }
 
-export type { BacktestResult };

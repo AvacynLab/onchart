@@ -74,10 +74,14 @@ export function getStreamContext() {
 function wrapTool(name: string, t: Tool) {
   const fn = async (args: unknown) => {
     try {
-      // `t` is itself a function produced by `tool()` from `ai`.
-      return await (t as any)(args);
+      // The `ai` library returns a plain object with an `execute` method.
+      // Some tools may still be callable directly, so support both forms.
+      const impl = typeof t === 'function' ? t : (t as any).execute;
+      return await impl(args);
     } catch (error) {
-      throw new ChatSDKError(`tool_error:${name}`);
+      // Surface tool execution failures as generic chat bad requests so they
+      // return a structured response instead of crashing the stream.
+      throw new ChatSDKError('bad_request:chat', `tool ${name} failed`);
     }
   };
 
@@ -95,6 +99,26 @@ function prefixTools(prefix: string, tools: Record<string, Tool>) {
       wrapTool(`${prefix}.${key}`, value),
     ]),
   );
+}
+
+/**
+ * Build the full finance tool map with prefixed namespaces so the chat route
+ * can expose `finance.*`, `ui.*`, `research.*` and `strategy.*` helpers.
+ * Exported for runtime verification in tests.
+ */
+export function buildFinanceToolMap(ft: ReturnType<typeof createFinanceTools>) {
+  const {
+    ui: uiTools,
+    research: researchTools,
+    strategy: strategyTools,
+    ...finance
+  } = ft as any;
+  return {
+    ...prefixTools('finance', finance as Record<string, Tool>),
+    ...prefixTools('ui', uiTools as Record<string, Tool>),
+    ...prefixTools('research', researchTools as Record<string, Tool>),
+    ...prefixTools('strategy', strategyTools as Record<string, Tool>),
+  };
 }
 
 export async function POST(request: Request) {
@@ -192,25 +216,7 @@ export async function POST(request: Request) {
       chatId: id,
       locale,
     });
-    const {
-      ui: uiTools,
-      research: researchTools,
-      strategy: strategyTools,
-      ...finance
-    } = ft;
-    const financeToolMap = {
-      ...prefixTools('finance', finance as Record<string, Tool>),
-      ...prefixTools('ui', uiTools as Record<string, Tool>),
-      ...prefixTools('research', researchTools as Record<string, Tool>),
-      ...prefixTools('strategy', strategyTools as Record<string, Tool>),
-    };
-    const activeTools = [
-      'getWeather',
-      'createDocument',
-      'updateDocument',
-      'requestSuggestions',
-      ...Object.keys(financeToolMap),
-    ];
+    const financeToolMap = buildFinanceToolMap(ft);
 
     const stream = createUIMessageStream({
       execute: ({ writer: dataStream }) => {
@@ -224,7 +230,9 @@ export async function POST(request: Request) {
           messages: convertToModelMessages(uiMessages),
           stopWhen: stepCountIs(5),
           experimental_activeTools:
-            selectedChatModel === 'gpt-5o' ? [] : activeTools,
+            selectedChatModel === 'gpt-5o'
+              ? []
+              : (Object.keys(financeToolMap) as any),
           experimental_transform: smoothStream({ chunking: 'word' }),
           tools: {
             getWeather,

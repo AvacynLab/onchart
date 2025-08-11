@@ -4,11 +4,14 @@ import React, {
   useImperativeHandle,
   useRef,
 } from 'react';
-import type {
-  CandlestickData,
-  IChartApi,
-  ISeriesApi,
-  LineData,
+import {
+  createChart,
+  LineSeries,
+  CandlestickSeries,
+  type CandlestickData,
+  type IChartApi,
+  type ISeriesApi,
+  type LineData,
 } from 'lightweight-charts';
 import {
   subscribeUIEvents,
@@ -105,21 +108,56 @@ const ChartPanel = forwardRef<ChartPanelRef, ChartPanelProps>(
     const studyRefs = useRef<Record<string, ISeriesApi<'Line'>>>({});
     const annotationsRef = useRef<Record<string, { remove: () => void }>>({});
 
+    // Helper to add an annotation and keep track of it for later removal.
+    const addAnnotation = (a: ChartAnnotation) => {
+      const line = seriesRef.current?.createPriceLine({
+        price: a.price,
+        title: a.text,
+        color: '#ff4976',
+        lineWidth: 2,
+      });
+      if (line) {
+        // Wrap the returned price line in an object exposing a `remove` method
+        // so callers can clean up annotations without depending on chart
+        // internals.
+        annotationsRef.current[a.id] = {
+          remove: () => seriesRef.current?.removePriceLine(line),
+        };
+      }
+    };
+
+    // Helper to add a line series overlay or study and store a reference so it
+    // can be manipulated later.
+    const addLine = (
+      target: React.MutableRefObject<Record<string, ISeriesApi<'Line'>>>,
+      l: ChartLine,
+    ) => {
+      const series = chartRef.current?.addSeries(LineSeries, { color: l.color });
+      series?.setData(l.data);
+      if (series) target.current[l.id] = series;
+    };
+
+    const addOverlay = (o: ChartLine) => addLine(overlayRefs, o);
+    const addStudy = (s: ChartLine) => addLine(studyRefs, s);
+
     // Create the chart instance on mount.
     useEffect(() => {
       if (!containerRef.current) return;
       let mounted = true;
       const cleanupRef: { current: () => void } = { current: () => {} };
       async function init() {
-        // Dynamically import lightweight-charts if no factory is provided.
-        const create =
-          createChartFn || (await import('lightweight-charts')).createChart;
         if (!mounted || !containerRef.current) return;
+        const create = createChartFn ?? createChart;
         chartRef.current = await create(containerRef.current);
         seriesRef.current =
           seriesType === 'line'
-            ? chartRef.current.addLineSeries()
-            : chartRef.current.addCandlestickSeries();
+            ? chartRef.current.addSeries(LineSeries)
+            : chartRef.current.addSeries(CandlestickSeries);
+
+        // Apply any initial layers once the chart exists.
+        overlays?.forEach(addOverlay);
+        studies?.forEach(addStudy);
+        annotations?.forEach(addAnnotation);
 
         // Apply theme based on prefers-color-scheme. Defaults to light if the
         // API is unavailable (e.g. in tests).
@@ -176,31 +214,6 @@ const ChartPanel = forwardRef<ChartPanelRef, ChartPanelProps>(
       };
     }, [createChartFn, seriesType]);
 
-    // Helper to add an annotation and keep track of it for later removal.
-    const addAnnotation = (a: ChartAnnotation) => {
-      const line = seriesRef.current?.createPriceLine({
-        price: a.price,
-        title: a.text,
-        color: '#ff4976',
-        lineWidth: 2,
-      });
-      if (line) annotationsRef.current[a.id] = line;
-    };
-
-    // Helper to add a line series overlay or study and store a reference so it
-    // can be manipulated later.
-    const addLine = (
-      target: React.MutableRefObject<Record<string, ISeriesApi<'Line'>>>,
-      l: ChartLine,
-    ) => {
-      const series = chartRef.current?.addLineSeries({ color: l.color });
-      series?.setData(l.data);
-      if (series) target.current[l.id] = series;
-    };
-
-    const addOverlay = (o: ChartLine) => addLine(overlayRefs, o);
-    const addStudy = (s: ChartLine) => addLine(studyRefs, s);
-
     useImperativeHandle(ref, () => ({
       setData(data) {
         seriesRef.current?.setData(data as any);
@@ -209,7 +222,13 @@ const ChartPanel = forwardRef<ChartPanelRef, ChartPanelProps>(
       addStudy,
       addAnnotation,
       focusArea(start, end) {
-        chartRef.current?.timeScale().setVisibleRange({ from: start, to: end });
+        // Cast the numeric range to the generic `Time` type expected by
+        // `setVisibleRange` so callers can supply plain epoch seconds without
+        // importing chart-specific types.
+        chartRef.current?.timeScale().setVisibleRange({
+          from: start as any,
+          to: end as any,
+        });
       },
       getChart() {
         return chartRef.current;

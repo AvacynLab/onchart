@@ -5,9 +5,12 @@ import fetchWithRetry from '../request';
 
 /**
  * User agent string required by the SEC when scraping their APIs.
- * A generic email is provided to comply with their terms.
+ *
+ * Defaults to a generic contact address but can be overridden via the
+ * `SEC_USER_AGENT` environment variable if a different identifier is desired.
  */
-const USER_AGENT = 'onchart/1.0 (support@example.com)';
+const USER_AGENT =
+  process.env.SEC_USER_AGENT || 'onchart/1.0 (support@example.com)';
 
 /** Base URL for SEC data APIs */
 const SEC_API = 'https://data.sec.gov';

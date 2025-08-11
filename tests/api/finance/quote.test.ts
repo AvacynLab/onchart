@@ -8,9 +8,11 @@ function makeRequest(symbol: string) {
 
 test('returns quote from Yahoo Finance', async () => {
   const originalFetch = global.fetch;
-  // Mock Yahoo response
-  global.fetch = (async (url: string) => {
+  let ua: string | undefined;
+  // Mock Yahoo response and capture the User-Agent header
+  global.fetch = (async (url: string, init?: RequestInit) => {
     if (url.includes('finance.yahoo.com')) {
+      ua ??= (init?.headers as any)?.['User-Agent'];
       return new Response(
         JSON.stringify({
           quoteResponse: {
@@ -35,6 +37,7 @@ test('returns quote from Yahoo Finance', async () => {
   const body = await res.json();
 
   expect(res.status).toBe(200);
+  expect(ua).toBe('Mozilla/5.0');
   expect(body).toMatchObject({
     symbol: 'AAPL',
     price: 150,

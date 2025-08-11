@@ -34,18 +34,23 @@ export default async function HomePage({
   let quotes: QuoteResult[] = [];
   let news: NewsItem[] = [];
 
-  try {
-    quotes = await fetchLiveQuotes(DEFAULT_SYMBOLS);
-  } catch (err) {
-    // If quote fetching fails we still render the dashboard; the tile will show
-    // an empty state which is covered by tests.
-    console.error('failed to prefetch quotes', err);
-  }
+  // During Playwright runs the container lacks external network access. Skip
+  // prefetching quotes and news so the dashboard renders immediately with
+  // empty placeholders.
+  if (!process.env.PLAYWRIGHT) {
+    try {
+      quotes = await fetchLiveQuotes(DEFAULT_SYMBOLS);
+    } catch (err) {
+      // If quote fetching fails we still render the dashboard; the tile will show
+      // an empty state which is covered by tests.
+      console.error('failed to prefetch quotes', err);
+    }
 
-  try {
-    news = await fetchRssFeeds('business');
-  } catch (err) {
-    console.error('failed to prefetch news', err);
+    try {
+      news = await fetchRssFeeds('business');
+    } catch (err) {
+      console.error('failed to prefetch news', err);
+    }
   }
 
   return (

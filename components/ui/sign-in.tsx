@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from 'react';
 import { Eye, EyeOff /* , Discord */ } from 'lucide-react';
 
@@ -119,16 +121,16 @@ export const SignInPage: React.FC<SignInPageProps> = ({
               <span className="px-4 text-sm text-muted-foreground bg-background absolute">Or continue with</span>
             </div>
 
-            {/* OAuth sign-in buttons (currently disabled) */}
             {/*
-            <button onClick={onGoogleSignIn} className="animate-element animate-delay-800 w-full flex items-center justify-center gap-3 border border-border rounded-2xl py-4 hover:bg-secondary transition-colors">
+              OAuth sign-in buttons (currently disabled)
+              <button onClick={onGoogleSignIn} className="animate-element animate-delay-800 w-full flex items-center justify-center gap-3 border border-border rounded-2xl py-4 hover:bg-secondary transition-colors">
                 <GoogleIcon />
                 Continue with Google
-            </button>
-            <button onClick={undefined} className="animate-element animate-delay-800 w-full flex items-center justify-center gap-3 border border-border rounded-2xl py-4 hover:bg-secondary transition-colors">
-                {/* <Discord className="w-5 h-5" /> */}
+              </button>
+              <button onClick={undefined} className="animate-element animate-delay-800 w-full flex items-center justify-center gap-3 border border-border rounded-2xl py-4 hover:bg-secondary transition-colors">
+                <Discord className="w-5 h-5" />
                 Continue with Discord
-            </button>
+              </button>
             */}
 
             <p className="animate-element animate-delay-900 text-center text-sm text-muted-foreground">
@@ -153,4 +155,4 @@ export const SignInPage: React.FC<SignInPageProps> = ({
       )}
     </div>
   );
-};  
+};

@@ -10,8 +10,11 @@ function makeRequest(ticker: string, forms?: string) {
 
 test('lists filings for a ticker from SEC', async () => {
   const originalFetch = global.fetch;
-  global.fetch = (async (url: string) => {
+  const uas: string[] = [];
+  // Mock SEC endpoints and record the User-Agent header of each call
+  global.fetch = (async (url: string, init?: RequestInit) => {
     if (url.includes('company_tickers.json')) {
+      uas.push((init?.headers as any)?.['User-Agent']);
       return new Response(
         JSON.stringify({
           '0': { cik_str: 1234, ticker: 'TEST', title: 'Test Corp' },
@@ -20,6 +23,7 @@ test('lists filings for a ticker from SEC', async () => {
       );
     }
     if (url.includes('submissions')) {
+      uas.push((init?.headers as any)?.['User-Agent']);
       return new Response(
         JSON.stringify({
           filings: {
@@ -43,6 +47,7 @@ test('lists filings for a ticker from SEC', async () => {
   expect(res.status).toBe(200);
   expect(Array.isArray(body)).toBe(true);
   expect(body[0]).toMatchObject({ form: '10-K', accession: '0000000000-23-000001' });
+  expect(uas.every((h) => h === 'onchart/1.0 (support@example.com)')).toBe(true);
 
   global.fetch = originalFetch;
 });

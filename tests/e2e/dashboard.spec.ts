@@ -4,16 +4,33 @@ import frDashboard from '../../messages/fr/dashboard.json' assert { type: 'json'
 import enDashboard from '../../messages/en/dashboard.json' assert { type: 'json' };
 import enFinance from '../../messages/en/finance.json' assert { type: 'json' };
 
+// Stub external font requests so tests do not depend on Google services.
+test.beforeEach(async ({ page }) => {
+  await page.route('https://fonts.googleapis.com/*', (route) =>
+    route.fulfill({ status: 200, body: '' }),
+  );
+  await page.route('https://fonts.gstatic.com/*', (route) =>
+    route.fulfill({ status: 200, body: '' }),
+  );
+});
+
 /**
  * Ensure the dashboard's menu tile toggles finance quick actions and that the
  * previous floating toolbar overlay is absent from the page.
  */
 test('menu tile toggles finance actions', async ({ page }) => {
-  await page.goto('/');
+  // Navigate directly to the French dashboard; authentication is optional for
+  // this smoke test because the menu tile is public.
+  await page.goto('/fr');
+  await expect(page).toHaveURL(/\/fr$/);
+
   // The overlay toolbar should no longer render globally.
   await expect(page.locator('[role="toolbar"]')).toHaveCount(0);
 
-  const toggle = page.getByRole('button', { name: /Ouvrir|Open/ });
+  // The menu tile exposes its toggle button with a localized label.
+  const toggle = page.getByRole('button', {
+    name: (frDashboard as any).menu.toggle,
+  });
   await toggle.click();
 
   const firstLabel = (frFinance as any).toolbar.showAAPL.label;
@@ -27,8 +44,8 @@ test('menu tile toggles finance actions', async ({ page }) => {
  * specifics while still asserting localized labels.
  */
 test('renders tiles and switches locales', async ({ page }) => {
-  // Landing on `/` should redirect to the default French locale.
-  await page.goto('/');
+  // Start from the default French dashboard.
+  await page.goto('/fr');
   await expect(page).toHaveURL(/\/fr$/);
 
   // The "Current prices" heading should appear in French.

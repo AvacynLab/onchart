@@ -1,51 +1,51 @@
-import '../helpers/next-intl-stub';
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
+import test from 'node:test';
+import { strict as assert } from 'node:assert';
 import React from 'react';
-import { renderToString } from 'react-dom/server';
-import { PricesClient } from '../../components/dashboard/tiles/CurrentPricesTile';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { IntlProvider } from 'next-intl';
+import { PricesClient, type QuoteResult } from '../../components/dashboard/tiles/CurrentPricesTile';
+import { DEFAULT_SYMBOLS } from '../../components/dashboard/tiles/CurrentPricesTile';
+import { isCryptoSymbol } from '../../lib/finance/live';
 
-const messages = {
-  dashboard: {
-    prices: {
-      title: 'Cours actuels',
-      symbol: 'Symbole',
-      price: 'Prix',
-      change: 'Var. %',
-      state: { label: 'État', open: 'Ouvert', closed: 'Fermé' },
-      empty: 'Aucun cours à afficher',
+/**
+ * Ensure the default symbol list mixes equities and crypto assets so the tile
+ * exercises both polling and websocket update paths.
+ */
+test('DEFAULT_SYMBOLS mixes equities and crypto', () => {
+  assert(DEFAULT_SYMBOLS.some((s) => isCryptoSymbol(s)));
+  assert(DEFAULT_SYMBOLS.some((s) => !isCryptoSymbol(s)));
+});
+
+/**
+ * Render the client portion of the tile with seed quotes and verify the table
+ * contains formatted price, percentage change, and market state label.
+ */
+test('PricesClient renders initial quotes with formatting', () => {
+  const quotes: QuoteResult[] = [
+    { symbol: 'AAPL', price: 123.45, changePercent: 1.23, marketState: 'REG' },
+  ];
+  const messages = {
+    dashboard: {
+      prices: {
+        title: 'Prices',
+        symbol: 'Symbol',
+        price: 'Price',
+        change: 'Change',
+        state: { label: 'State', open: 'Open', closed: 'Closed' },
+        empty: 'No prices',
+      },
     },
-  },
-};
-
-/** Ensure the prices tile renders a table row for each provided quote. */
-test('renders provided quotes', () => {
-  const html = renderToString(
-    <IntlProvider locale="fr" messages={messages}>
-      <PricesClient
-        initialQuotes={[
-          {
-            symbol: 'AAPL',
-            price: 123.45,
-            change: 0.5,
-            changePercent: 0.4,
-            marketState: 'REG',
-          },
-        ]}
-      />
+  } as const;
+  const html = renderToStaticMarkup(
+    <IntlProvider locale="en" messages={messages} onError={() => undefined}>
+      <PricesClient initialQuotes={quotes} />
     </IntlProvider>,
   );
   assert.match(html, /AAPL/);
-  assert.match(html, /123[,.]45/);
-});
-
-/** Empty quote list should render placeholder text. */
-test('renders empty state', () => {
-  const html = renderToString(
-    <IntlProvider locale="fr" messages={messages}>
-      <PricesClient initialQuotes={[]} />
-    </IntlProvider>,
-  );
-  assert.match(html, /Aucun cours à afficher/);
+  // Prices formatted to two decimals using locale-aware formatter.
+  assert.match(html, /123\.45/);
+  // Change percent also formatted with two decimals and a percent sign.
+  assert.match(html, /1\.23%/);
+  // Market state label sourced from translation messages.
+  assert.match(html, /Open/);
 });

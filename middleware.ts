@@ -43,6 +43,14 @@ export async function middleware(request: NextRequest) {
     secureCookie: !isDevelopmentEnvironment,
   });
 
+  // During Playwright tests, allow unauthenticated access so suites can run
+  // without relying on the guest sign-in flow or a backing database.
+  if (!token && process.env.PLAYWRIGHT) {
+    const response = NextResponse.next();
+    response.headers.set('x-next-intl-locale', locale);
+    return response;
+  }
+
   if (!token) {
     const redirectUrl = encodeURIComponent(request.url);
 

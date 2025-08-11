@@ -36,7 +36,9 @@ export default function Page() {
   // };
 
   const handleResetPassword = () => {
-    toast({ type: 'info', description: 'Reset password not implemented.' });
+    // Notify the user that the action is not yet available using the error
+    // style since only "error" and "success" variants are supported.
+    toast({ type: 'error', description: 'Reset password not implemented.' });
   };
 
   const handleCreateAccount = () => {

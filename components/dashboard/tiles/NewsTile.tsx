@@ -1,14 +1,18 @@
-import React, { useId } from 'react';
+import React from 'react';
 import BentoCard from '../BentoCard';
 import type { NewsItem } from '@/lib/finance/sources/news';
 import NewsTileEmpty from '../empty/NewsTileEmpty';
+import { load } from 'cheerio';
 
 /**
- * Simple helper removing any HTML tags from an RSS description in order
- * to mitigate XSS when rendering untrusted feed content.
+ * Sanitize an RSS description by stripping all tags and removing potentially
+ * dangerous elements like <script> or <style>. Cheerio is used server-side so
+ * no browser DOM is required.
  */
-function stripHtml(input: string): string {
-  return input.replace(/<[^>]*>/g, '');
+export function sanitizeSummary(input: string): string {
+  const $ = load(input);
+  $('script,style').remove();
+  return $.text();
 }
 
 /**
@@ -80,7 +84,7 @@ export function NewsList({
               {hostname} · {relativeDate}
             </div>
             {item.summary && (
-              <p className="text-xs mt-1">{stripHtml(item.summary)}</p>
+              <p className="text-xs mt-1">{sanitizeSummary(item.summary)}</p>
             )}
           </li>
         );
@@ -95,11 +99,14 @@ export function NewsList({
  * articles with proper localisation.
  */
 export default async function NewsTile({ items }: { items: NewsItem[] }) {
-  const { getLocale, getTranslator } = await import('next-intl/server');
+  // Resolve the active locale and translation function without relying on
+  // project-wide middleware. `getTranslations` returns a locale-aware `t` helper.
+  const { getLocale, getTranslations } = await import('next-intl/server');
   const locale = await getLocale();
-  const t = await getTranslator(locale, 'dashboard');
+  const t = await getTranslations({ locale, namespace: 'dashboard' });
   // Generate a unique id so the list can reference the tile's heading.
-  const titleId = useId();
+  // Server components cannot use React hooks, so generate an id manually.
+  const titleId = `news-${Math.random().toString(36).slice(2)}`;
 
   return (
     <BentoCard title={t('news.title')} titleId={titleId}>

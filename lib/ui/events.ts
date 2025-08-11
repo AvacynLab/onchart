@@ -32,5 +32,9 @@ export function subscribeUIEvents<T = any>(
   handler: (event: UIEvent<T>) => void,
 ) {
   emitter.on('ui', handler);
-  return () => emitter.off('ui', handler);
+  // Return an unsubscribe function that removes the listener and resolves to
+  // `void` so it can be used directly as a React effect cleanup callback.
+  return () => {
+    emitter.off('ui', handler);
+  };
 }
