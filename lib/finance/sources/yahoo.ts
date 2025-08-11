@@ -1,6 +1,7 @@
 import { cachedJsonFetch, INTRADAY_TTL_MS, DAILY_TTL_MS } from '../cache';
 import { rateLimit } from '../rate-limit';
 import fetchWithRetry from '../request';
+import { DataSourceError } from '../errors';
 import { fetchDailyStooq } from './stooq';
 
 /** Base endpoint for Yahoo Finance public API */
@@ -44,7 +45,9 @@ export async function fetchQuoteYahoo(symbol: string): Promise<QuoteResult> {
   const sym = normalizeSymbol(symbol);
   await rateLimit('yahoo');
   const url = `${YAHOO_BASE}/v7/finance/quote?symbols=${encodeURIComponent(sym)}`;
-  const data = await cachedJsonFetch<any>(url, INTRADAY_TTL_MS);
+  const data = await cachedJsonFetch<any>(url, INTRADAY_TTL_MS, fetch, {
+    headers: { 'User-Agent': 'Mozilla/5.0' },
+  });
   const quote = data.quoteResponse.result[0];
   return {
     symbol: quote.symbol,
@@ -92,7 +95,9 @@ export async function fetchOHLCYahoo(
   const url = `${YAHOO_BASE}/v8/finance/chart/${encodeURIComponent(sym)}?${params}`;
   const ttl = /m$|h$/.test(interval) ? INTRADAY_TTL_MS : DAILY_TTL_MS;
   try {
-    const data = await cachedJsonFetch<any>(url, ttl);
+    const data = await cachedJsonFetch<any>(url, ttl, fetch, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+    });
     const result = data.chart.result[0];
     const timestamps: number[] = result.timestamp;
     const quote = result.indicators.quote[0];
@@ -107,9 +112,17 @@ export async function fetchOHLCYahoo(
   } catch (err) {
     // If Yahoo fails for daily data, attempt Stooq as a free fallback source
     // before surfacing the original error to callers. This keeps the app
-    // functional even when Yahoo temporarily rate-limits requests.
+    // functional even when Yahoo temporarily rate-limits requests. If Stooq
+    // also fails, return a clear data source error instead of the original
+    // Yahoo exception so callers know both providers were unreachable.
     if (/d$/.test(interval)) {
-      return fetchDailyStooq(symbol);
+      try {
+        return await fetchDailyStooq(symbol);
+      } catch (stooqErr) {
+        throw new DataSourceError(
+          `Unable to fetch OHLC data from Yahoo or Stooq: ${(stooqErr as Error).message}`,
+        );
+      }
     }
     throw err;
   }
@@ -127,7 +140,9 @@ export interface SearchResult {
 export async function searchYahoo(query: string): Promise<SearchResult[]> {
   await rateLimit('yahoo');
   const url = `${YAHOO_BASE}/v1/finance/search?q=${encodeURIComponent(query)}`;
-  const data = await cachedJsonFetch<any>(url, 300_000);
+  const data = await cachedJsonFetch<any>(url, 300_000, fetch, {
+    headers: { 'User-Agent': 'Mozilla/5.0' },
+  });
   return (data.quotes || []).map((q: any) => ({
     symbol: q.symbol,
     name: q.shortname || q.longname || '',

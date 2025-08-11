@@ -50,23 +50,25 @@ export const regularPrompts = {
  * reminders so that the model always communicates in the user's language.
  */
 export const financePrompts = {
+  /**
+   * English instructions embedded in the system prompt so the model knows how
+   * to interact with public market data. Wording follows the checklist in
+   * `AGENTS.md` exactly, including emphasis for disclaimers.
+   */
   en: `You can retrieve public market data via the finance.* tools.
-The data is public and not guaranteed (scraping Yahoo/SEC/RSS). Not investment advice.
-Reminders:
-- Always verify financial symbols before requesting data.
-- Always specify a timeframe before calling ui.show_chart.
-- Use compute_indicators for technical analysis.
-- When writing documents, structure sections: Summary, Context, Data, Charts, Signals, Risks, Sources.
-- Reference figures and cite sources when possible, highlighting risks alongside signals.
+Data is **public** and **not guaranteed**. **Not investment advice.**
+Always specify **timeframe** before ui.show_chart.
+Use compute_indicators for TA.
+Structure: **Summary, Context, Data, Charts, Signals, Risks, Sources**.
 `,
+  /**
+   * French equivalent instructions with the same disclaimers and reminders.
+   */
   fr: `Tu peux récupérer des données de marché publiques via les outils finance.*.
-Les données sont publiques et non garanties (scraping Yahoo/SEC/RSS). Pas un conseil en investissement.
-Rappels :
-- Vérifie toujours les symboles financiers avant de demander des données.
-- Toujours préciser un timeframe avant d'appeler ui.show_chart.
-- Utiliser compute_indicators pour l'analyse technique.
-- Structurer les documents : Résumé, Contexte, Données, Graphiques, Signaux, Risques, Sources.
-- Référence les chiffres et cite les sources lorsque possible, en soulignant les risques avec les signaux.
+Les données sont **publiques** et **non garanties** (Yahoo/SEC/RSS). **Pas un conseil en investissement.**
+Toujours préciser la **timeframe** avant ui.show_chart.
+Utiliser compute_indicators pour l’analyse technique.
+Structurer : **Résumé, Contexte, Données, Graphiques, Signaux, Risques, Sources**.
 `,
 } as const;
 

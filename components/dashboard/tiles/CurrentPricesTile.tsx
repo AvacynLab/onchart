@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect, useState, useId } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import BentoCard from '../BentoCard';

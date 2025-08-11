@@ -1,4 +1,4 @@
-import React, { useId } from 'react';
+import React from 'react';
 import { useTranslations } from 'next-intl';
 import { getTranslations } from 'next-intl/server';
 import type { Strategy } from '@/lib/db/schema';
@@ -40,43 +40,50 @@ export async function fetchStrategies(
 
 /** Fetch strategies across all chats for the current user and group them by chat id. */
 async function fetchStrategiesGrouped(): Promise<StrategyGroup[]> {
-  const { auth } = await import('@/app/(auth)/auth');
-  const session = await auth();
-  if (!session) return [];
-  const { listStrategiesByUser, getLastMessagesByChatIds } = await import(
-    '@/lib/db/queries'
-  );
-  const rows = await listStrategiesByUser({ userId: session.user.id });
-  const groups = new Map<string, StrategyGroup>();
-  for (const row of rows) {
-    const existing = groups.get(row.chat.id);
-    if (existing) {
-      existing.items.push(row.strategy);
-    } else {
-      groups.set(row.chat.id, {
-        chatId: row.chat.id,
-        chatTitle: row.chat.title,
-        items: [row.strategy],
-      });
+  try {
+    const { auth } = await import('@/app/(auth)/auth');
+    const session = await auth();
+    if (!session) return [];
+    const { listStrategiesByUser, getLastMessagesByChatIds } = await import(
+      '@/lib/db/queries'
+    );
+    const rows = await listStrategiesByUser({ userId: session.user.id });
+    const groups = new Map<string, StrategyGroup>();
+    for (const row of rows) {
+      const existing = groups.get(row.chat.id);
+      if (existing) {
+        existing.items.push(row.strategy);
+      } else {
+        groups.set(row.chat.id, {
+          chatId: row.chat.id,
+          chatTitle: row.chat.title,
+          items: [row.strategy],
+        });
+      }
     }
-  }
-  const chatIds = Array.from(groups.keys());
-  const lastMessages = await getLastMessagesByChatIds({ chatIds });
-  const textFromParts = (parts: any): string | undefined => {
-    const part = Array.isArray(parts)
-      ? parts.find((p: any) => p.type === 'text')
-      : undefined;
-    return part?.text as string | undefined;
-  };
-  const map = new Map(lastMessages.map((m) => [m.chatId, textFromParts(m.parts)]));
+    const chatIds = Array.from(groups.keys());
+    const lastMessages = await getLastMessagesByChatIds({ chatIds });
+    const textFromParts = (parts: any): string | undefined => {
+      const part = Array.isArray(parts)
+        ? parts.find((p: any) => p.type === 'text')
+        : undefined;
+      return part?.text as string | undefined;
+    };
+    const map = new Map(
+      lastMessages.map((m) => [m.chatId, textFromParts(m.parts)]),
+    );
 
-  return Array.from(groups.values()).map((g) => ({
-    ...g,
-    items: g.items.sort(
-      (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
-    ),
-    lastMessage: map.get(g.chatId),
-  }));
+    return Array.from(groups.values()).map((g) => ({
+      ...g,
+      items: g.items.sort(
+        (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
+      ),
+      lastMessage: map.get(g.chatId),
+    }));
+  } catch (err) {
+    console.error('failed to load strategies', err);
+    return [];
+  }
 }
 
 export function StrategyList({
@@ -157,7 +164,8 @@ export default async function StrategiesTile({
 }: {
   chatId?: string;
 }) {
-  const titleId = useId();
+  // Generate a unique id for the heading without relying on hooks.
+  const titleId = `strategies-${Math.random().toString(36).slice(2)}`;
   const t = await getTranslations('dashboard.strategies');
   if (chatId) {
     const page = await fetchStrategies(chatId);

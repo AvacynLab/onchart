@@ -71,13 +71,14 @@ export async function cachedJsonFetch<T>(
   url: string,
   ttlMs: number,
   fetchImpl: typeof fetch = fetch,
+  init: RequestInit = {},
 ): Promise<T> {
   const cached = getCache<T>(url);
   if (cached) return cached;
   // All network requests go through fetchWithRetry to enforce a 10s timeout and
   // small exponential backoff. This protects the app from hanging on slow
   // public endpoints while remaining keyless.
-  const res = await fetchWithRetry(url, { fetcher: fetchImpl });
+  const res = await fetchWithRetry(url, { fetcher: fetchImpl, init });
   let data: T;
   try {
     data = (await res.json()) as T;

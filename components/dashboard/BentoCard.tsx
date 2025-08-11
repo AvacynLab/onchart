@@ -30,7 +30,10 @@ export default function BentoCard({
   children,
   titleId,
 }: BentoCardProps) {
-  const headingId = titleId ?? useId();
+  // Always call `useId` to satisfy the React Hooks rules then fall back to the
+  // generated value only when the caller did not provide a custom identifier.
+  const generatedId = useId();
+  const headingId = titleId ?? generatedId;
   return (
     <section
       className="rounded-lg border p-4 bg-background shadow-sm flex flex-col min-h-[200px]"

@@ -19,6 +19,8 @@
 <br/>
 
 > ℹ️ **Données publiques, non garanties – ce projet ne fournit aucun conseil en investissement.**
+>
+> ℹ️ **Public data, not guaranteed – this project does not provide investment advice.**
 
 ## Features
 
@@ -77,9 +79,21 @@ pnpm dev
 
 Your app template should now be running on [localhost:3000](http://localhost:3000).
 
+## Tests
+
+```bash
+node --test --import tsx "tests/**/*.test.ts?(x)"
+pnpm test
+```
+
+- `node --test` exécute les tests unitaires (Node.js test runner).
+- `pnpm test` lance la suite end-to-end Playwright.
+
 ## Disclaimer
 
 Ce projet utilise exclusivement des données publiques, ne constitue pas un conseil financier et les informations fournies peuvent être incomplètes ou fragiles.
+
+This project relies solely on public data, offers no investment advice, and the information provided may be incomplete or unreliable.
 
 ## Public data sources
 

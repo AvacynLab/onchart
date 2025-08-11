@@ -12,22 +12,22 @@ const hints: RequestHints = {
 test('financePrompts include FR and EN disclaimers', () => {
   assert.ok(
     financePrompts.fr.includes(
-      'Les données sont publiques et non garanties (scraping Yahoo/SEC/RSS). Pas un conseil en investissement.'
+      'Les données sont **publiques** et **non garanties** (Yahoo/SEC/RSS). **Pas un conseil en investissement.**'
     ),
     'missing French disclaimer'
   );
   assert.ok(
-    financePrompts.fr.includes('Toujours préciser un timeframe avant d\'appeler ui.show_chart.'),
+    financePrompts.fr.includes('Toujours préciser la **timeframe** avant ui.show_chart.'),
     'missing French timeframe reminder'
   );
   assert.ok(
     financePrompts.en.includes(
-      'The data is public and not guaranteed (scraping Yahoo/SEC/RSS). Not investment advice.'
+      'Data is **public** and **not guaranteed**. **Not investment advice.**'
     ),
     'missing English disclaimer'
   );
   assert.ok(
-    financePrompts.en.includes('Always specify a timeframe before calling ui.show_chart.'),
+    financePrompts.en.includes('Always specify **timeframe** before ui.show_chart.'),
     'missing English timeframe reminder'
   );
 });

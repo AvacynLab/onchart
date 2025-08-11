@@ -34,7 +34,10 @@ export default function StrategiesTileClient({
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   // Generate a title id if the parent did not provide one.
-  const titleId = externalTitleId ?? useId();
+  // Generate an identifier once and fall back to it when the parent does not
+  // provide one to maintain predictable hook ordering.
+  const generatedTitleId = useId();
+  const titleId = externalTitleId ?? generatedTitleId;
 
   async function handleComplete(data: WizardAnswers) {
     if (!chatId) return;

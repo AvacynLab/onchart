@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect, useRef, useId } from 'react';
 import { useTranslations } from 'next-intl';
 import BentoCard from '../BentoCard';
@@ -57,8 +59,12 @@ export default function MenuTile() {
               key={item.description}
               role="menuitem"
               tabIndex={0}
-              className="text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+              className="text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 flex items-center gap-2"
             >
+              {/* Display the toolbar item's icon to mirror the chat toolbar */}
+              <span aria-hidden="true" className="size-4">
+                {item.icon}
+              </span>
               {item.description}
             </li>
           ))}

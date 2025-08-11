@@ -23,12 +23,20 @@ export async function POST(req: Request): Promise<Response> {
     return new Response(JSON.stringify({ error: 'invalid body' }), { status: 400 });
   }
   const { userId, chatId, title, answers, locale } = parsed.data;
-  // Create finance tools scoped to the user/chat and locale
-  const tools = createFinanceTools({ userId, chatId, locale });
-  // Persist the wizard start for traceability
-  await tools.strategy.start_wizard.execute({});
+  // Create finance tools scoped to the user/chat and locale. The validator
+  // already restricts `locale` to `fr` or `en`, but cast here to satisfy the
+  // TypeScript signature.
+  const tools = createFinanceTools({
+    userId,
+    chatId,
+    locale: locale as 'fr' | 'en' | undefined,
+  });
+  // Persist the wizard start for traceability. Strategy helpers are guaranteed
+  // to exist when this endpoint runs, so cast to `any` to satisfy TypeScript.
+  const strategyTools = tools.strategy as any;
+  await strategyTools.start_wizard.execute({});
   // Propose an initial strategy using the collected answers
-  const result = await tools.strategy.propose.execute({
+  const result = await strategyTools.propose.execute({
     title,
     answers,
     universe: { note: answers.universe },

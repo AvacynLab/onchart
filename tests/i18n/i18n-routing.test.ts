@@ -1,32 +1,49 @@
+import Module from 'module';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { NextRequest } from 'next/server';
-// No auth token is set; middleware should redirect to guest auth when accessing
-// protected routes. Environment variables still need to exist for imports.
-process.env.AUTH_SECRET = '01234567890123456789012345678901';
-process.env.NODE_ENV = 'development';
 
 /**
- * Requests to the root should be redirected to the default locale (fr).
+ * Utility to mock `next-auth/jwt`'s `getToken` so the middleware can be
+ * executed in isolation. Each test supplies the value that should be returned
+ * to simulate authenticated or anonymous requests.
  */
-test('redirects / to /fr', async () => {
-  const { middleware } = await import('../../middleware');
-  const res = await middleware(new NextRequest('http://localhost/'));
+function mockGetToken(returnValue: any) {
+  const originalLoad = (Module as any)._load;
+  (Module as any)._load = function (
+    request: string,
+    parent: any,
+    isMain: boolean,
+  ) {
+    if (request === 'next-auth/jwt') {
+      return { getToken: async () => returnValue };
+    }
+    if (request === 'server-only') return {};
+    return originalLoad(request, parent, isMain);
+  };
+  return () => {
+    (Module as any)._load = originalLoad;
+  };
+}
+
+// Ensure requests lacking a locale prefix are redirected to the default one.
+test('redirects to default locale when none is provided', async () => {
+  const restore = mockGetToken(null);
+  const { middleware } = await import('../../middleware?redirect');
+  const res = await middleware(new NextRequest('http://example.com/'));
   assert.equal(res.status, 307);
-  assert.equal(res.headers.get('location'), 'http://localhost/fr/');
+  assert.equal(res.headers.get('location'), 'http://example.com/fr/');
+  restore();
 });
 
-/**
- * When a locale prefix is present and a session token exists, the middleware
- * should expose the locale via `x-next-intl-locale`.
- */
-test('redirect preserves locale in query', async () => {
-  const request = new NextRequest('http://localhost/en/page');
-  const { middleware } = await import('../../middleware');
-  const res = await middleware(request);
-  assert.equal(res.status, 307);
-  assert.match(
-    res.headers.get('location')!,
-    /redirectUrl=http%3A%2F%2Flocalhost%2Fen%2Fpage/,
+// When a locale is already present, the middleware should pass through and
+// expose it via the `x-next-intl-locale` header for server-side helpers.
+test('sets locale header when prefix is present', async () => {
+  const restore = mockGetToken({ email: 'guest-1' });
+  const { middleware } = await import('../../middleware?locale');
+  const res = await middleware(
+    new NextRequest('http://example.com/en/dashboard'),
   );
+  assert.equal(res.headers.get('x-next-intl-locale'), 'en');
+  restore();
 });

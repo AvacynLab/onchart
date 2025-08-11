@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/tooltip';
 import { useToolbarStore } from './toolbar-store';
 
-import { ArrowUpIcon, StopIcon } from './icons';
+import { ArrowUpIcon, StopIcon, SummarizeIcon } from './icons';
 import { artifactDefinitions, type ArtifactKind } from './artifact';
 import type { ArtifactToolbarItem } from './create-artifact';
 import { useFinanceToolbarItems } from './finance/toolbar-items';

@@ -39,7 +39,8 @@ export default function Page() {
   // };
 
   const handleResetPassword = () => {
-    toast({ type: 'info', description: 'Reset password not implemented.' });
+    // Indicate that password reset is not available using an error variant.
+    toast({ type: 'error', description: 'Reset password not implemented.' });
   };
 
   const handleSignInLink = () => {

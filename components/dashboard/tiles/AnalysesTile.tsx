@@ -1,4 +1,4 @@
-import React, { useId } from 'react';
+import React from 'react';
 import BentoCard from '../BentoCard';
 import type { Analysis, Research } from '@/lib/db/schema';
 import AnalysesTileEmpty from '../empty/AnalysesTileEmpty';
@@ -199,87 +199,99 @@ export function AnalysesClient({
 
 async function fetchAnalyses(chatId?: string): Promise<AnalysisSummary[]> {
   if (!chatId) return [];
-  const { listAnalysesByChatId, listResearchByChatId } = await import(
-    '@/lib/db/queries'
-  );
-  const [analyses, researchDocs] = await Promise.all([
-    listAnalysesByChatId({ chatId }),
-    listResearchByChatId({ chatId }),
-  ]);
+  try {
+    const { listAnalysesByChatId, listResearchByChatId } = await import(
+      '@/lib/db/queries'
+    );
+    const [analyses, researchDocs] = await Promise.all([
+      listAnalysesByChatId({ chatId }),
+      listResearchByChatId({ chatId }),
+    ]);
 
-  const mapAnalysis = (a: Analysis): AnalysisSummary => ({
-    id: a.id,
-    chatId: a.chatId,
-    title: a.type,
-    type: a.type,
-    date: a.createdAt,
-    symbol: (a.input as any)?.symbol,
-  });
+    const mapAnalysis = (a: Analysis): AnalysisSummary => ({
+      id: a.id,
+      chatId: a.chatId,
+      title: a.type,
+      type: a.type,
+      date: a.createdAt,
+      symbol: (a.input as any)?.symbol,
+    });
 
-  const mapResearch = (r: Research): AnalysisSummary => ({
-    id: r.id,
-    chatId: r.chatId,
-    title: r.title,
-    type: r.kind,
-    date: r.updatedAt,
-  });
+    const mapResearch = (r: Research): AnalysisSummary => ({
+      id: r.id,
+      chatId: r.chatId,
+      title: r.title,
+      type: r.kind,
+      date: r.updatedAt,
+    });
 
-  return [...analyses.map(mapAnalysis), ...researchDocs.map(mapResearch)].sort(
-    (a, b) => b.date.getTime() - a.date.getTime(),
-  );
+    return [...analyses.map(mapAnalysis), ...researchDocs.map(mapResearch)].sort(
+      (a, b) => b.date.getTime() - a.date.getTime(),
+    );
+  } catch (err) {
+    console.error('failed to load analyses', err);
+    return [];
+  }
 }
 
 /**
  * Fetch analyses and research across all user chats and group them by chat id.
  */
 async function fetchAnalysesGrouped(): Promise<AnalysisGroup[]> {
-  const { auth } = await import('@/app/(auth)/auth');
-  const session = await auth();
-  if (!session) return [];
-  const {
-    listAnalysesAndResearchByUser,
-    getLastMessagesByChatIds,
-  } = await import('@/lib/db/queries');
-  const rows = await listAnalysesAndResearchByUser({
-    userId: session.user.id,
-  });
-  const groups = new Map<string, AnalysisGroup>();
-  for (const row of rows) {
-    const item: AnalysisSummary = {
-      id: row.id,
-      chatId: row.chatId,
-      title: row.title,
-      type: row.type,
-      date: row.date,
-    };
-    const existing = groups.get(row.chatId);
-    if (existing) {
-      existing.items.push(item);
-    } else {
-      groups.set(row.chatId, {
+  try {
+    const { auth } = await import('@/app/(auth)/auth');
+    const session = await auth();
+    if (!session) return [];
+    const {
+      listAnalysesAndResearchByUser,
+      getLastMessagesByChatIds,
+    } = await import('@/lib/db/queries');
+    const rows = await listAnalysesAndResearchByUser({
+      userId: session.user.id,
+    });
+    const groups = new Map<string, AnalysisGroup>();
+    for (const row of rows) {
+      const item: AnalysisSummary = {
+        id: row.id,
         chatId: row.chatId,
-        chatTitle: row.chatTitle,
-        items: [item],
-      });
+        title: row.title,
+        type: row.type,
+        date: row.date,
+      };
+      const existing = groups.get(row.chatId);
+      if (existing) {
+        existing.items.push(item);
+      } else {
+        groups.set(row.chatId, {
+          chatId: row.chatId,
+          chatTitle: row.chatTitle,
+          items: [item],
+        });
+      }
     }
-  }
-  const chatIds = Array.from(groups.keys());
-  const lastMessages = await getLastMessagesByChatIds({ chatIds });
-  const textFromParts = (parts: any): string | undefined => {
-    const part = Array.isArray(parts)
-      ? parts.find((p: any) => p.type === 'text')
-      : undefined;
-    return part?.text as string | undefined;
-  };
-  const map = new Map(lastMessages.map((m) => [m.chatId, textFromParts(m.parts)]));
+    const chatIds = Array.from(groups.keys());
+    const lastMessages = await getLastMessagesByChatIds({ chatIds });
+    const textFromParts = (parts: any): string | undefined => {
+      const part = Array.isArray(parts)
+        ? parts.find((p: any) => p.type === 'text')
+        : undefined;
+      return part?.text as string | undefined;
+    };
+    const map = new Map(
+      lastMessages.map((m) => [m.chatId, textFromParts(m.parts)]),
+    );
 
-  return Array.from(groups.values()).map((g) => ({
-    ...g,
-    items: g.items
-      .sort((a, b) => b.date.getTime() - a.date.getTime())
-      .slice(0, 3),
-    lastMessage: map.get(g.chatId),
-  }));
+    return Array.from(groups.values()).map((g) => ({
+      ...g,
+      items: g.items
+        .sort((a, b) => b.date.getTime() - a.date.getTime())
+        .slice(0, 3),
+      lastMessage: map.get(g.chatId),
+    }));
+  } catch (err) {
+    console.error('failed to load analyses', err);
+    return [];
+  }
 }
 
 /**
@@ -290,10 +302,14 @@ export default async function AnalysesTile({
 }: {
   chatId?: string;
 }) {
-  const { getLocale, getTranslator } = await import('next-intl/server');
+  // Load translation helpers on demand so this server component can resolve the
+  // active locale without relying on `next-intl` middleware helpers.
+  const { getLocale, getTranslations } = await import('next-intl/server');
   const locale = await getLocale();
-  const t = await getTranslator(locale, 'dashboard');
-  const titleId = useId();
+  const t = await getTranslations({ locale, namespace: 'dashboard' });
+  // Generate a deterministic id for accessibility without relying on React hooks
+  // (server components cannot use `useId`).
+  const titleId = `analyses-${Math.random().toString(36).slice(2)}`;
 
   if (chatId) {
     const items = await fetchAnalyses(chatId);
