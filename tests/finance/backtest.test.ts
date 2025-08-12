@@ -14,7 +14,8 @@ test('computes equity curve and metrics for simple trades', () => {
   const { equityCurve, metrics } = backtest({ candles, signals });
 
   // final equity after two trades (one win, one loss)
-  assert.ok(Math.abs(equityCurve.at(-1)! - 1.00625) < 1e-6);
+  const finalEquity = equityCurve[equityCurve.length - 1];
+  assert.ok(Math.abs(finalEquity - 1.00625) < 1e-6);
   // max drawdown around 8.5%
   assert.ok(Math.abs(metrics.maxDrawdown - 0.085227) < 1e-3);
   // CAGR annualises the 0.62% return over the 5-bar window

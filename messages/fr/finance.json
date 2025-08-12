@@ -16,6 +16,8 @@
     "risk": "Tolérance au risque",
     "universe": "Univers de titres",
     "fees": "Frais (%)",
+    "drawdown": "Drawdown max (%)",
+    "constraints": "Contraintes",
     "next": "Suivant",
     "finish": "Terminer"
   },

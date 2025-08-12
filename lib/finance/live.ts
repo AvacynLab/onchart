@@ -21,9 +21,41 @@ export function subscribeBinanceTicker(
   symbol: string,
   cb: (quote: QuoteResult) => void,
 ): () => void {
-  if (typeof WebSocket === 'undefined') return () => {};
+  // Polling fallback using the internal quote API. Used when WebSockets are not
+  // available (server-side rendering) or when the socket connection errors out.
+  function startPolling(): () => void {
+    let active = true;
+    (async function loop() {
+      while (active) {
+        try {
+          const quote = await fetchQuoteWithRetry(symbol, { retries: 0 });
+          cb(quote);
+        } catch (err) {
+          console.error('binance poll error', err);
+        }
+        await new Promise((r) => setTimeout(r, 10_000));
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }
+
+  if (typeof WebSocket === 'undefined') {
+    return startPolling();
+  }
+
   const stream = toBinanceStream(symbol);
   const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${stream}@ticker`);
+
+  let stopPolling: (() => void) | null = null;
+  const handleFallback = (err?: unknown) => {
+    if (err) console.error('binance ws error', err);
+    if (!stopPolling) {
+      stopPolling = startPolling();
+    }
+  };
+
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data.toString());
     cb({
@@ -34,10 +66,12 @@ export function subscribeBinanceTicker(
       marketState: 'REG', // crypto markets are always open
     });
   };
-  ws.onerror = (err) => {
-    console.error('binance ws error', err);
+  ws.onerror = (event) => handleFallback(event);
+  ws.onclose = () => handleFallback();
+  return () => {
+    ws.close();
+    if (stopPolling) stopPolling();
   };
-  return () => ws.close();
 }
 
 /**

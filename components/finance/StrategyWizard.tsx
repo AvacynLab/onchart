@@ -10,7 +10,12 @@ export interface WizardAnswers {
   horizon: string;
   risk: string;
   universe: string;
+  /** Estimated fees or slippage percentage. */
   fees: number;
+  /** Maximum acceptable drawdown percentage. */
+  drawdown: number;
+  /** Additional constraints such as ESG or trading frequency. */
+  constraints: string;
 }
 
 interface Props {
@@ -31,6 +36,8 @@ export default function StrategyWizard({ onComplete }: Props) {
     risk: '',
     universe: '',
     fees: 0,
+    drawdown: 0,
+    constraints: '',
   });
 
   const fields: Array<{
@@ -42,6 +49,8 @@ export default function StrategyWizard({ onComplete }: Props) {
     { label: t('risk'), name: 'risk', type: 'text' },
     { label: t('universe'), name: 'universe', type: 'text' },
     { label: t('fees'), name: 'fees', type: 'number' },
+    { label: t('drawdown'), name: 'drawdown', type: 'number' },
+    { label: t('constraints'), name: 'constraints', type: 'text' },
   ];
 
   const current = fields[step];

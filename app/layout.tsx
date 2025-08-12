@@ -22,25 +22,29 @@ export const viewport = {
   maximumScale: 1, // Disable auto-zoom on mobile Safari
 };
 
-// Load Google fonts at module scope as required by `next/font`. During
-// Playwright runs we skip contacting Google servers and fall back to system
-// fonts by returning empty classnames.
-const isPlaywright = process.env.PLAYWRIGHT === '1';
-const geist = isPlaywright
-  ? { className: '', variable: '' }
-  : Geist({
-      subsets: ['latin'],
-      display: 'swap',
-      variable: '--font-geist',
-    });
+// Load Google fonts at module scope as required by `next/font`.
+// To keep Playwright runs deterministic, we always load the fonts but
+// conditionally apply their class names so tests rely on system defaults.
+const geist = Geist({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-geist',
+});
 
-const geistMono = isPlaywright
-  ? { className: '', variable: '' }
-  : Geist_Mono({
-      subsets: ['latin'],
-      display: 'swap',
-      variable: '--font-geist-mono',
-    });
+const geistMono = Geist_Mono({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-geist-mono',
+});
+
+// Detect Playwright runs across environments (`1` or `true`) so font variables
+// are skipped during automated browser tests.
+const isPlaywright = Boolean(
+  process.env.PLAYWRIGHT && /^(1|true)$/i.test(process.env.PLAYWRIGHT),
+);
+// When running under Playwright, avoid applying font variables to simplify
+// snapshot tests and prevent external requests.
+const fontClass = isPlaywright ? '' : `${geist.variable} ${geistMono.variable}`;
 
 const LIGHT_THEME_COLOR = 'hsl(0 0% 100%)';
 const DARK_THEME_COLOR = 'hsl(240deg 10% 3.92%)';
@@ -86,7 +90,7 @@ export default async function RootLayout({
       // prop is necessary to avoid the React hydration mismatch warning.
       // https://github.com/pacocoursey/next-themes?tab=readme-ov-file#with-app
       suppressHydrationWarning
-      className={`${geist.variable} ${geistMono.variable}`}
+      className={fontClass}
     >
       <head>
         <script

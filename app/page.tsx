@@ -1,8 +1,7 @@
 import React, { Suspense } from 'react';
 import BentoGrid from '@/components/dashboard/BentoGrid';
-import CurrentPricesTile, {
-  DEFAULT_SYMBOLS,
-} from '@/components/dashboard/tiles/CurrentPricesTile';
+import CurrentPricesTile from '@/components/dashboard/tiles/CurrentPricesTile';
+import { DEFAULT_SYMBOLS } from '@/lib/finance/default-symbols';
 import NewsTile from '@/components/dashboard/tiles/NewsTile';
 import StrategiesTile from '@/components/dashboard/tiles/StrategiesTile';
 import AnalysesTile from '@/components/dashboard/tiles/AnalysesTile';
@@ -18,8 +17,12 @@ import fetchRssFeeds, { type NewsItem } from '@/lib/finance/sources/news';
 /**
  * Dashboard landing page exposing the Bento layout.
  * Tiles are wrapped in Suspense so they can stream independently.
+ *
+ * Data is cached briefly to avoid fetching live prices and news on every
+ * request. A small revalidation window keeps information reasonably fresh
+ * without overloading upstream sources.
  */
-export const revalidate = 0; // Always render on the server for fresh data.
+export const revalidate = 15; // Revalidate server-rendered data every 15s.
 
 /**
  * Home dashboard page. Data for the prices and news tiles is fetched on the
@@ -41,6 +44,10 @@ export default async function HomePage({
     try {
       quotes = await fetchLiveQuotes(DEFAULT_SYMBOLS);
     } catch (err) {
+      // Next.js uses a special `react.postpone` symbol to signal that a
+      // `no-store` fetch requires dynamic rendering. If we catch that object the
+      // build fails; rethrow it so Next can handle the bailout correctly.
+      if ((err as any)?.$$typeof === Symbol.for('react.postpone')) throw err;
       // If quote fetching fails we still render the dashboard; the tile will show
       // an empty state which is covered by tests.
       console.error('failed to prefetch quotes', err);
@@ -49,6 +56,7 @@ export default async function HomePage({
     try {
       news = await fetchRssFeeds('business');
     } catch (err) {
+      if ((err as any)?.$$typeof === Symbol.for('react.postpone')) throw err;
       console.error('failed to prefetch news', err);
     }
   }

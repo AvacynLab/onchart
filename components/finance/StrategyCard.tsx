@@ -33,12 +33,14 @@ export default function StrategyCard({ strategy }: { strategy: Strategy }) {
       </span>
       <div className="flex gap-2 mt-1">
         <button
+          type="button"
           className="text-xs underline"
           aria-label={t('actions.backtest')}
         >
           {t('actions.backtest')}
         </button>
         <button
+          type="button"
           className="text-xs underline"
           aria-label={t('actions.refine')}
         >

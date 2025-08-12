@@ -8,8 +8,9 @@ import { DataSourceError } from './errors';
 
 /**
  * Fetch a URL with a timeout and limited number of retry attempts.
- * Between attempts an exponential backoff delay is applied to avoid hammering
- * flaky public endpoints.
+ * Between attempts an exponential backoff delay with small random jitter is
+ * applied to avoid hammering flaky public endpoints and to prevent thundering
+ * herd effects when many requests fail simultaneously.
  *
  * @param url - Request URL.
  * @param options.timeoutMs - Abort request if it exceeds this time (default 10s).
@@ -50,8 +51,12 @@ export async function fetchWithRetry(
     } catch (err) {
       lastError = err;
       if (attempt < retries) {
-        const delay = backoffMs * 2 ** attempt;
-        await new Promise((r) => setTimeout(r, delay));
+        // Exponential backoff with jitter. The jitter (random 0..backoffMs)
+        // prevents clients from retrying in lockstep which could otherwise
+        // overload the free data providers.
+        const baseDelay = backoffMs * 2 ** attempt;
+        const jitter = Math.random() * backoffMs;
+        await new Promise((r) => setTimeout(r, baseDelay + jitter));
       }
     } finally {
       if (timer) clearTimeout(timer);

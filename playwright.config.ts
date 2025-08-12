@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'node:path';
 
 /**
  * Read environment variables from file.
@@ -28,7 +29,14 @@ export default defineConfig({
   // browser-driven suites. These node-specific tests end with `.node.test.tsx`
   // or `.node.test.ts` and would otherwise trigger React rendering errors when
   // Playwright attempts to execute them.
-  testIgnore: ['dashboard/**/*.test.tsx', '**/*.node.test.tsx', '**/*.node.test.ts'],
+  testIgnore: [
+    'dashboard/**/*.test.tsx',
+    '**/*.node.test.tsx',
+    '**/*.node.test.ts',
+    // The SEC user-agent test runs with Node's built-in runner via `pnpm test`
+    // and should be skipped by Playwright to avoid duplicate execution.
+    '**/sec-user-agent.test.ts',
+  ],
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
@@ -78,6 +86,14 @@ export default defineConfig({
       },
     },
 
+    {
+      name: 'ai-tools',
+      testMatch: /ai\/.*.test.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+    },
+
     // {
     //   name: 'firefox',
     //   use: { ...devices['Desktop Firefox'] },
@@ -111,15 +127,21 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
+    // Launch the Next.js dev server with the minimal environment needed for
+    // tests. Using the `env` option ensures variables are passed directly to
+    // the server process without relying on an inline shell command.
     command: 'pnpm exec next dev',
     url: `${baseURL}/ping`,
     timeout: 120 * 1000,
     reuseExistingServer: !process.env.CI,
     env: {
+      ...process.env,
       AUTH_SECRET: 'test',
       POSTGRES_URL: '',
       PLAYWRIGHT: '1',
-      NEXT_INTL_CONFIG: 'next-intl.config.js',
+      // Use an absolute path so Next.js can always locate the locale settings
+      // regardless of where the dev server spawns from.
+      NEXT_INTL_CONFIG: path.resolve('next-intl.config.js'),
     },
   },
 });

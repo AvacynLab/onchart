@@ -5,11 +5,13 @@ import React from 'react';
  * representing the upcoming content sections.
  */
 export default function ResearchSkeleton() {
+  // Generate deterministic identifiers to avoid using array indices as keys.
+  const placeholders = ['a', 'b', 'c', 'd', 'e'];
   return (
     <div className="space-y-4" role="status" aria-label="Loading research document">
-      {Array.from({ length: 5 }).map((_, i) => (
+      {placeholders.map((id) => (
         <div
-          key={i}
+          key={id}
           className="h-4 w-full animate-pulse rounded bg-muted"
           aria-hidden="true"
         />

@@ -16,6 +16,8 @@
     "risk": "Risk tolerance",
     "universe": "Universe of assets",
     "fees": "Fees (%)",
+    "drawdown": "Max drawdown (%)",
+    "constraints": "Constraints",
     "next": "Next",
     "finish": "Finish"
   },

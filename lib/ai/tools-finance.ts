@@ -9,7 +9,12 @@ import {
 } from '../finance/sources/sec';
 import fetchRssFeeds from '../finance/sources/news';
 import { sma, ema, rsi } from '../finance/indicators';
-import { maCrossover, rsiReversion, breakoutBB } from '../finance/strategies';
+import {
+  maCrossover,
+  rsiReversion,
+  breakoutBB,
+  type Signal,
+} from '../finance/strategies';
 import { backtest as runBacktest } from '../finance/backtest';
 import {
   annualizedVolatility,
@@ -517,7 +522,7 @@ export function createFinanceTools(
           // At this point the strategy helpers are guaranteed to be loaded
           // thanks to the dynamic import above, so we can safely assert the
           // factory functions are defined.
-          const strat = await createStrategyFn!({
+          const strat = await createStrategyFn?.({
             userId: ctx.userId,
             chatId: ctx.chatId,
             title,
@@ -527,7 +532,7 @@ export function createFinanceTools(
           });
           // Very naive rule proposal: moving average crossover with fixed params.
           const rules = { type: 'ma_crossover', params: { short: 50, long: 200 } };
-          const version = await createStrategyVersionFn!({
+          const version = await createStrategyVersionFn?.({
             strategyId: strat.id,
             description:
               locale === 'fr' ? 'Proposition initiale' : 'Initial proposal',
@@ -622,12 +627,13 @@ export function createFinanceTools(
             getStrategyVersionFn = mod.getStrategyVersion as any;
             saveBacktestFn = mod.saveBacktest as any;
           }
-          const version = await getStrategyVersionFn!({ id: versionId });
+          const version = await getStrategyVersionFn?.({ id: versionId });
           if (!version) throw new Error('strategy version not found');
           const symbol = symbols[0];
           const candles = await fetchOHLC(symbol, timeframe, { range });
           const closes = candles.map((c: any) => c.close);
-          let signals;
+          // Trading signals produced by selected strategy rule set.
+          let signals: Signal[];
           switch (version.rules?.type) {
             case 'rsi_reversion':
               signals = rsiReversion(closes, version.rules.params?.period, version.rules.params?.oversold, version.rules.params?.overbought).signals;
@@ -646,7 +652,7 @@ export function createFinanceTools(
             costs,
             slippage,
           });
-          await saveBacktestFn!({
+          await saveBacktestFn?.({
             strategyVersionId: versionId,
             symbolSet: symbols,
             window: { timeframe, range },
@@ -683,9 +689,9 @@ export function createFinanceTools(
               getStrategyVersionFn = mod.getStrategyVersion as any;
               createStrategyVersionFn = mod.createStrategyVersion as any;
             }
-            const prev = await getStrategyVersionFn!({ id: versionId });
+            const prev = await getStrategyVersionFn?.({ id: versionId });
             if (!prev) throw new Error('strategy version not found');
-            const next = await createStrategyVersionFn!({
+            const next = await createStrategyVersionFn?.({
               strategyId: prev.strategyId,
               description: prev.description,
               rules: prev.rules,
@@ -715,9 +721,9 @@ export function createFinanceTools(
             // without satisfying the narrower union expected by the DB layer.
             updateStrategyStatusFn = mod.updateStrategyStatus as any;
           }
-          const version = await getStrategyVersionFn!({ id: versionId });
+          const version = await getStrategyVersionFn?.({ id: versionId });
           if (!version) throw new Error('strategy version not found');
-          const strat = await updateStrategyStatusFn!({
+          const strat = await updateStrategyStatusFn?.({
             id: version.strategyId,
             status: 'validated',
           });
@@ -746,7 +752,7 @@ export function createFinanceTools(
             // validation.
             createResearchFn = mod.createResearch as any;
           }
-          const doc = await createResearchFn!({
+          const doc = await createResearchFn?.({
             userId: ctx.userId,
             chatId: ctx.chatId,
             kind,
@@ -777,9 +783,9 @@ export function createFinanceTools(
             getResearchFn = mod.getResearchById as any;
             updateResearchFn = mod.updateResearch as any;
           }
-          const doc = await getResearchFn!({ id });
+          const doc = await getResearchFn?.({ id });
           const newSection = { id: nanoid(), ...section };
-          const updated = await updateResearchFn!({
+          const updated = await updateResearchFn?.({
             id,
             sections: [...(doc.sections || []), newSection],
           });
@@ -803,11 +809,11 @@ export function createFinanceTools(
             getResearchFn = mod.getResearchById as any;
             updateResearchFn = mod.updateResearch as any;
           }
-          const doc = await getResearchFn!({ id });
+          const doc = await getResearchFn?.({ id });
           const sections = (doc.sections || []).map((s: any) =>
             s.id === sectionId ? { ...s, content } : s,
           );
-          const updated = await updateResearchFn!({ id, sections });
+          const updated = await updateResearchFn?.({ id, sections });
           return updated;
         },
       }),
@@ -823,8 +829,25 @@ export function createFinanceTools(
             const mod = await import('../db/queries');
             getResearchFn = mod.getResearchById as any;
           }
-          const doc = await getResearchFn!({ id });
+          const doc = await getResearchFn?.({ id });
           await persistAnalysis('doc', { id }, doc);
+          return doc;
+        },
+      }),
+
+      /**
+       * Retrieve a research document by its identifier.
+       */
+      get: tool({
+        description: 'Fetch a research document by id',
+        inputSchema: z.object({ id: z.string() }),
+        execute: async ({ id }) => {
+          if (!getResearchFn) {
+            const mod = await import('../db/queries');
+            getResearchFn = mod.getResearchById as any;
+          }
+          const doc = await getResearchFn?.({ id });
+          await persistAnalysis('research_get', { id }, doc);
           return doc;
         },
       }),

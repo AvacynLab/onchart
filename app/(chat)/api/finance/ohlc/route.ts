@@ -3,6 +3,7 @@ import { fetchDailyStooq } from '@/lib/finance/sources/stooq';
 import { fetchKlinesBinance } from '@/lib/finance/sources/binance';
 import { normalizeSymbol } from '@/lib/finance/symbols';
 import { getCache, setCache } from '@/lib/finance/cache';
+import type { Candle } from '@/lib/finance/backtest';
 
 /** Ensure execution on Node.js to avoid edge restrictions. */
 export const runtime = 'nodejs';
@@ -50,7 +51,9 @@ export async function GET(req: Request): Promise<Response> {
   } catch (err) {
     // Attempt fallback providers depending on asset class
     try {
-      let candles;
+      // Candle array returned by the fallback providers.
+      let candles: Candle[];
+      // Default cache TTL set to 5 minutes; shorter for intraday data.
       let ttl = 300_000;
       if (normalized.assetClass === 'crypto' && normalized.binance) {
         candles = await fetchKlinesBinance(normalized.binance, interval, 500);

@@ -19,6 +19,7 @@ export default function SymbolRecent({ symbols, onSelect }: SymbolRecentProps) {
       {symbols.map((s) => (
         <button
           key={s}
+          type="button"
           data-testid="symbol-chip"
           className="rounded bg-muted px-2 py-1 text-xs"
           onClick={() => onSelect(s)}

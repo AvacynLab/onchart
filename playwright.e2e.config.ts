@@ -1,4 +1,5 @@
 import { defineConfig } from '@playwright/test';
+import path from 'node:path';
 
 /**
  * Lightweight Playwright configuration used for end-to-end suites. Unlike the
@@ -27,20 +28,21 @@ export default defineConfig({
    * Playwright to wait for a healthy instance.
    */
   webServer: {
+    // Start the Next.js dev server with the minimal environment required for
+    // the end-to-end suite. Using `env` is more reliable than prefixing a shell
+    // command with variables.
     command: 'pnpm exec next dev',
     url: 'http://localhost:3000/ping',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
     env: {
+      ...process.env,
       AUTH_SECRET: 'test',
-      // Leave the database URL empty so Postgres calls fall back to in-memory
-      // placeholders, avoiding network dependencies during E2E runs.
       POSTGRES_URL: '',
-      // Signal middleware to bypass authentication during browser tests.
       PLAYWRIGHT: '1',
-      // Point next-intl to the project-level locale configuration so the
-      // runtime can resolve translations without the build-time plugin.
-      NEXT_INTL_CONFIG: 'next-intl.config.js',
+      // Resolve to an absolute path so the dev server reliably loads locale
+      // configuration during tests.
+      NEXT_INTL_CONFIG: path.resolve('next-intl.config.js'),
     },
   },
 });

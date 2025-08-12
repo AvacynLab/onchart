@@ -36,6 +36,8 @@ export default function MenuTile() {
       actions={
         <button
           ref={buttonRef}
+          // Explicit button type prevents form submissions when used inside forms
+          type="button"
           aria-label={t('toggle')}
           aria-expanded={isVisible}
           aria-controls="dashboard-menu-list"

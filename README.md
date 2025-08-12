@@ -84,10 +84,12 @@ Your app template should now be running on [localhost:3000](http://localhost:300
 ```bash
 node --test --import tsx "tests/**/*.test.ts?(x)"
 pnpm test
+pnpm test:e2e
 ```
 
 - `node --test` exécute les tests unitaires (Node.js test runner).
 - `pnpm test` lance la suite end-to-end Playwright.
+- `pnpm test:e2e` permet de cibler uniquement les scénarios Playwright end-to-end.
 
 ## Disclaimer
 
