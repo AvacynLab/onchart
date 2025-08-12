@@ -4,13 +4,16 @@ import { rateLimit } from '../rate-limit';
 import fetchWithRetry from '../request';
 
 /**
- * User agent string required by the SEC when scraping their APIs.
+ * Resolve the User-Agent header required by the SEC when scraping their APIs.
  *
- * Defaults to a generic contact address but can be overridden via the
- * `SEC_USER_AGENT` environment variable if a different identifier is desired.
+ * The value defaults to a generic contact address but can be overridden at
+ * runtime by setting the `SEC_USER_AGENT` environment variable. Using a
+ * function instead of a module‑level constant lets tests change the env
+ * variable between imports without being affected by the tsx/esbuild cache.
  */
-const USER_AGENT =
-  process.env.SEC_USER_AGENT || 'onchart/1.0 (support@example.com)';
+function getUserAgent(): string {
+  return process.env.SEC_USER_AGENT || 'onchart/1.0 (support@example.com)';
+}
 
 /** Base URL for SEC data APIs */
 const SEC_API = 'https://data.sec.gov';
@@ -35,7 +38,7 @@ async function secJsonFetch<T>(
   if (cached) return cached;
   const res = await fetchWithRetry(url, {
     fetcher: fetchImpl,
-    init: { headers: { 'User-Agent': USER_AGENT } },
+    init: { headers: { 'User-Agent': getUserAgent() } },
   });
   const data = (await res.json()) as T;
   setCache(url, data, ttlMs);
@@ -127,7 +130,7 @@ export async function fetchFilingDocument(
   await rateLimit('sec');
   const res = await fetchWithRetry(url, {
     fetcher: fetchImpl,
-    init: { headers: { 'User-Agent': USER_AGENT } },
+    init: { headers: { 'User-Agent': getUserAgent() } },
   });
   const html = await res.text();
   const $ = load(html);

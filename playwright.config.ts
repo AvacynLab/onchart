@@ -29,7 +29,14 @@ export default defineConfig({
   // browser-driven suites. These node-specific tests end with `.node.test.tsx`
   // or `.node.test.ts` and would otherwise trigger React rendering errors when
   // Playwright attempts to execute them.
-  testIgnore: ['dashboard/**/*.test.tsx', '**/*.node.test.tsx', '**/*.node.test.ts'],
+  testIgnore: [
+    'dashboard/**/*.test.tsx',
+    '**/*.node.test.tsx',
+    '**/*.node.test.ts',
+    // The SEC user-agent test runs with Node's built-in runner via `pnpm test`
+    // and should be skipped by Playwright to avoid duplicate execution.
+    '**/sec-user-agent.test.ts',
+  ],
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
