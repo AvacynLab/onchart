@@ -404,3 +404,4 @@ Ensuite on déroule la checklist scrapers/UX/tests jusqu’au **vert intégral**
 - Added API test covering strategy wizard orchestration and marked strategy cycle tasks complete.
 - Verified global safeguards: no secrets, green CI, bilingual UI, and bento menu tile.
 - Added `NextIntlClientProvider` stub and tests ensuring `app/layout.tsx` sets the `lang` attribute based on headers.
+- Removed explicit `NEXT_INTL_CONFIG` from Playwright setups so the server auto-detects config and boots without errors; fixed finance prompts to match FR/EN timeframe guidance and updated tests.

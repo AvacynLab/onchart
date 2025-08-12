@@ -40,8 +40,6 @@ export default defineConfig({
       AUTH_SECRET: 'test',
       POSTGRES_URL: '',
       PLAYWRIGHT: '1',
-      // Provide the next-intl configuration so locale settings load in tests.
-      NEXT_INTL_CONFIG: 'next-intl.config.js',
     },
   },
 });
