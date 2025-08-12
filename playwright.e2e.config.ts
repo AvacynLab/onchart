@@ -40,9 +40,8 @@ export default defineConfig({
       AUTH_SECRET: 'test',
       POSTGRES_URL: '',
       PLAYWRIGHT: '1',
-      // Resolve to an absolute path so the dev server reliably loads locale
-      // configuration during tests.
-      NEXT_INTL_CONFIG: path.resolve('next-intl.config.js'),
+      // Provide the next-intl configuration so locale settings load in tests.
+      NEXT_INTL_CONFIG: 'next-intl.config.js',
     },
   },
 });

@@ -56,9 +56,9 @@ export const financePrompts = {
    * `AGENTS.md` exactly, including emphasis for disclaimers.
    */
   en: `You can retrieve public market data via the finance.* tools.
-Data is **public** and **not guaranteed**. **Not investment advice.**
-Always specify **timeframe** before ui.show_chart.
-Use compute_indicators for TA.
+Data is **public** and **not guaranteed**. **Not financial advice.**
+Always specify **timeframe** before \`ui.show_chart\`.
+Use \`compute_indicators\` for TA.
 Structure: **Summary, Context, Data, Charts, Signals, Risks, Sources**.
 `,
   /**
@@ -66,8 +66,8 @@ Structure: **Summary, Context, Data, Charts, Signals, Risks, Sources**.
    */
   fr: `Tu peux récupérer des données de marché publiques via les outils finance.*.
 Les données sont **publiques** et **non garanties** (Yahoo/SEC/RSS). **Pas un conseil en investissement.**
-Toujours préciser la **timeframe** avant ui.show_chart.
-Utiliser compute_indicators pour l’analyse technique.
+Toujours préciser la **timeframe** avant \`ui.show_chart\`.
+Utiliser \`compute_indicators\` pour l’analyse technique.
 Structurer : **Résumé, Contexte, Données, Graphiques, Signaux, Risques, Sources**.
 `,
 } as const;

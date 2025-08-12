@@ -139,9 +139,8 @@ export default defineConfig({
       AUTH_SECRET: 'test',
       POSTGRES_URL: '',
       PLAYWRIGHT: '1',
-      // Use an absolute path so Next.js can always locate the locale settings
-      // regardless of where the dev server spawns from.
-      NEXT_INTL_CONFIG: path.resolve('next-intl.config.js'),
+      // Provide the next-intl configuration so locale settings load in tests.
+      NEXT_INTL_CONFIG: 'next-intl.config.js',
     },
   },
 });

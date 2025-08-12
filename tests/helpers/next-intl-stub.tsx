@@ -10,9 +10,15 @@ const IntlContext = createContext<Record<string, any>>({});
 const originalLoad = (Module as any)._load;
 (Module as any)._load = function (request: string, parent: any, isMain: boolean) {
   if (request === 'next-intl') {
+    const Provider = ({ messages, children }: { messages?: any; children: React.ReactNode }) =>
+      React.createElement(IntlContext.Provider, { value: messages ?? {} }, children);
     return {
-      IntlProvider: ({ messages, children }: { messages?: any; children: React.ReactNode }) =>
-        React.createElement(IntlContext.Provider, { value: messages ?? {} }, children),
+      // `NextIntlClientProvider` mirrors the real component API and simply
+      // stores the provided messages in a React context for hooks to consume.
+      NextIntlClientProvider: Provider,
+      // Some tests import `IntlProvider` instead; keep it for backward
+      // compatibility so both names behave identically.
+      IntlProvider: Provider,
       useTranslations: (ns?: string) => {
         const messages = useContext(IntlContext);
         return (key: string) => {
