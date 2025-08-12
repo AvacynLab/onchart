@@ -399,3 +399,4 @@ await callTool('strategy.backtest', { symbol: 'AAPL', timeframe: '1d' });
 - Wired SEC user agent tests into the main suite via `tsx --test` and confirmed the Node-level checks run before Playwright.
 - Injected `NEXT_INTL_CONFIG` via the Playwright web-server command so browser tests locate locale settings; verified `pnpm build` and `pnpm test` succeed.
 - Merged default environment variables into Playwright web server configs so `NEXT_INTL_CONFIG` is always propagated; verified SEC user-agent node tests and a finance Playwright test pass, though the full test suite still reports failing scenarios.
+- Switched Playwright configs to pass `NEXT_INTL_CONFIG` as a relative path, allowing the dev server to locate locale settings during browser tests and run the full suite without configuration errors.
