@@ -398,3 +398,4 @@ await callTool('strategy.backtest', { symbol: 'AAPL', timeframe: '1d' });
 - Ensured CI workflow runs lint, build, and tests for every pull request by removing branch filters from the GitHub Actions trigger.
 - Wired SEC user agent tests into the main suite via `tsx --test` and confirmed the Node-level checks run before Playwright.
 - Injected `NEXT_INTL_CONFIG` via the Playwright web-server command so browser tests locate locale settings; verified `pnpm build` and `pnpm test` succeed.
+- Merged default environment variables into Playwright web server configs so `NEXT_INTL_CONFIG` is always propagated; verified SEC user-agent node tests and a finance Playwright test pass, though the full test suite still reports failing scenarios.
