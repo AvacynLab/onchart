@@ -28,15 +28,18 @@ export default defineConfig({
    * Playwright to wait for a healthy instance.
    */
   webServer: {
-    // Inline environment variables so the dev server can resolve translations
-    // and run without external services during the tests. Using `bash -c`
-    // avoids cross-platform inconsistencies when setting multiple variables.
-    command: `bash -c "AUTH_SECRET=test POSTGRES_URL= PLAYWRIGHT=1 NEXT_INTL_CONFIG=${path.resolve(
-      process.cwd(),
-      'next-intl.config.js',
-    )} pnpm exec next dev"`,
+    // Start the Next.js dev server with the minimal environment required for
+    // the end-to-end suite. Using `env` is more reliable than prefixing a shell
+    // command with variables.
+    command: 'pnpm exec next dev',
     url: 'http://localhost:3000/ping',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
+    env: {
+      AUTH_SECRET: 'test',
+      POSTGRES_URL: '',
+      PLAYWRIGHT: '1',
+      NEXT_INTL_CONFIG: path.resolve(process.cwd(), 'next-intl.config.js'),
+    },
   },
 });
