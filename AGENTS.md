@@ -395,3 +395,4 @@ await callTool('strategy.backtest', { symbol: 'AAPL', timeframe: '1d' });
 - Configured CI workflow to lint, build, and run tests via `pnpm test`.
 - Audited dependencies and confirmed all data sources are public-only, checking off the API-key avoidance requirement.
 - Adjusted Playwright detection in `app/layout.tsx`, introduced an `EventTarget`-based UI dispatcher, and set an absolute `NEXT_INTL_CONFIG` in `playwright.config.ts`; `pnpm build` succeeds but `pnpm test:e2e` still fails to locate dashboard elements.
+- Ensured CI workflow runs lint, build, and tests for every pull request by removing branch filters from the GitHub Actions trigger.
