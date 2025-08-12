@@ -405,3 +405,4 @@ Ensuite on déroule la checklist scrapers/UX/tests jusqu’au **vert intégral**
 - Verified global safeguards: no secrets, green CI, bilingual UI, and bento menu tile.
 - Added `NextIntlClientProvider` stub and tests ensuring `app/layout.tsx` sets the `lang` attribute based on headers.
 - Removed explicit `NEXT_INTL_CONFIG` from Playwright setups so the server auto-detects config and boots without errors; fixed finance prompts to match FR/EN timeframe guidance and updated tests.
+- Updated Playwright configurations to launch the dev server with `pnpm dev`, aligning browser tests with the standard Next.js workflow.

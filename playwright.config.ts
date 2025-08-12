@@ -127,10 +127,11 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    // Launch the Next.js dev server with the minimal environment needed for
-    // tests. Using the `env` option ensures variables are passed directly to
-    // the server process without relying on an inline shell command.
-    command: 'pnpm exec next dev',
+    // Start the Next.js development server via the standard package script so
+    // Playwright tests exercise the same setup developers use locally. The
+    // `env` option passes variables directly to the server process without
+    // relying on shell variable expansion.
+    command: 'pnpm dev',
     url: `${baseURL}/ping`,
     timeout: 120 * 1000,
     reuseExistingServer: !process.env.CI,
