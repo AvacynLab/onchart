@@ -127,17 +127,17 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'pnpm exec next dev',
+    // Prefix the command with required environment variables so the Next.js
+    // dev server can locate the locale configuration and run without a real
+    // database during tests. Playwright does not currently support passing
+    // environment variables directly to `webServer`, hence the inline `bash`
+    // command.
+    command: `bash -c "AUTH_SECRET=test POSTGRES_URL= PLAYWRIGHT=1 NEXT_INTL_CONFIG=${path.resolve(
+      process.cwd(),
+      'next-intl.config.js',
+    )} pnpm exec next dev"`,
     url: `${baseURL}/ping`,
     timeout: 120 * 1000,
     reuseExistingServer: !process.env.CI,
-    env: {
-      AUTH_SECRET: 'test',
-      POSTGRES_URL: '',
-      PLAYWRIGHT: '1',
-      // Provide an absolute path so the dev server can resolve the next-intl
-      // configuration regardless of the working directory.
-      NEXT_INTL_CONFIG: path.resolve(process.cwd(), 'next-intl.config.js'),
-    },
   },
 });

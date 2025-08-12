@@ -28,22 +28,15 @@ export default defineConfig({
    * Playwright to wait for a healthy instance.
    */
   webServer: {
-    command: 'pnpm exec next dev',
+    // Inline environment variables so the dev server can resolve translations
+    // and run without external services during the tests. Using `bash -c`
+    // avoids cross-platform inconsistencies when setting multiple variables.
+    command: `bash -c "AUTH_SECRET=test POSTGRES_URL= PLAYWRIGHT=1 NEXT_INTL_CONFIG=${path.resolve(
+      process.cwd(),
+      'next-intl.config.js',
+    )} pnpm exec next dev"`,
     url: 'http://localhost:3000/ping',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
-    env: {
-      AUTH_SECRET: 'test',
-      // Leave the database URL empty so Postgres calls fall back to in-memory
-      // placeholders, avoiding network dependencies during E2E runs.
-      POSTGRES_URL: '',
-      // Signal middleware to bypass authentication during browser tests.
-      PLAYWRIGHT: '1',
-      // Point next-intl to the project-level locale configuration so the
-      // runtime can resolve translations without the build-time plugin. Use
-      // `path.resolve` to compute an absolute path regardless of the current
-      // working directory when the dev server starts.
-      NEXT_INTL_CONFIG: path.resolve(process.cwd(), 'next-intl.config.js'),
-    },
   },
 });
