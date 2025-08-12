@@ -2,6 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { invalidateCache } from '../../../lib/finance/cache';
 
+/**
+ * Verify that SEC scrapers send a default user agent and honour the
+ * `SEC_USER_AGENT` environment override for polite scraping.
+ */
 async function getUA(override?: string) {
   const original = process.env.SEC_USER_AGENT;
   if (override !== undefined) process.env.SEC_USER_AGENT = override;
