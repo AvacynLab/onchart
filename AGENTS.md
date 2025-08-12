@@ -400,3 +400,4 @@ await callTool('strategy.backtest', { symbol: 'AAPL', timeframe: '1d' });
 - Injected `NEXT_INTL_CONFIG` via the Playwright web-server command so browser tests locate locale settings; verified `pnpm build` and `pnpm test` succeed.
 - Merged default environment variables into Playwright web server configs so `NEXT_INTL_CONFIG` is always propagated; verified SEC user-agent node tests and a finance Playwright test pass, though the full test suite still reports failing scenarios.
 - Switched Playwright configs to pass `NEXT_INTL_CONFIG` as a relative path, allowing the dev server to locate locale settings during browser tests and run the full suite without configuration errors.
+- Resolved recurring `next-intl` errors by resolving the config path in Playwright configs to an absolute location and verified build and full test suite pass.

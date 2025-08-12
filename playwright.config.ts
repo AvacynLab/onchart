@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'node:path';
 
 /**
  * Read environment variables from file.
@@ -138,7 +139,9 @@ export default defineConfig({
       AUTH_SECRET: 'test',
       POSTGRES_URL: '',
       PLAYWRIGHT: '1',
-      NEXT_INTL_CONFIG: 'next-intl.config.js',
+      // Use an absolute path so Next.js can always locate the locale settings
+      // regardless of where the dev server spawns from.
+      NEXT_INTL_CONFIG: path.resolve('next-intl.config.js'),
     },
   },
 });
