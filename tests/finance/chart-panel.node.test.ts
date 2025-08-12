@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import React, { createRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { JSDOM } from 'jsdom';
-import ChartPanel, { ChartPanelRef } from '../../components/finance/ChartPanel';
+import ChartPanel, { type ChartPanelRef } from '../../components/finance/ChartPanel';
 import { subscribeUIEvents } from '../../lib/ui/events';
 
 // Setup a minimal DOM environment using JSDOM so that the chart can mount
@@ -41,7 +41,11 @@ test('setData, overlays, focusArea and crosshair events operate on the chart', a
     createPriceLine: () => ({ remove: () => {} }),
   } as any;
   let overlay: any = null;
-  const overlayStub = { setData: (d: any) => (overlay = d) } as any;
+  const overlayStub = {
+    setData: (d: any) => {
+      overlay = d;
+    },
+  } as any;
   let crosshairHandler: any = null;
   let visible: any = null;
   const chartStub = {
@@ -100,10 +104,19 @@ test('renders overlays, studies and annotations passed via props', async () => {
   const container = document.createElement('div');
   document.body.appendChild(container);
 
+  // Stubs capturing data passed to overlay and study setters.
   let overlayData: any = null;
-  const overlayStub = { setData: (d: any) => (overlayData = d) } as any;
+  const overlayStub = {
+    setData: (d: any) => {
+      overlayData = d;
+    },
+  } as any;
   let studyData: any = null;
-  const studyStub = { setData: (d: any) => (studyData = d) } as any;
+  const studyStub = {
+    setData: (d: any) => {
+      studyData = d;
+    },
+  } as any;
   let annotationOpts: any = null;
   const seriesStub = {
     createPriceLine: (opts: any) => {

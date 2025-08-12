@@ -62,7 +62,17 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps chromium
 
+      - name: Lint
+        run: pnpm lint
+
+      - name: Build
+        # Ensure the Next.js app compiles before executing tests.
+        run: pnpm build
+
       - name: Run Playwright tests
+        # Executes unit, API, and E2E tests in headless mode.
+        env:
+          CI: true
         run: pnpm test
 
       - uses: actions/upload-artifact@v4

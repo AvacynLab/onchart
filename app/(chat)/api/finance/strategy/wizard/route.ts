@@ -35,12 +35,20 @@ export async function POST(req: Request): Promise<Response> {
   // to exist when this endpoint runs, so cast to `any` to satisfy TypeScript.
   const strategyTools = tools.strategy as any;
   await strategyTools.start_wizard.execute({});
-  // Propose an initial strategy using the collected answers
+  // Propose an initial strategy using the collected answers. Include all
+  // constraints so the LLM receives comprehensive context about the user's
+  // preferences and limitations.
   const result = await strategyTools.propose.execute({
     title,
     answers,
     universe: { note: answers.universe },
-    constraints: { horizon: answers.horizon, risk: answers.risk, fees: answers.fees },
+    constraints: {
+      horizon: answers.horizon,
+      risk: answers.risk,
+      fees: answers.fees,
+      drawdown: answers.drawdown,
+      notes: answers.constraints,
+    },
   });
   return Response.json(result);
 }

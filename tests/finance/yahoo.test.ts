@@ -5,33 +5,83 @@ import {
   searchYahoo,
 } from '../../lib/finance/sources/yahoo';
 
-test('fetchQuoteYahoo returns a valid quote', async () => {
-  const q = await fetchQuoteYahoo('AAPL');
-  expect(q.symbol).toBe('AAPL');
-  expect(typeof q.price).toBe('number');
-});
+/**
+ * Yahoo Finance tests use mocked responses so unit tests remain
+ * deterministic and do not hit the real network.
+ */
 
-test('searchYahoo finds AAPL symbol', async () => {
-  const results = await searchYahoo('Apple');
-  expect(results.some((r) => r.symbol === 'AAPL')).toBeTruthy();
-});
-
-test('fetchOHLCYahoo returns candles', async () => {
-  const candles = await fetchOHLCYahoo('AAPL', '1d', { range: '5d' });
-  expect(candles.length).toBeGreaterThan(0);
-  const c = candles[0];
-  expect(typeof c.open).toBe('number');
-});
-
-test('fetchOHLCYahoo falls back to Stooq when Yahoo fails', async () => {
+test('fetchQuoteYahoo parses a quote response', async () => {
   const originalFetch = global.fetch;
-  global.fetch = async (url: any, init?: any) => {
-    if (typeof url === 'string' && url.includes('query1.finance.yahoo.com')) {
+  // Minimal payload that exercises the quote parsing logic.
+  global.fetch = (async (url: any) =>
+    new Response(
+      JSON.stringify({
+        quoteResponse: {
+          result: [
+            {
+              symbol: 'AAPL',
+              regularMarketPrice: 123,
+              regularMarketChange: 1,
+              regularMarketChangePercent: 0.5,
+              marketState: 'REG',
+            },
+          ],
+        },
+      }),
+      { status: 200 },
+    )) as any;
+  const q = await fetchQuoteYahoo('AAPL');
+  expect(q).toEqual({
+    symbol: 'AAPL',
+    price: 123,
+    change: 1,
+    changePercent: 0.5,
+    marketState: 'REG',
+  });
+  global.fetch = originalFetch;
+});
+
+test('searchYahoo returns matching symbols', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        quotes: [{ symbol: 'AAPL', shortname: 'Apple Inc.', quoteType: 'EQUITY' }],
+      }),
+      { status: 200 },
+    )) as any;
+  const results = await searchYahoo('Apple');
+  expect(results).toEqual([
+    { symbol: 'AAPL', name: 'Apple Inc.', type: 'EQUITY' },
+  ]);
+  global.fetch = originalFetch;
+});
+
+test('fetchOHLCYahoo falls back to Stooq on failure', async () => {
+  const originalFetch = global.fetch;
+  // Simulate Yahoo session and chart failure followed by Stooq CSV success.
+  global.fetch = (async (url: any) => {
+    const href = url.toString();
+    if (href.includes('getcrumb')) {
+      return new Response('crumb', {
+        status: 200,
+        headers: { 'set-cookie': 'test=1' },
+      });
+    }
+    if (href.includes('query1.finance.yahoo.com')) {
       throw new Error('Yahoo down');
     }
-    return originalFetch(url, init);
-  };
+    if (href.includes('stooq.com')) {
+      return new Response(
+        'Date,Open,High,Low,Close,Volume\n2024-01-01,1,2,0.5,1.5,1000',
+        { status: 200 },
+      );
+    }
+    throw new Error('unexpected url ' + href);
+  }) as any;
   const candles = await fetchOHLCYahoo('AAPL', '1d', { range: '7d' });
-  expect(candles.length).toBeGreaterThan(0);
+  expect(candles).toEqual([
+    { time: 1704067200, open: 1, high: 2, low: 0.5, close: 1.5, volume: 1000 },
+  ]);
   global.fetch = originalFetch;
 });

@@ -229,10 +229,15 @@ export async function POST(request: Request) {
           }),
           messages: convertToModelMessages(uiMessages),
           stopWhen: stepCountIs(5),
-          experimental_activeTools:
-            selectedChatModel === 'gpt-5o'
-              ? []
-              : (Object.keys(financeToolMap) as any),
+          // Expose all finance tools to the model so filtering can happen
+          // declaratively at runtime. The list is built from the prefixed
+          // tool map and enables calls like `finance.get_quote`.
+          // Cast is required because `experimental_activeTools` expects a
+          // string literal union from the base template; forcing `any` lets
+          // the expanded finance map be accepted by the API.
+          experimental_activeTools: Object.keys(
+            financeToolMap,
+          ) as any,
           experimental_transform: smoothStream({ chunking: 'word' }),
           tools: {
             getWeather,

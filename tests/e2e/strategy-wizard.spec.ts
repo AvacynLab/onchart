@@ -1,67 +1,79 @@
 import { test, expect } from '@playwright/test';
-import { createFinanceTools } from '../../lib/ai/tools-finance';
+import enDashboard from '../../messages/en/dashboard.json' assert { type: 'json' };
+import enFinance from '../../messages/en/finance.json' assert { type: 'json' };
 
-// End-to-end style test exercising the strategy tools namespace
-// through a full lifecycle: wizard -> proposal -> backtest ->
-// refinement -> final validation. Uses in-memory mocks for
-// persistence so we can run without a real database.
-test('full strategy lifecycle', async () => {
-  const strategies: any[] = [];
-  const versions: any[] = [];
-  const backtests: any[] = [];
-
-  const tools = createFinanceTools(
-    { userId: 'u1', chatId: 'c1' },
-    {
-      createStrategy: async (args) => {
-        const row = { id: 's1', ...args, createdAt: new Date(), updatedAt: new Date() };
-        strategies.push(row);
-        return row;
-      },
-      createStrategyVersion: async (args) => {
-        const row = { id: `v${versions.length + 1}`, createdAt: new Date(), ...args };
-        versions.push(row);
-        return row;
-      },
-      getStrategyVersion: async ({ id }) => versions.find((v) => v.id === id),
-      saveBacktest: async (args) => {
-        backtests.push(args);
-        return { id: `b${backtests.length}`, ...args };
-      },
-      updateStrategyStatus: async ({ id, status }) => ({ id, status }),
-      fetchOHLC: async () => [
-        { time: 0, open: 1, high: 1, low: 1, close: 1 },
-        { time: 1, open: 1, high: 1, low: 1, close: 2 },
-        { time: 2, open: 2, high: 2, low: 2, close: 1 },
-      ],
-    },
+// Ensure external font requests are stubbed so the test does not depend on
+// Google services or network access.
+test.beforeEach(async ({ page }) => {
+  await page.route('https://fonts.googleapis.com/*', (route) =>
+    route.fulfill({ status: 200, body: '' }),
   );
-
-  const questions = await tools.strategy.start_wizard.execute({});
-  expect(Array.isArray(questions)).toBeTruthy();
-  expect(questions.length).toBeGreaterThan(0);
-
-  const proposal = await tools.strategy.propose.execute({ title: 'T', answers: {} });
-  expect(proposal.strategy.id).toBe('s1');
-  expect(proposal.version.strategyId).toBe('s1');
-
-  const bt = await tools.strategy.backtest.execute({
-    versionId: proposal.version.id,
-    symbols: ['AAPL'],
-    timeframe: '1d',
-    range: '5d',
-  });
-  expect(bt.metrics.cagr).not.toBeUndefined();
-  expect(backtests).toHaveLength(1);
-
-  const refined = await tools.strategy.refine.execute({
-    versionId: proposal.version.id,
-    feedback: 'better',
-  });
-  expect(versions).toHaveLength(2);
-  expect(refined.notes).toBe('better');
-
-  const finalized = await tools.strategy.finalize.execute({ versionId: refined.id });
-  expect(finalized.status).toBe('validated');
+  await page.route('https://fonts.gstatic.com/*', (route) =>
+    route.fulfill({ status: 200, body: '' }),
+  );
 });
 
+/**
+ * Drive the strategy wizard through all of its steps and ensure the newly
+ * created strategy appears in the tile's list. The backend request is mocked
+ * to keep the test hermetic.
+ */
+test('completes strategy wizard flow', async ({ page }) => {
+  // Mock the API endpoint that persists the created strategy.
+  await page.route('**/api/finance/strategy/wizard', (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        strategy: {
+          id: 's1',
+          title: 'Demo strategy',
+          status: 'draft',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      }),
+    });
+  });
+
+  // Navigate to the English dashboard providing a chat id so strategies can be
+  // created.
+  await page.goto('/en?chatId=c1');
+  await expect(page).toHaveURL(/\/en\?chatId=c1$/);
+
+  // Open the strategy wizard via the tile's action button.
+  await page
+    .getByRole('button', { name: (enDashboard as any).strategies.create })
+    .click();
+
+  // Step 1: investment horizon.
+  await page
+    .getByLabel((enFinance as any).wizard.horizon)
+    .fill('1y');
+  await page.getByRole('button', { name: (enFinance as any).wizard.next }).click();
+
+  // Step 2: risk tolerance.
+  await page.getByLabel((enFinance as any).wizard.risk).fill('medium');
+  await page.getByRole('button', { name: (enFinance as any).wizard.next }).click();
+
+  // Step 3: universe of assets.
+  await page.getByLabel((enFinance as any).wizard.universe).fill('stocks');
+  await page.getByRole('button', { name: (enFinance as any).wizard.next }).click();
+
+  // Step 4: fees.
+  await page.getByLabel((enFinance as any).wizard.fees).fill('0.1');
+  await page.getByRole('button', { name: (enFinance as any).wizard.next }).click();
+
+  // Step 5: maximum drawdown.
+  await page.getByLabel((enFinance as any).wizard.drawdown).fill('10');
+  await page.getByRole('button', { name: (enFinance as any).wizard.next }).click();
+
+  // Step 6: additional constraints.
+  await page.getByLabel((enFinance as any).wizard.constraints).fill('ESG');
+  await page
+    .getByRole('button', { name: (enFinance as any).wizard.finish })
+    .click();
+
+  // The mocked response should cause the new strategy to appear in the list.
+  await expect(page.getByText('Demo strategy')).toBeVisible();
+});

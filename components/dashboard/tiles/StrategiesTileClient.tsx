@@ -3,7 +3,7 @@
 import React, { useState, useId } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import BentoCard from '../BentoCard';
-import StrategyWizard, { WizardAnswers } from '@/components/finance/StrategyWizard';
+import StrategyWizard, { type WizardAnswers } from '@/components/finance/StrategyWizard';
 import StrategyCard from '@/components/finance/StrategyCard';
 import type { Strategy } from '@/lib/db/schema';
 import StrategiesTileEmpty from '../empty/StrategiesTileEmpty';
@@ -97,6 +97,7 @@ export default function StrategiesTileClient({
         </ul>
         {cursor && (
           <button
+            type="button"
             onClick={loadMore}
             disabled={loading}
             className="mt-2 text-xs underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
@@ -114,6 +115,7 @@ export default function StrategiesTileClient({
       titleId={titleId}
       actions={
         <button
+          type="button"
           onClick={() => setOpen((v) => !v)}
           className="text-xs underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
         >

@@ -1,9 +1,9 @@
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
+import { test, expect } from '@playwright/test';
 import { createFinanceTools } from '../../lib/ai/tools-finance';
 
 // unit test verifying full lifecycle of strategy tools
 
+// Ensure the full lifecycle of strategy tools works and persists analysis logs.
 test('strategy tool lifecycle and localization', async () => {
   const strategies: any[] = [];
   const versions: any[] = [];
@@ -40,17 +40,17 @@ test('strategy tool lifecycle and localization', async () => {
 
   // Ensure questions adapt to locale
   const questionsEn = await tools.strategy.start_wizard.execute({});
-  assert.match(questionsEn[0].question, /investment horizon/i);
+  expect(questionsEn[0].question).toMatch(/investment horizon/i);
   const frTools = createFinanceTools(
     { userId: 'u1', chatId: 'c1', locale: 'fr' },
     { ...deps, persist: async () => {} },
   );
   const questionsFr = await frTools.strategy.start_wizard.execute({});
-  assert.match(questionsFr[0].question, /horizon de placement/i);
+  expect(questionsFr[0].question).toMatch(/horizon de placement/i);
 
   const proposal = await tools.strategy.propose.execute({ title: 'Test', answers: {} });
-  assert.equal(proposal.strategy.id, 's1');
-  assert.equal(proposal.version.strategyId, 's1');
+  expect(proposal.strategy.id).toBe('s1');
+  expect(proposal.version.strategyId).toBe('s1');
 
   const bt = await tools.strategy.backtest.execute({
     versionId: proposal.version.id,
@@ -58,20 +58,20 @@ test('strategy tool lifecycle and localization', async () => {
     timeframe: '1d',
     range: '5d',
   });
-  assert.ok(bt.metrics.cagr !== undefined);
-  assert.equal(backtests.length, 1);
+  expect(bt.metrics.cagr).not.toBeUndefined();
+  expect(backtests.length).toBe(1);
 
   const refined = await tools.strategy.refine.execute({
     versionId: proposal.version.id,
     feedback: 'better',
   });
-  assert.equal(versions.length, 2);
-  assert.equal(refined.notes, 'better');
+  expect(versions.length).toBe(2);
+  expect(refined.notes).toBe('better');
 
   const finalized = await tools.strategy.finalize.execute({ versionId: refined.id });
-  assert.equal(finalized.status, 'validated');
+  expect(finalized.status).toBe('validated');
 
-  assert.deepEqual(persisted.map((r) => r.type), [
+  expect(persisted.map((r) => r.type)).toEqual([
     'strategy_start_wizard',
     'strategy_propose',
     'strategy_backtest',

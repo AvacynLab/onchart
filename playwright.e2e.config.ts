@@ -1,4 +1,5 @@
 import { defineConfig } from '@playwright/test';
+import path from 'node:path';
 
 /**
  * Lightweight Playwright configuration used for end-to-end suites. Unlike the
@@ -39,8 +40,10 @@ export default defineConfig({
       // Signal middleware to bypass authentication during browser tests.
       PLAYWRIGHT: '1',
       // Point next-intl to the project-level locale configuration so the
-      // runtime can resolve translations without the build-time plugin.
-      NEXT_INTL_CONFIG: 'next-intl.config.js',
+      // runtime can resolve translations without the build-time plugin. Use
+      // `path.resolve` to compute an absolute path regardless of the current
+      // working directory when the dev server starts.
+      NEXT_INTL_CONFIG: path.resolve(process.cwd(), 'next-intl.config.js'),
     },
   },
 });

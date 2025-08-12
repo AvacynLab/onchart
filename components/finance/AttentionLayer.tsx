@@ -105,15 +105,16 @@ const AttentionLayer: React.FC<AttentionLayerProps> = ({
       data-testid="attention-layer"
     >
       {markers.map((m) => (
-        <div
+        <button
           key={m.id}
+          type="button"
           data-testid="attention-marker"
           className="pointer-events-auto absolute top-0 -translate-x-1/2 cursor-pointer bg-yellow-300 px-1 text-xs"
           style={{ left: `${toX(m.at)}px` }}
           onClick={() => onSelect?.(m)}
         >
           {m.text || m.type || 'marker'}
-        </div>
+        </button>
       ))}
     </div>
   );

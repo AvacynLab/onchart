@@ -23,12 +23,16 @@ test('collects answers through all steps', async () => {
   const container = document.createElement('div');
   let result: any = null;
   createRoot(container).render(
-    <StrategyWizard onComplete={(answers) => (result = answers)} />,
+    <StrategyWizard
+      onComplete={(answers) => {
+        result = answers;
+      }}
+    />,
   );
   await tick();
 
   const submit = () =>
-    container.querySelector('form')!.dispatchEvent(
+    container.querySelector('form')?.dispatchEvent(
       new dom.window.Event('submit', { bubbles: true, cancelable: true }),
     );
 
@@ -50,11 +54,21 @@ test('collects answers through all steps', async () => {
   submit();
   await tick();
 
+  input().value = '10';
+  submit();
+  await tick();
+
+  input().value = 'ESG';
+  submit();
+  await tick();
+
   assert.deepEqual(result, {
     horizon: 'court terme',
     risk: 'modéré',
     universe: 'actions',
     fees: 0.1,
+    drawdown: 10,
+    constraints: 'ESG',
   });
 });
 

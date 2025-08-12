@@ -9,11 +9,8 @@ import {
   isCryptoSymbol,
   type QuoteResult,
 } from '@/lib/finance/live';
+import { DEFAULT_SYMBOLS } from '@/lib/finance/default-symbols';
 import PricesTileEmpty from '../empty/PricesTileEmpty';
-
-/** Default symbols shown when no user history is available. Exported so the
- *  dashboard page can prefetch the same symbols on the server. */
-export const DEFAULT_SYMBOLS = ['AAPL', 'MSFT', 'BTC-USD'];
 
 /**
  * Client component responsible for rendering the list of quotes and refreshing

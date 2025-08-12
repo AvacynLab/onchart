@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'node:path';
 
 /**
  * Read environment variables from file.
@@ -78,6 +79,14 @@ export default defineConfig({
       },
     },
 
+    {
+      name: 'ai-tools',
+      testMatch: /ai\/.*.test.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+    },
+
     // {
     //   name: 'firefox',
     //   use: { ...devices['Desktop Firefox'] },
@@ -119,7 +128,9 @@ export default defineConfig({
       AUTH_SECRET: 'test',
       POSTGRES_URL: '',
       PLAYWRIGHT: '1',
-      NEXT_INTL_CONFIG: 'next-intl.config.js',
+      // Provide an absolute path so the dev server can resolve the next-intl
+      // configuration regardless of the working directory.
+      NEXT_INTL_CONFIG: path.resolve(process.cwd(), 'next-intl.config.js'),
     },
   },
 });
