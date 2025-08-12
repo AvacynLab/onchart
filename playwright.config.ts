@@ -1,5 +1,4 @@
 import { defineConfig, devices } from '@playwright/test';
-import path from 'node:path';
 
 /**
  * Read environment variables from file.
@@ -140,7 +139,6 @@ export default defineConfig({
       AUTH_SECRET: 'test',
       POSTGRES_URL: '',
       PLAYWRIGHT: '1',
-      NEXT_INTL_CONFIG: path.join(process.cwd(), 'next-intl.config.js'),
     },
   },
 });

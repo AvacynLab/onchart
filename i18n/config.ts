@@ -7,6 +7,8 @@ export type Locale = (typeof locales)[number];
 export const i18n = {
   locales,
   defaultLocale: 'fr' as Locale,
+  // Always prefix routes with the locale to keep URLs explicit
+  localePrefix: 'always',
 };
 
 // Export a default config so `next-intl`'s plugin can import it when building

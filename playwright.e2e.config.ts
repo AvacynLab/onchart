@@ -1,5 +1,4 @@
 import { defineConfig } from '@playwright/test';
-import path from 'node:path';
 
 /**
  * Lightweight Playwright configuration used for end-to-end suites. Unlike the
@@ -41,7 +40,6 @@ export default defineConfig({
       AUTH_SECRET: 'test',
       POSTGRES_URL: '',
       PLAYWRIGHT: '1',
-      NEXT_INTL_CONFIG: path.join(process.cwd(), 'next-intl.config.js'),
     },
   },
 });
