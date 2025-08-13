@@ -1,9 +1,4 @@
-// Minimal next-intl configuration so tooling and the middleware can resolve
-// available locales. `localePrefix: 'always'` keeps URLs explicit (`/fr/...`).
-const config = {
-  locales: ['fr', 'en'],
-  defaultLocale: 'fr',
-  localePrefix: 'always',
-} as const;
-
-export default config;
+// Re-export the central next-intl configuration used across the app so that
+// tooling, the middleware and the build-time plugin all reference the same
+// object defined under `i18n/config.ts`.
+export { default } from './i18n/config';

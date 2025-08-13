@@ -1,9 +1,10 @@
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 
-// Load the locale configuration for next-intl via the plugin and point it to
-// the shared root config so the runtime receives `NEXT_INTL_CONFIG`.
-const withNextIntl = createNextIntlPlugin('./next-intl.config.ts');
+// Instruct next-intl's plugin to load the request configuration from the
+// `i18n/request.ts` module so the development server and build pipeline can
+// resolve locales for each request.
+const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
 const nextConfig: NextConfig = {
   experimental: {

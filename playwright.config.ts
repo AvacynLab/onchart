@@ -139,7 +139,10 @@ export default defineConfig({
         // Explicitly point Next.js to the locale configuration so the dev
         // server started for Playwright tests can resolve translations without
         // relying on plugin inference.
-        NEXT_INTL_CONFIG: './next-intl.config.ts',
+        // Point the dev server started for Playwright tests to the same
+        // request-level i18n configuration so locale detection matches the
+        // production setup.
+        NEXT_INTL_CONFIG: './i18n/request.ts',
         AUTH_SECRET: 'test',
         POSTGRES_URL: '',
         PLAYWRIGHT: '1',
