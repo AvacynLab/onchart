@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 3000;
  * Set webServer.url and use.baseURL with the location
  * of the WebServer respecting the correct set port
  */
-const baseURL = `http://localhost:${PORT}`;
+const baseURL = `http://localhost:${PORT}/fr`;
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -50,6 +50,8 @@ export default defineConfig({
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL,
+    // Force French locale during tests to avoid middleware redirects to `/en`.
+    extraHTTPHeaders: { 'Accept-Language': 'fr' },
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'retain-on-failure',
@@ -131,7 +133,8 @@ export default defineConfig({
     // `env` option passes variables directly to the server process without
     // relying on shell variable expansion.
     command: 'pnpm dev',
-    url: `${baseURL}/ping`,
+    // The readiness probe always checks the root `/ping` route.
+    url: `http://localhost:${PORT}/ping`,
     timeout: 120 * 1000,
     reuseExistingServer: !process.env.CI,
       env: {
