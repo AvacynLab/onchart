@@ -410,3 +410,4 @@ Ensuite on déroule la checklist scrapers/UX/tests jusqu’au **vert intégral**
 - Updated Next.js config to inject the `next-intl` alias under `experimental.turbo`, exported `NEXT_INTL_CONFIG` in Playwright, and removed stray `.next` artifacts so the test server boots without missing-config errors or secret leaks.
 - Added `i18n/request.ts`, updated Next.js and Playwright configs to reference it, and resolved the "Invalid i18n request configuration" startup error.
 - Localised chat components (`ChatHeader`, `FinanceHint`, `MultimodalInput`) with next-intl and added tests for translated hints and headers.
+- Replaced custom `NextIntlRequestConfig` type with `getRequestConfig` and bundled all message namespaces per request to fix build-time type errors.
