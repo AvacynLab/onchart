@@ -1,7 +1,5 @@
-// Use CommonJS exports so the Next-Intl runtime can `require` this file during
-// development and Playwright runs. Using ESM (`export default`) caused the dev
-// server to fail loading the configuration, preventing locale detection.
-module.exports = {
-  locales: ['fr', 'en'],
-  defaultLocale: 'fr',
-};
+// JavaScript variant of the Next-Intl configuration so the dev server can
+// resolve locales during Playwright runs without relying on TypeScript
+// transpilation.
+const config = { locales: ['fr', 'en'], defaultLocale: 'fr', localePrefix: 'always' };
+module.exports = config;

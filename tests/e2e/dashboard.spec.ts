@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures';
 import frFinance from '../../messages/fr/finance.json' assert { type: 'json' };
 import frDashboard from '../../messages/fr/dashboard.json' assert { type: 'json' };
 import enDashboard from '../../messages/en/dashboard.json' assert { type: 'json' };

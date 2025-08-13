@@ -8,7 +8,17 @@ interface Fixtures {
   curieContext: UserContext;
 }
 
+// Extend Playwright's base test with authenticated user contexts and network logging.
 export const test = baseTest.extend<{}, Fixtures>({
+  page: async ({ page }, use, testInfo) => {
+    page.on('request', (req) => {
+      console.log(`>> [${testInfo.title}] ${req.method()} ${req.url()}`);
+    });
+    page.on('response', (res) => {
+      console.log(`<< [${testInfo.title}] ${res.status()} ${res.url()}`);
+    });
+    await use(page);
+  },
   adaContext: [
     async ({ browser }, use, workerInfo) => {
       const ada = await createAuthenticatedContext({

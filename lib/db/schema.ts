@@ -10,6 +10,7 @@ import {
   primaryKey,
   foreignKey,
   boolean,
+  index,
 } from 'drizzle-orm/pg-core';
 
 export const user = pgTable('User', {
@@ -182,7 +183,11 @@ export const analysis = pgTable('Analysis', {
   input: jsonb('input').notNull(),
   output: jsonb('output').notNull(),
   createdAt: timestamp('createdAt').notNull(),
-});
+},
+// Composite index accelerates per-chat queries ordered by creation time.
+(t) => ({
+  chatCreatedIdx: index('analysis_chat_created_idx').on(t.chatId, t.createdAt),
+}));
 
 export type Analysis = InferSelectModel<typeof analysis>;
 
@@ -201,7 +206,11 @@ export const research = pgTable('Research', {
   sections: jsonb('sections').notNull(),
   createdAt: timestamp('createdAt').notNull(),
   updatedAt: timestamp('updatedAt').notNull(),
-});
+},
+// Optimise retrieval of research docs per chat by latest update.
+(t) => ({
+  chatUpdatedIdx: index('research_chat_updated_idx').on(t.chatId, t.updatedAt),
+}));
 
 export type Research = InferSelectModel<typeof research>;
 
@@ -240,7 +249,11 @@ export const strategy = pgTable('Strategy', {
     .default('draft'),
   createdAt: timestamp('createdAt').notNull(),
   updatedAt: timestamp('updatedAt').notNull(),
-});
+},
+// Enable fast retrieval of strategies per chat sorted by most recent update.
+(t) => ({
+  chatUpdatedIdx: index('strategy_chat_updated_idx').on(t.chatId, t.updatedAt),
+}));
 
 export type Strategy = InferSelectModel<typeof strategy>;
 

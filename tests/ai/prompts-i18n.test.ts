@@ -22,7 +22,7 @@ test('financePrompts include FR and EN disclaimers', () => {
   );
   assert.ok(
     financePrompts.en.includes(
-      'Data is **public** and **not guaranteed**. **Not investment advice.**'
+      'Data is **public** and **not guaranteed**. **Not financial advice.**'
     ),
     'missing English disclaimer'
   );

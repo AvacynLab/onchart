@@ -20,8 +20,11 @@ export function sanitizeSummary(input: string): string {
  * Intl.RelativeTimeFormat API. The function chooses the largest sensible unit
  * (seconds, minutes, hours or days) and returns a locale aware relative time,
  * e.g. "2 h ago" or "il y a 2 h".
+ *
+ * Exported for unit testing to guarantee consistent relative-time formatting
+ * across locales.
  */
-function formatRelative(date: Date, locale: string): string {
+export function formatRelative(date: Date, locale: string): string {
   const diffMs = date.getTime() - Date.now();
   const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
   const seconds = Math.round(diffMs / 1000);

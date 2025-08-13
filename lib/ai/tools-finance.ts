@@ -761,6 +761,9 @@ export function createFinanceTools(
             // DB helper receives a concrete array.
             sections: sections ?? [],
           });
+          // Log the creation so the dashboard can surface the new research
+          // document in "Mes analyses".
+          await persistAnalysis('research_create', { kind, title }, doc);
           return doc;
         },
       }),
@@ -789,6 +792,12 @@ export function createFinanceTools(
             id,
             sections: [...(doc.sections || []), newSection],
           });
+          // Persist the modification to keep an audit trail of research edits.
+          await persistAnalysis(
+            'research_add_section',
+            { id, section: newSection },
+            updated,
+          );
           return updated;
         },
       }),
@@ -814,6 +823,12 @@ export function createFinanceTools(
             s.id === sectionId ? { ...s, content } : s,
           );
           const updated = await updateResearchFn?.({ id, sections });
+          // Record the update so user-facing lists reflect the latest content.
+          await persistAnalysis(
+            'research_update_section',
+            { id, sectionId },
+            updated,
+          );
           return updated;
         },
       }),

@@ -1,15 +1,15 @@
-// Centralize locales and derive the Locale union type from the array to keep
-// the configuration strongly typed. `defaultLocale` is explicitly cast to
-// `Locale` so downstream checks can rely on it without additional assertions.
-export const locales = ['fr', 'en'] as const;
-export type Locale = (typeof locales)[number];
-
+// Centralize locales and derive the `Locale` union type directly from the
+// configuration object. Marking the object `as const` preserves literal types
+// (`'fr' | 'en'`) so consumers such as the middleware receive the exact values
+// expected by `next-intl` rather than generic `string` types.
 export const i18n = {
-  locales,
-  defaultLocale: 'fr' as Locale,
-};
+  locales: ['fr', 'en'],
+  defaultLocale: 'fr',
+  // Always prefix routes with the locale to keep URLs explicit in URLs.
+  localePrefix: 'always',
+} as const;
 
-// Export a default config so `next-intl`'s plugin can import it when building
-// the Next.js configuration. The plugin serializes this object and exposes it
-// to the runtime via `NEXT_INTL_CONFIG`.
+export type Locale = (typeof i18n)['locales'][number];
+
+// Export the configuration for use by the Next.js plugin and runtime.
 export default i18n;

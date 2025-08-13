@@ -80,6 +80,7 @@ export default async function RootLayout({
     ...(await import(`../messages/${locale}/common.json`)).default,
     ...(await import(`../messages/${locale}/dashboard.json`)).default,
     ...(await import(`../messages/${locale}/finance.json`)).default,
+    ...(await import(`../messages/${locale}/chat.json`)).default,
   };
 
   return (

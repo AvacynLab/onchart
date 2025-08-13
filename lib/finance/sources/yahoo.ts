@@ -117,6 +117,12 @@ export async function fetchOHLCYahoo(
     // Yahoo exception so callers know both providers were unreachable.
     if (/d$/.test(interval)) {
       try {
+        // Surface the degraded mode explicitly so callers have context when
+        // Yahoo is unavailable. The log remains lightweight and avoids
+        // leaking stack traces that could confuse end users.
+        console.warn(
+          `Yahoo OHLC failed for ${symbol}, falling back to Stooq daily data`,
+        );
         return await fetchDailyStooq(symbol);
       } catch (stooqErr) {
         throw new DataSourceError(

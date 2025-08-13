@@ -1,5 +1,4 @@
 import { defineConfig, devices } from '@playwright/test';
-import path from 'node:path';
 
 /**
  * Read environment variables from file.
@@ -18,7 +17,7 @@ const PORT = process.env.PORT || 3000;
  * Set webServer.url and use.baseURL with the location
  * of the WebServer respecting the correct set port
  */
-const baseURL = `http://localhost:${PORT}`;
+const baseURL = `http://localhost:${PORT}/fr`;
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -51,6 +50,8 @@ export default defineConfig({
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL,
+    // Force French locale during tests to avoid middleware redirects to `/en`.
+    extraHTTPHeaders: { 'Accept-Language': 'fr' },
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'retain-on-failure',
@@ -127,21 +128,27 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    // Launch the Next.js dev server with the minimal environment needed for
-    // tests. Using the `env` option ensures variables are passed directly to
-    // the server process without relying on an inline shell command.
-    command: 'pnpm exec next dev',
-    url: `${baseURL}/ping`,
+    // Start the Next.js development server via the standard package script so
+    // Playwright tests exercise the same setup developers use locally. The
+    // `env` option passes variables directly to the server process without
+    // relying on shell variable expansion.
+    command: 'pnpm dev',
+    // The readiness probe always checks the root `/ping` route.
+    url: `http://localhost:${PORT}/ping`,
     timeout: 120 * 1000,
     reuseExistingServer: !process.env.CI,
-    env: {
-      ...process.env,
-      AUTH_SECRET: 'test',
-      POSTGRES_URL: '',
-      PLAYWRIGHT: '1',
-      // Use an absolute path so Next.js can always locate the locale settings
-      // regardless of where the dev server spawns from.
-      NEXT_INTL_CONFIG: path.resolve('next-intl.config.js'),
-    },
+      env: {
+        ...process.env,
+        // Explicitly point Next.js to the locale configuration so the dev
+        // server started for Playwright tests can resolve translations without
+        // relying on plugin inference.
+        // Point the dev server started for Playwright tests to the same
+        // request-level i18n configuration so locale detection matches the
+        // production setup.
+        NEXT_INTL_CONFIG: './i18n/request.ts',
+        AUTH_SECRET: 'test',
+        POSTGRES_URL: '',
+        PLAYWRIGHT: '1',
+      },
   },
 });
