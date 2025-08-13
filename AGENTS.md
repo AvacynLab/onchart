@@ -407,3 +407,4 @@ Ensuite on déroule la checklist scrapers/UX/tests jusqu’au **vert intégral**
 - Removed explicit `NEXT_INTL_CONFIG` from Playwright setups so the server auto-detects config and boots without errors; fixed finance prompts to match FR/EN timeframe guidance and updated tests.
 - Updated Playwright configurations to launch the dev server with `pnpm dev`, aligning browser tests with the standard Next.js workflow.
 - Restored a root `next-intl.config.ts` and pointed the middleware and Next.js plugin to it, ensuring `localePrefix` is typed literally so builds and tests run without configuration errors.
+- Updated Next.js config to inject the `next-intl` alias under `experimental.turbo`, exported `NEXT_INTL_CONFIG` in Playwright, and removed stray `.next` artifacts so the test server boots without missing-config errors or secret leaks.

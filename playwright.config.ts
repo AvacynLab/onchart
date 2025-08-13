@@ -134,11 +134,15 @@ export default defineConfig({
     url: `${baseURL}/ping`,
     timeout: 120 * 1000,
     reuseExistingServer: !process.env.CI,
-    env: {
-      ...process.env,
-      AUTH_SECRET: 'test',
-      POSTGRES_URL: '',
-      PLAYWRIGHT: '1',
-    },
+      env: {
+        ...process.env,
+        // Explicitly point Next.js to the locale configuration so the dev
+        // server started for Playwright tests can resolve translations without
+        // relying on plugin inference.
+        NEXT_INTL_CONFIG: './next-intl.config.ts',
+        AUTH_SECRET: 'test',
+        POSTGRES_URL: '',
+        PLAYWRIGHT: '1',
+      },
   },
 });
