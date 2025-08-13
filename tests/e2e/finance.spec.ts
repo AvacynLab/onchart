@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures';
 import { createFinanceTools } from '../../lib/ai/tools-finance';
 import { subscribeUIEvents } from '../../lib/ui/events';
 

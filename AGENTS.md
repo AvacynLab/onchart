@@ -411,3 +411,4 @@ Ensuite on déroule la checklist scrapers/UX/tests jusqu’au **vert intégral**
 - Added `i18n/request.ts`, updated Next.js and Playwright configs to reference it, and resolved the "Invalid i18n request configuration" startup error.
 - Localised chat components (`ChatHeader`, `FinanceHint`, `MultimodalInput`) with next-intl and added tests for translated hints and headers.
 - Replaced custom `NextIntlRequestConfig` type with `getRequestConfig` and bundled all message namespaces per request to fix build-time type errors.
+- Added network request logging via Playwright fixtures, restored missing JS next-intl config, and simplified FinanceHint i18n test to render on the server.
