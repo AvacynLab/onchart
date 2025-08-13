@@ -406,3 +406,4 @@ Ensuite on déroule la checklist scrapers/UX/tests jusqu’au **vert intégral**
 - Added `NextIntlClientProvider` stub and tests ensuring `app/layout.tsx` sets the `lang` attribute based on headers.
 - Removed explicit `NEXT_INTL_CONFIG` from Playwright setups so the server auto-detects config and boots without errors; fixed finance prompts to match FR/EN timeframe guidance and updated tests.
 - Updated Playwright configurations to launch the dev server with `pnpm dev`, aligning browser tests with the standard Next.js workflow.
+- Restored a root `next-intl.config.ts` and pointed the middleware and Next.js plugin to it, ensuring `localePrefix` is typed literally so builds and tests run without configuration errors.

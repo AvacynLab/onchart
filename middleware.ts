@@ -1,11 +1,11 @@
 import type { NextRequest } from 'next/server';
 import createMiddleware from 'next-intl/middleware';
-import i18n from './i18n/config';
+import nextIntlConfig from './next-intl.config';
 
 // Reuse next-intl's middleware to handle locale prefixes and detection.
 // A lightweight `/ping` route remains to signal readiness during Playwright runs.
 // Initialize next-intl's middleware with the shared locale configuration.
-const intlMiddleware = createMiddleware(i18n);
+const intlMiddleware = createMiddleware(nextIntlConfig);
 
 export default function middleware(request: NextRequest) {
   if (request.nextUrl.pathname === '/ping') {

@@ -1,8 +1,8 @@
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 
-// Load the locale configuration for next-intl via the plugin so the runtime
-// receives the proper `NEXT_INTL_CONFIG` environment variable.
+// Load the locale configuration for next-intl via the plugin and point it to
+// the shared i18n config so the runtime receives `NEXT_INTL_CONFIG`.
 const withNextIntl = createNextIntlPlugin('./i18n/config.ts');
 
 const nextConfig: NextConfig = {
