@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { subscribeUIEvents, type UIEvent } from '@/lib/ui/events';
 
 /**
@@ -16,6 +17,7 @@ export default function FinanceHint({
 }) {
   // Visibility flag toggled off once a chart is requested.
   const [visible, setVisible] = useState(true);
+  const t = useTranslations('chat');
 
   useEffect(() => {
     return subscribe((event: UIEvent<any>) => {
@@ -32,7 +34,7 @@ export default function FinanceHint({
       data-testid="finance-hint"
       className="fixed bottom-4 right-4 z-10 rounded-md border bg-background p-3 text-sm shadow"
     >
-      Demandez : <span className="font-mono">«Affiche EURUSD en 1H et ajoute RSI»</span>
+      {t('financeHint')}
     </div>
   );
 }

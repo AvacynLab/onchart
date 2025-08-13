@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { useLocalStorage, useWindowSize } from 'usehooks-ts';
 
 import { ArrowUpIcon, PaperclipIcon, StopIcon } from './icons';
+import { useTranslations } from 'next-intl';
 import { PreviewAttachment } from './preview-attachment';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
@@ -146,6 +147,8 @@ function PureMultimodalInput({
     chatId,
   ]);
 
+  const t = useTranslations('chat');
+
   const uploadFile = async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -169,7 +172,7 @@ function PureMultimodalInput({
       const { error } = await response.json();
       toast.error(error);
     } catch (error) {
-      toast.error('Failed to upload file, please try again!');
+      toast.error(t('uploadFailed'));
     }
   };
 
