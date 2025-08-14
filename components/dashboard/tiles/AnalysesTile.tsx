@@ -199,6 +199,9 @@ export function AnalysesClient({
 
 async function fetchAnalyses(chatId?: string): Promise<AnalysisSummary[]> {
   if (!chatId) return [];
+  // Avoid importing the database layer when no connection string is provided
+  // (e.g. during tests) to prevent runtime errors.
+  if (!process.env.POSTGRES_URL) return [];
   try {
     const { listAnalysesByChatId, listResearchByChatId } = await import(
       '@/lib/db/queries'
@@ -238,6 +241,9 @@ async function fetchAnalyses(chatId?: string): Promise<AnalysisSummary[]> {
  * Fetch analyses and research across all user chats and group them by chat id.
  */
 async function fetchAnalysesGrouped(): Promise<AnalysisGroup[]> {
+  // Skip database access when the connection string is missing so the
+  // dashboard can render in offline environments.
+  if (!process.env.POSTGRES_URL) return [];
   try {
     const { auth } = await import('@/app/(auth)/auth');
     const session = await auth();

@@ -46,6 +46,13 @@ export default function StrategyCard({ strategy }: { strategy: Strategy }) {
         >
           {t('actions.refine')}
         </button>
+        <button
+          type="button"
+          className="text-xs underline"
+          aria-label={t('actions.finalize')}
+        >
+          {t('actions.finalize')}
+        </button>
       </div>
     </div>
   );

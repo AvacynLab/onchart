@@ -54,7 +54,7 @@ test('get_quote returns quote and persists', async () => {
     },
   );
 
-  const res = await tools.get_quote.execute({ symbol: 'AAPL' });
+  const res = await tools.finance.get_quote.execute({ symbol: 'AAPL' });
   expect(res).toEqual(mockQuote);
   expect(saved[0].type).toBe('quote');
 });
@@ -69,7 +69,7 @@ test('get_ohlc fetches candles', async () => {
       persist: async () => {},
     },
   );
-  const res = await tools.get_ohlc.execute({ symbol: 'AAPL', timeframe: '1d', range: '5d' });
+  const res = await tools.finance.get_ohlc.execute({ symbol: 'AAPL', timeframe: '1d', range: '5d' });
   expect(res).toHaveLength(2);
   expect(res[0].open).toBe(1);
 });
@@ -84,7 +84,7 @@ test('search_symbol finds matches', async () => {
       persist: async () => {},
     },
   );
-  const res = await tools.search_symbol.execute({ query: 'Apple' });
+  const res = await tools.finance.search_symbol.execute({ query: 'Apple' });
   expect(res[0].symbol).toBe('AAPL');
 });
 
@@ -94,7 +94,7 @@ test('compute_indicators calculates sma and rsi', async () => {
     { persist: async () => {} },
   );
   const prices = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20];
-  const res = await tools.compute_indicators.execute({ prices, list: ['sma', 'rsi'] });
+  const res = await tools.finance.compute_indicators.execute({ prices, list: ['sma', 'rsi'] });
   expect(res.sma.at(-1)).toBeCloseTo(10.5, 5);
   expect(res.rsi.at(-1)).toBeGreaterThan(0);
 });
@@ -105,7 +105,7 @@ test('compute_risk returns metrics', async () => {
     { persist: async () => {} },
   );
   const prices = [1,2,3,4,5,6,7,8,9,10];
-  const res = await tools.compute_risk.execute({ prices });
+  const res = await tools.finance.compute_risk.execute({ prices });
   expect(res.volatility).toBeGreaterThan(0);
   expect(res.maxDrawdown).toBeGreaterThanOrEqual(0);
 });
@@ -120,7 +120,7 @@ test('get_fundamentals fetches SEC data', async () => {
       persist: async (r) => saved.push(r),
     },
   );
-  const res = await tools.get_fundamentals.execute({ ticker: 'AAPL' });
+  const res = await tools.finance.get_fundamentals.execute({ ticker: 'AAPL' });
   expect(res.eps).toBe(2);
   expect(saved[0].type).toBe('fundamentals');
 });
@@ -134,7 +134,7 @@ test('get_filings lists filings', async () => {
       persist: async () => {},
     },
   );
-  const res = await tools.get_filings.execute({ ticker: 'AAPL', forms: ['10-K'] });
+  const res = await tools.finance.get_filings.execute({ ticker: 'AAPL', forms: ['10-K'] });
   expect(res[0].form).toBe('10-K');
 });
 
@@ -143,7 +143,7 @@ test('news aggregates feeds', async () => {
     { userId: 'u', chatId: 'c' },
     { fetchNews: async () => mockNews, persist: async () => {} },
   );
-  const res = await tools.news.execute({ query: 'Apple', window: 7 });
+  const res = await tools.finance.news.execute({ query: 'Apple', window: 7 });
   expect(res[0].title).toBe('t');
 });
 

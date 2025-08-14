@@ -4,6 +4,7 @@ import {
   fetchOHLCYahoo,
   searchYahoo,
 } from '../../lib/finance/sources/yahoo';
+import { invalidateCache } from '../../lib/finance/cache';
 
 /**
  * Yahoo Finance tests use mocked responses so unit tests remain
@@ -12,6 +13,9 @@ import {
 
 test('fetchQuoteYahoo parses a quote response', async () => {
   const originalFetch = global.fetch;
+  // Ensure the quote isn't served from a prior cache entry so the mocked
+  // response below is always used.
+  invalidateCache('https://query1.finance.yahoo.com/v7/finance/quote?symbols=AAPL');
   // Minimal payload that exercises the quote parsing logic.
   global.fetch = (async (url: any) =>
     new Response(
@@ -59,6 +63,9 @@ test('searchYahoo returns matching symbols', async () => {
 
 test('fetchOHLCYahoo falls back to Stooq on failure', async () => {
   const originalFetch = global.fetch;
+  // Ensure the fallback request isn't satisfied by a cached Stooq response
+  // from previous tests so the mocked payload below is always used.
+  invalidateCache('https://stooq.com/q/d/l/?s=aapl.us&i=d');
   // Simulate Yahoo session and chart failure followed by Stooq CSV success.
   global.fetch = (async (url: any) => {
     const href = url.toString();
@@ -77,7 +84,7 @@ test('fetchOHLCYahoo falls back to Stooq on failure', async () => {
         { status: 200 },
       );
     }
-    throw new Error('unexpected url ' + href);
+    throw new Error(`unexpected url ${href}`);
   }) as any;
   const candles = await fetchOHLCYahoo('AAPL', '1d', { range: '7d' });
   expect(candles).toEqual([
