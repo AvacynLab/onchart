@@ -27,17 +27,15 @@ Parfait. Voici la **checklist exhaustive et cochable**, **fichier par fichier**,
 
   * [ ] `locales: ['fr','en']`
   * [ ] `defaultLocale: 'fr'`
-  * [ ] `localePrefix: 'always'` (ou `as-needed`, mais l’un des deux explicitement)
-    **Objectif** : Next/Playwright trouvent la config sans magie.
+  * [ ] `localePrefix: 'never'`
+    **Objectif** : FR et EN servis sur `/` sans préfixe.
     **Critères** : le serveur E2E **boot** (plus d’erreur “Couldn’t find next-intl config file”).
 
 ## 1.2 `middleware.ts`
 
-* [ ] Importer `createMiddleware` depuis `next-intl/middleware`.
-* [ ] Importer la config : `import intlConfig from './next-intl.config'`.
-* [ ] `export default createMiddleware(intlConfig)`.
+* [ ] Middleware: lire `NEXT_LOCALE` (ou `Accept-Language`), setter l’en-tête `x-next-intl-locale` et passer la requête sans réécriture.
 * [ ] `export const config = { matcher: ['/((?!api|_next|.*\\..*).*)'] }` (ne pas intercepter `_next`, `api`, assets).
-  **Critères** : navigation `/fr`/`/en` OK, pas d’interception indue.
+  **Critères** : navigation stable via cookies/headers, pas d’interception indue.
 
 ## 1.3 `i18n/config.ts`
 
@@ -361,7 +359,7 @@ Parfait. Voici la **checklist exhaustive et cochable**, **fichier par fichier**,
 ## 14.2 `README.md`
 
 * [ ] Disclaimer FR/EN (public data / not financial advice).
-* [ ] i18n : changer de langue, routing `/fr`/`/en`.
+* [ ] i18n : changer de langue (cookie, pas de préfixe).
 * [ ] Captures dashboard/tuiles, scripts de test, variables env non-sensibles.
   **Critères** : onboarding limpide pour dev & QA.
 
@@ -382,3 +380,4 @@ Ensuite, dérouler les sections scrapers/UX/tests/A11y jusqu’au **vert intégr
 
 * 2025-05-14: initialisation de la checklist.
 * 2025-05-14: alignement i18n (`as-needed`), mise à jour tests & cache Stooq; échec Playwright (libs système manquantes).
+* 2025-05-14: bascule `localePrefix` à `never`, mise à jour tests dashboard/wizard, installation deps Playwright.

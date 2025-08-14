@@ -61,11 +61,10 @@ test('renders tiles and switches locales', async ({ page }) => {
     }),
   ).toBeVisible();
 
-  // Switch to English via the header language switcher. The URL gains the
-  // `/en` prefix since non-default locales are prefixed when using
-  // `localePrefix: 'as-needed'`.
+  // Switch to English via the header language switcher. The path remains
+  // unchanged; locale negotiation relies on the `NEXT_LOCALE` cookie.
   await page.getByRole('link', { name: 'EN' }).click();
-  await expect(page).toHaveURL(/\/en$/);
+  await expect(page).toHaveURL(/\/$/);
 
   // Headings should now be translated to English.
   await expect(
