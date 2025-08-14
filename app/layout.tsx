@@ -78,10 +78,10 @@ export default async function RootLayout({
     : i18n.defaultLocale;
   // Gather all namespaces for the resolved locale so translations are available.
   const messages = {
-    ...(await import(`../messages/${locale}/common.json`)).default,
-    ...(await import(`../messages/${locale}/dashboard.json`)).default,
-    ...(await import(`../messages/${locale}/finance.json`)).default,
-    ...(await import(`../messages/${locale}/chat.json`)).default,
+    common: (await import(`../messages/${locale}/common.json`)).default,
+    dashboard: (await import(`../messages/${locale}/dashboard.json`)).default,
+    finance: (await import(`../messages/${locale}/finance.json`)).default,
+    chat: (await import(`../messages/${locale}/chat.json`)).default,
   };
   return (
     <html
