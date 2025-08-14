@@ -14,7 +14,11 @@ config({
 // background dev servers that may already occupy port 3000. Both Playwright's
 // readiness probe and the Next.js dev server receive this explicit value so
 // they stay in sync.
-const PORT = 3110;
+// Allow overriding the dev server port via the `PORT` environment variable so
+// local test runs can recover if a previous server instance failed to shut
+// down. CI uses the default 3110, but developers may supply a different port
+// when rerunning Playwright without needing to wait for the socket to free.
+const PORT = Number(process.env.PORT || 3110);
 
 /**
  * Set webServer.url and use.baseURL with the location

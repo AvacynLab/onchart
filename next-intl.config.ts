@@ -6,11 +6,11 @@
 const intlConfig = {
   locales: ['fr', 'en'],
   defaultLocale: 'fr',
-  // Keep paths unchanged across locales and negotiate language via the
-  // `NEXT_LOCALE` cookie or `Accept-Language` header. Avoiding locale segments
-  // prevents conflicts with Next.js routing while still allowing explicit
-  // language selection.
-  localePrefix: 'never',
+  // Expose the default French locale at the root while prefixing other
+  // languages only when needed. This mirrors production routing and lets tests
+  // navigate to `/` without redirects while still supporting `/en` for English
+  // content.
+  localePrefix: 'as-needed',
 } as const;
 
 export default intlConfig;
