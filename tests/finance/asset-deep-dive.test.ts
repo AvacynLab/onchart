@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { assetDeepDive } from '../../lib/finance/strategies';
+import { invalidateCache } from '../../lib/finance/cache';
 
 // Deterministic timestamp for news item
 const now = new Date().toUTCString();
@@ -52,6 +53,9 @@ const mockFetch: typeof fetch = async (url: any) => {
 };
 
 test('asset deep dive aggregates SEC data and news', async () => {
+  // Ensure this test uses its mock company list rather than a cached dataset
+  // from previous tests, providing deterministic SEC lookups.
+  invalidateCache('https://www.sec.gov/files/company_tickers.json');
   const res = await assetDeepDive('AAPL', mockFetch);
   expect(res.cik).toBe('0000320193');
   expect(res.fundamentals.revenue).toBe(200);

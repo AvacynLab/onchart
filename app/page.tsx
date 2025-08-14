@@ -32,8 +32,11 @@ export const revalidate = 15; // Revalidate server-rendered data every 15s.
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: { chatId?: string };
+  searchParams: Promise<{ chatId?: string }>;
 }) {
+  // `searchParams` is a Promise in Next.js 15 when using partial pre-rendering.
+  // Await it before accessing properties to avoid dynamic API warnings.
+  const params = await searchParams;
   let quotes: QuoteResult[] = [];
   let news: NewsItem[] = [];
 
@@ -74,10 +77,10 @@ export default async function HomePage({
           <NewsTile items={news} />
         </Suspense>
         <Suspense fallback={<StrategiesTileSkeleton />}>
-          <StrategiesTile chatId={searchParams?.chatId} />
+          <StrategiesTile chatId={params?.chatId} />
         </Suspense>
         <Suspense fallback={<AnalysesTileSkeleton />}>
-          <AnalysesTile chatId={searchParams?.chatId} />
+          <AnalysesTile chatId={params?.chatId} />
         </Suspense>
         <MenuTile />
       </BentoGrid>

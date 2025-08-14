@@ -43,14 +43,12 @@
 
 ## Internationalisation
 
-L’interface est bilingue **FR/EN**. La langue active dépend du préfixe d’URL :
+L’interface est bilingue **FR/EN**. La langue active est déterminée par le cookie
+`NEXT_LOCALE` ou l’en‑tête `Accept-Language`. Les URLs restent inchangées (pas de
+préfixes `/fr` ou `/en`).
 
-```text
-https://votre-domaine.com/fr/...  → Français
-https://votre-domaine.com/en/...  → English
-```
-
-Un sélecteur de langue dans l’entête du dashboard permet aussi de basculer instantanément entre les locales.
+Un sélecteur de langue dans l’entête du dashboard met à jour ce cookie pour
+basculer instantanément entre les locales.
 
 ## Model Providers
 
@@ -78,6 +76,19 @@ pnpm dev
 ```
 
 Your app template should now be running on [localhost:3000](http://localhost:3000).
+
+## Environment variables
+
+This template works with a minimal set of non-sensitive variables, so you can run
+it without any private API keys. Typical entries include:
+
+```bash
+DATABASE_URL=postgres://localhost:5432/mydb
+NEXTAUTH_SECRET=change-me
+```
+
+All market data comes from public sources (Yahoo, Stooq, Binance, SEC/EDGAR,
+RSS). No proprietary credentials are needed.
 
 ## Tests
 

@@ -1,414 +1,384 @@
-Voici la **checklist exhaustive, hiérarchisée et cochable** pour qu’un **agent IA** applique **tous** les points pertinents issus de l’audit du code *et* du diagnostic CI/Playwright.
-Tout est **fichier par fichier**, avec **sous-étapes** et **objectifs/critères d’acceptation**. Zéro service privé : uniquement **données publiques** (Yahoo/Stooq/Binance publics, SEC/EDGAR, RSS) et **scrapers maison**.
+Parfait. Voici la **checklist exhaustive et cochable**, **fichier par fichier**, qui combine :
+
+1. ce que la **version actuelle (v2)** démontre,
+2. les **écarts détectés** (notamment i18n/`next-intl` et `tools-finance`),
+3. toutes les **améliorations fonctionnelles** (agent FT, dashboard bento, scrapers publics, backtest, A11y, tests & CI).
+
+> Contraintes constantes : **FR/EN**, **zéro clé API**, uniquement **sources publiques** (Yahoo/Stooq/Binance websockets/REST publics, SEC/EDGAR, RSS) + **scrapers maison**.
 
 ---
 
-# 0) Garde-fous & critères globaux
+# 0) Garde-fous & critères d’acceptation (globaux)
 
-* [x] **Aucune clé API** ni service privé.
-  **Objectif** : tout réseau via `fetch` public, `undici`, `cheerio`, RSS, CSV, WS publics Binance.
-* [x] **CI verte** : `pnpm test` → unitaires, API, AI/tools, E2E Playwright **passent**.
-* [x] **FR/EN** opérationnel (middleware + provider + messages).
-* [x] **Menu** = **tuile du bento** (pas un overlay).
+* [ ] **Public-only** : aucune clé/token, pas de tier privé.
+  **Critères** : scan repo → 0 motif `api[_-]?key|x-api-key|bearer`.
+* [ ] **Build & tests** : `pnpm build` OK, `pnpm test` OK (unit, API, AI/tools, E2E).
+* [ ] **FR/EN** 100% (middleware + provider + messages + formats Intl).
+* [ ] **Menu** = **tuile bento** (pas d’overlay global).
+* [ ] **Agent** opère FT (fondamental/technique), sait **afficher un graphique/timeframe**, **ajouter/focus annotations**, **conduire un wizard stratégie + backtests + itérations**.
 
 ---
 
-# 1) Correctif CI Playwright — configuration `next-intl` introuvable
+# 1) i18n & Next-intl (bloquant Playwright si incomplet)
 
-**Symptôme CI** : “Couldn’t find next-intl config file…” au boot du WebServer.
+## 1.1 `next-intl.config.ts` (racine)
 
-## Fichiers & tâches
+* [ ] Créer/vérifier qu’il **existe** et **exporte** statiquement :
 
-* [x] **Créer** `next-intl.config.ts` (racine)
-  **Contenu minimal** :
+  * [ ] `locales: ['fr','en']`
+  * [ ] `defaultLocale: 'fr'`
+  * [ ] `localePrefix: 'never'`
+    **Objectif** : FR et EN servis sur `/` sans préfixe.
+    **Critères** : le serveur E2E **boot** (plus d’erreur “Couldn’t find next-intl config file”).
 
-  ```ts
-  const config = { locales: ['fr','en'], defaultLocale: 'fr', localePrefix: 'always' } as const;
-  export default config;
-  ```
+## 1.2 `middleware.ts`
 
-  **Objectif** : fichier de config détecté par `next-intl`.
-* [x] **Brancher** la config dans le middleware
-  **Fichier** : `middleware.ts`
+* [ ] Middleware: lire `NEXT_LOCALE` (ou `Accept-Language`), setter l’en-tête `x-next-intl-locale` et passer la requête sans réécriture.
+* [ ] `export const config = { matcher: ['/((?!api|_next|.*\\..*).*)'] }` (ne pas intercepter `_next`, `api`, assets).
+  **Critères** : navigation stable via cookies/headers, pas d’interception indue.
 
-  * [x] `import createMiddleware from 'next-intl/middleware'`
-  * [x] `import nextIntlConfig from './next-intl.config'`
-  * [x] `export default createMiddleware(nextIntlConfig)`
-  * [x] `export const config = { matcher: ['/((?!api|_next|.*\\..*).*)'] }`
-    **Critères** : Playwright WebServer **boot** sans erreur.
+## 1.3 `i18n/config.ts`
 
-*(Alternative acceptable si on ne veut pas de fichier à la racine : passer l’objet `{ locales, defaultLocale, localePrefix }` inline à `createMiddleware` et **ne jamais** l’appeler sans argument.)*
+* [ ] Exporter **statique** (non dérivé dynamiquement) :
+
+  * [ ] `export const locales = ['fr','en'] as const;`
+  * [ ] `export const defaultLocale = 'fr' as const;`
+    **Critères** : tests et SSR peuvent lire ces constantes sans import circulaire.
+
+## 1.4 `app/layout.tsx`
+
+* [ ] Envelopper l’app via le **provider next-intl**.
+* [ ] Charger les `messages` selon `locale`.
+  **Critères** : labels traduits, formats `Intl` alignés sur la locale.
+
+## 1.5 Dictionnaires
+
+* [ ] `messages/fr/common.json`, `messages/en/common.json` existants et cohérents.
+* [ ] Ajouter si manquants : `messages/fr/{dashboard,finance}.json`, `messages/en/{dashboard,finance}.json`.
+  **Critères** : aucune clé manquante à l’exécution (warning console interdit).
 
 ---
 
 # 2) Route chat — exposition complète des tools
 
-**Fichier** : `app/(chat)/api/chat/route.ts`
+## 2.1 `app/(chat)/api/chat/route.ts`
 
-* [x] **Déstructuration complète**
+* [ ] **Déstructurer** :
 
-  * [x] `const { ui: uiTools, research: researchTools, strategy: strategyTools, ...finance } = ft;`
-    **Objectif** : inclure le namespace **strategy**.
-* [x] **Mapping préfixé**
+  * [ ] `const { ui: uiTools, research: researchTools, strategy: strategyTools, ...finance } = ft;`
+* [ ] **Mapper** :
 
-  * [x] `...prefixTools('finance', finance)`
-  * [x] `...prefixTools('ui', uiTools)`
-  * [x] `...prefixTools('research', researchTools)`
-  * [x] `...prefixTools('strategy', strategyTools)`
-    **Objectif** : exposer `finance.*`, `ui.*`, `research.*`, `strategy.*` au LLM.
-* [x] **Filtrage actif**
+  * [ ] `...prefixTools('finance', finance)`
+  * [ ] `...prefixTools('ui', uiTools)`
+  * [ ] `...prefixTools('research', researchTools)`
+  * [ ] `...prefixTools('strategy', strategyTools)`
+* [ ] **Activer** (si filtrage) :
 
-  * [x] `experimental_activeTools: Object.keys(financeToolMap)`
-    **Critères** : l’agent peut appeler `strategy.start_wizard`, `strategy.backtest`, `strategy.refine` sans 404/tool-not-found.
+  * [ ] `experimental_activeTools: Object.keys(financeToolMap)`
+    **Objectif** : rendre accessibles **finance.***, **ui.***, **research.***, **strategy.***.
 
 ---
 
-# 3) Routes finance — exécution côté Node (scraping)
+# 3) Routes Finance — scraping côté Node
 
-**Dossier** : `app/(chat)/api/finance/**/route.ts`
+## 3.1 `app/(chat)/api/finance/**/route.ts`
 
-* [x] **Ajouter/Confirmer** en tête de **chaque** fichier :
+* [ ] **En tête de chaque fichier** :
 
-  * [x] `export const runtime = 'nodejs'`
-    **Objectif** : éviter Edge Runtime pour le scraping.
-* [x] **Tests manuels** : hit simple sur `quote`, `ohlc`, `news`, `filings`
-  **Critères** : aucune erreur de boot, réponses non vides (avec mocks en test).
+  * [ ] `export const runtime = 'nodejs'`
+    **Objectif** : scrapers sur Node (Yahoo/SEC/RSS/Binance REST/WS).
+    **Critères** : toutes les routes scannées contiennent ce flag (audit passe).
 
 ---
 
-# 4) Tools IA — validation, persistance & événements UI
+# 4) Tools IA — validation, persistance, UI events
 
-**Fichier** : `lib/ai/tools-finance.ts`
+## 4.1 `lib/ai/tools-finance.ts`
 
-* [x] **Présence des namespaces**
+* [ ] **Sections présentes** et nommées **exactement** ainsi (pour matcher `prefixTools`) :
 
-  * [x] `finance.{get_quote,get_ohlc,compute_indicators,compute_risk,get_fundamentals,get_filings,news,search_symbol}`
-  * [x] `ui.{show_chart,add_annotation,remove_annotation,focus_area}` (avec `emitUIEvent`)
-  * [x] `research.{create,add_section,update_section,finalize,get}`
-  * [x] `strategy.{start_wizard,propose,backtest,refine,finalize,list,get}`
-* [x] **Validation d’entrées (zod)**
+  * [ ] `finance: { get_quote, get_ohlc, compute_indicators, compute_risk, get_fundamentals, get_filings, news, search_symbol }`
+  * [ ] `ui: { show_chart, add_annotation, remove_annotation, focus_area }` (doit émettre **`emitUIEvent`**)
+  * [ ] `research: { create, add_section, update_section, finalize, get }`
+  * [ ] `strategy: { start_wizard, propose, backtest, refine, finalize, list, get }`
+* [ ] **Validation d’entrées** via **`zod`** :
 
-  * [x] Schémas pour symbol, timeframe, fenêtres d’indicateurs, paramètres backtest, etc.
-    **Objectif** : erreurs claires côté outil, pas de crash.
-* [x] **Persistance**
+  * [ ] symbol, timeframe, périodes indicateurs, params backtest (coûts, slippage), filtres filings/news, etc.
+* [ ] **Persistance** via `persistAnalysis(...)` :
 
-  * [x] Utiliser `persistAnalysis(...)` pour loguer outputs (recherches, itérations stratégie, backtests).
-    **Critères** : “Mes analyses” & “Mes stratégies” se mettent à jour après chaque tool.
+  * [ ] wizard / propose → trace
+  * [ ] backtest (params + résultats/metrics)
+  * [ ] refine (delta params + nouveaux résultats)
+  * [ ] finalize (version retenue)
+    **Objectif** : robustesse contre entrées invalides + traçabilité.
+    **Critères** : erreurs `zod` claires, “Mes analyses/stratégies” se remplissent au fil des tools.
 
 ---
 
 # 5) Prompts système — garde-fous FR/EN & structure
 
-**Fichier** : `lib/ai/prompts.ts`
+## 5.1 `lib/ai/prompts.ts`
 
-* [x] **Bloc FR** (verbatim détectable par tests)
+* [ ] **FR** (textuel détectable) :
 
-  * [x] “Les données sont **publiques** et **non garanties** (Yahoo/SEC/RSS). **Pas un conseil en investissement.**”
-  * [x] “Toujours préciser la **timeframe** avant `ui.show_chart`.”
-  * [x] “Utiliser `compute_indicators` pour l’analyse technique.”
-  * [x] “Structurer : **Résumé, Contexte, Données, Graphiques, Signaux, Risques, Sources**.”
-* [x] **Bloc EN** (miroir)
+  * [ ] “Données **publiques**, **non garanties** (Yahoo/SEC/RSS). **Pas un conseil en investissement.**”
+  * [ ] “Préciser la **timeframe** avant `ui.show_chart`.”
+  * [ ] “Utiliser `compute_indicators` pour l’AT.”
+  * [ ] “Structurer : **Résumé, Contexte, Données, Graphiques, Signaux, Risques, Sources**.”
+* [ ] **EN** (miroir) :
 
-  * [x] “Data is **public** and **not guaranteed**. **Not financial advice.**”
-  * [x] “Always specify **timeframe** before `ui.show_chart`.”
-  * [x] “Use `compute_indicators` for TA.”
-  * [x] “Structure: **Summary, Context, Data, Charts, Signals, Risks, Sources**.”
-* [x] **Locale**
-
-  * [x] Propager `locale` dans la construction du prompt si ce n’est pas déjà le cas.
-    **Critères** : tests `prompts-i18n` passent (détection FR/EN).
+  * [ ] “Data is **public** and **not guaranteed**. **Not financial advice.**”
+  * [ ] “Specify **timeframe** before `ui.show_chart`.”
+  * [ ] “Use `compute_indicators` for TA.”
+  * [ ] “Structure: **Summary, Context, Data, Charts, Signals, Risks, Sources**.”
+* [ ] **Locale** propagée au builder du prompt.
+  **Critères** : tests `prompts-i18n` valident FR/EN.
 
 ---
 
 # 6) Scrapers & sources publiques — robustesse réseau
 
-**Fichiers** :
-`lib/finance/sources/{yahoo.ts,stooq.ts,binance.ts,sec.ts,news.ts}`,
-`lib/finance/live.ts`, `lib/finance/cache.ts`, `lib/finance/rate-limit.ts`
+## 6.1 `lib/finance/sources/{yahoo.ts,stooq.ts,binance.ts,sec.ts,news.ts}`
 
-* [x] **Timeouts** (10 s) via `AbortController`
-* [x] **Retries** (2×, backoff exponentiel + jitter)
-* [x] **Fallbacks**
+* [ ] **Timeout** 10s (AbortController).
+* [ ] **Retries** 2× (backoff exponentiel + jitter).
+* [ ] **Fallbacks** :
 
-  * [x] OHLC : Yahoo → Stooq (daily) avec message explicite si dégradé.
-  * [x] Crypto : Binance WS → REST klines.
-* [x] **Cache TTL**
+  * [ ] OHLC : Yahoo → Stooq (daily), message clair en dégradé.
+  * [ ] Crypto : Binance **WS** → fallback **REST klines**.
+* [ ] **Sanitize** (news) côté serveur si nécessaire (cheerio).
+  **Critères** : tests unitaires de retry/fallback **verts** (mocks).
 
-  * [x] Intraday 10–15 s ; Daily 5–10 min.
-* [x] **Rate-limit** par domaine (Yahoo/SEC).
-  **Critères** : tests unitaires de retry/fallback passent (mocks réseau).
+## 6.2 `lib/finance/cache.ts`
 
----
+* [ ] TTL **intraday 10–15s**, **daily 5–10 min**.
+  **Critères** : pas de spam réseau, rafraîchis prédictibles.
 
-# 7) Base de données & queries — Stratégies & Recherches
+## 6.3 `lib/finance/rate-limit.ts`
 
-**Fichiers** : `lib/db/schema.ts`, `lib/db/queries.ts`, `lib/db/migrate.ts`
-
-* [x] **Tables** (présentes et complètes)
-
-  * [x] `Analysis`, `Research`, `AttentionMarker`, `Strategy`, `StrategyVersion`, `StrategyBacktest` (+ **jsonb** pour params/résultats).
-* [x] **Queries** (exportées)
-
-  * [x] `saveAnalysis`, `listAnalysesByChatId`, `createResearch`, `updateResearch`, `getResearchById`, `listResearchByChatId`, `saveAttentionMarker`
-  * [x] `createStrategy`, `listStrategiesByChat`, `getStrategyById`, `createStrategyVersion`, `saveBacktest`, `updateStrategyStatus`
-* [x] **Indexation**
-
-  * [x] Ajouter index `(chatId, updatedAt)` si absent pour listes “Mes \*”.
-    **Critères** : tests API stratégie/research **verts**, listings rapides.
+* [ ] Rate limit par **domaine** (Yahoo/SEC…).
+  **Critères** : pas de 429 lors des runs de tests.
 
 ---
 
-# 8) Dashboard Bento (Accueil) — tuiles & UX
+# 7) Moteur d’analyse & backtest
 
-**Fichiers** :
-`app/page.tsx`, `components/dashboard/{BentoGrid,BentoCard}.tsx`,
-`components/dashboard/tiles/{CurrentPricesTile,NewsTile,StrategiesTile,AnalysesTile,MenuTile}.tsx`
+## 7.1 `lib/finance/indicators.ts`
 
-* [x] **`app/page.tsx`**
+* [ ] RSI, SMA/EMA, MACD, ATR, Bollinger (paramétrables).
+  **Critères** : valeurs testées vs cas connus.
 
-  * [x] SSR de données initiales **Prices + News** (TTL raisonnable).
-  * [x] Intégrer un **LanguageSwitcher** (si non présent).
-* [x] **CurrentPricesTile**
+## 7.2 `lib/finance/risk.ts`
 
-  * [x] Polling quotes via API (10–15 s) + SSR/hydrate.
-  * [x] WS Binance pour crypto (fallback REST).
-  * [x] Formats numériques selon **locale** (`Intl.NumberFormat`).
-* [x] **NewsTile**
+* [ ] CAGR, Sharpe, Sortino, MDD, Profit Factor, Hit-rate ; calculs propres à la série d’équity.
+  **Critères** : tests numériques déterministes.
 
-  * [x] Agrégateur RSS (Yahoo/Reuters/Nasdaq publics).
-  * [x] **Sanitize** description (cheerio/DOMPurify).
-  * [x] Dates relatives via `Intl.RelativeTimeFormat`.
-* [x] **StrategiesTile**
+## 7.3 `lib/finance/backtest.ts`
 
-  * [x] Lister par **chatId**, statuts `draft/proposed/validated`, liens → détail.
-  * [x] CTA “Créer une stratégie” → **StrategyWizard**.
-* [x] **AnalysesTile**
-
-  * [x] Lister `Analysis` & `Research` par **chatId** ; filtres (type, symbole).
-* [x] **MenuTile** (pas overlay)
-
-  * [x] Reprendre `financeToolbarItems` **inline** dans la tuile.
-  * [x] Vérifier `components/toolbar.tsx` : **aucun** `position: fixed`, `backdrop`, gros `z-index`.
-    **Critères** : 5 tuiles visibles, A11y minimale, FR/EN partout (labels, formats).
+* [ ] Simulation **bar-by-bar**, coûts & slippage, equity curve.
+* [ ] Export des **metrics** (ci-dessus).
+  **Critères** : tests couvrant equity + metrics passants.
 
 ---
 
-# 9) ChartPanel — API d’interaction complète
+# 8) Base de données & queries
 
-**Fichier** : `components/finance/ChartPanel.tsx`
+## 8.1 `lib/db/schema.ts`
 
-* [x] **Import** : `import { createChart } from 'lightweight-charts'`
-* [x] **API `ref`**
+* [ ] Tables : `Analysis`, `Research`, `AttentionMarker`, `Strategy`, `StrategyVersion`, `StrategyBacktest`.
+* [ ] Colonnes **`jsonb`** pour params/résultats.
+  **Critères** : schéma complet, migrations à jour.
 
-  * [x] `setData(seriesOrId, ohlc)`
-  * [x] `addOverlay(type, params)`
-  * [x] `addStudy(name, params)`
-  * [x] `addAnnotation({ at, text, kind })`
-  * [x] `focusArea({ from, to })`
-* [x] **UX** : resize, crosshair events, timeScale navigation.
-  **Critères** : `ui.show_chart` puis `ui.add_annotation` → visible et correct.
+## 8.2 `lib/db/queries.ts`
 
----
+* [ ] `saveAnalysis`, `listAnalysesByChatId`, `createResearch`, `updateResearch`, `getResearchById`, `listResearchByChatId`, `saveAttentionMarker`.
+* [ ] `createStrategy`, `listStrategiesByChat`, `getStrategyById`, `createStrategyVersion`, `saveBacktest`, `updateStrategyStatus`.
+* [ ] **Index** suggéré : `(chatId, updatedAt)` sur listes.
+  **Critères** : latence faible en liste ; tests API **verts**.
 
-# 10) Stratégies — boucle agent & backtest (bilingue)
+## 8.3 `lib/db/migrate.ts`
 
-**Fichiers** :
-`components/finance/{StrategyWizard,StrategyCard,BacktestReport}.tsx`,
-`lib/finance/backtest.ts`, `app/(chat)/api/finance/strategy/route.ts`, `lib/ai/tools-finance.ts`
-
-* [x] **Wizard** (FR/EN)
-
-  * [x] Questions : horizon, risque, univers, coûts/slippage, drawdown toléré, contraintes (ESG, fréquence…).
-  * [x] Appels outils : `strategy.start_wizard` → `strategy.propose`.
-* [x] **Backtest**
-
-  * [x] Bar-by-bar, coûts & slippage, equity curve.
-  * [x] Métriques : **CAGR, Sharpe, Sortino, MDD, Profit Factor, Hit-rate**.
-* [x] **Refine**
-
-  * [x] Ajustements paramétriques, nouveau backtest, `persistAnalysis` systématique.
-* [x] **Finalize**
-
-  * [x] Statut validé + versionnage (`StrategyVersion`).
-    **Critères** : au moins **2 itérations** propose→backtest→refine ; rapport clair (FR/EN) dans `BacktestReport`.
+* [ ] Migrations idempotentes, versionnées.
+  **Critères** : exécutions répétées sans échec.
 
 ---
 
-# 11) i18n — App Router bout en bout
+# 9) UI Finance & Dashboard Bento
 
-**Fichiers** : `next-intl.config.ts`, `middleware.ts`, `i18n/config.ts`, `app/layout.tsx`, `messages/fr/*.json`, `messages/en/*.json`, `components/i18n/LanguageSwitcher.tsx`
+## 9.1 `app/page.tsx`
 
-* [x] **Config** (`next-intl.config.ts`) ou **inline**
+* [ ] **SSR** pour **Prices + News** (TTL raisonnable, cache Next).
+* [ ] Intégrer **LanguageSwitcher**.
+  **Critères** : FCP utile, FR/EN.
 
-  * [x] `locales: ['fr','en']`, `defaultLocale: 'fr'`, `localePrefix: 'always'`.
-* [x] **Middleware** (matcher propre)
-* [x] **Provider** dans `app/layout.tsx` (next-intl).
-* [x] **Dictionnaires** : `common`, `dashboard`, `finance` cohérents FR/EN.
-* [x] **Switcher** présent sur l’accueil.
-  **Critères** : navigation `/fr`↔`/en`, formats `Intl.*` OK, Playwright **boot** sans erreur.
+## 9.2 `components/dashboard/{BentoGrid,BentoCard}.tsx`
 
----
+* [ ] Props `title`, `actions`, `aria-labelledby`.
+* [ ] Responsive 2–4 colonnes.
+  **Critères** : lisible, A11y de base.
 
-# 12) Sécurité & hygiène
+## 9.3 Tuiles
 
-**Fichiers** : scrapers, `components/dashboard/tiles/NewsTile.tsx`, `lib/finance/sources/news.ts`
+**`components/dashboard/tiles/CurrentPricesTile.tsx`**
 
-* [x] **Sanitize** RSS descriptions (DOMPurify côté client ou nettoyage serveur `cheerio`).
-* [x] **User-Agent** générique SEC (env optionnelle, jamais obligatoire).
-* [x] **Scan secrets** (aucune clé/token).
-  **Critères** : pas de XSS, pas de secret committé.
+* [ ] Polling 10–15s via routes finance (SSR + hydrate).
+* [ ] WS Binance si symbol crypto ; fallback polling REST.
+* [ ] `Intl.NumberFormat` selon locale.
+  **Critères** : mise à jour fluide, FR/EN.
 
----
+**`components/dashboard/tiles/NewsTile.tsx`**
 
-# 13) Accessibilité & ergonomie
+* [ ] Flux RSS agrégés (publics).
+* [ ] **Sanitize** descriptions (cheerio/DOMPurify client si besoin).
+* [ ] Dates relatives `Intl.RelativeTimeFormat`.
+  **Critères** : zéro XSS, FR/EN.
 
-**Fichiers** : tuiles + finance UI
+**`components/dashboard/tiles/StrategiesTile.tsx`**
 
-* [x] **ARIA** (`aria-labelledby`/`aria-label`) pour titres & boutons.
-* [x] **Focus** visible, navigation clavier sur `MenuTile`.
-* [x] **Skeletons** et **Empty states** bilingues.
-  **Critères** : parcours clavier fluide, pas de pièges focus.
+* [ ] Liste par **chatId**, statut `draft/proposed/validated`.
+* [ ] CTA → **StrategyWizard** ; liens vers détail.
+  **Critères** : navigation claire.
 
----
+**`components/dashboard/tiles/AnalysesTile.tsx`**
 
-# 14) Tests — unitaires, API, AI/tools, E2E
+* [ ] Liste `Analysis` & `Research` par **chatId**.
+* [ ] Filtres (type, symbole).
+  **Critères** : filtres fonctionnels.
 
-**Dossiers** : `tests/**`
+**`components/dashboard/tiles/MenuTile.tsx`**
 
-## Unitaires finance
+* [ ] Consommer `financeToolbarItems` **inline**.
+  **`components/toolbar.tsx`**
+* [ ] AUCUN overlay (`position: fixed`, backdrop, z-index élevés) — retirer si présent.
+  **Critères** : menu bento non superposé.
 
-* [x] `tests/finance/yahoo.test.ts` — OHLC/quotes (mocks, fallback)
-* [x] `tests/finance/stooq.test.ts` — daily fallback
-* [x] `tests/finance/binance.test.ts` — WS parse + REST klines
-* [x] `tests/finance/sec.test.ts` — UA par défaut + override env (déjà vert en CI)
-* [x] `tests/finance/indicators.test.ts` — valeurs connues
-* [x] `tests/finance/risk.test.ts` — ratios et VaR si présent
-* [x] `tests/finance/strategies.test.ts` — règles de base
-* [x] `tests/finance/backtest.test.ts` — **CAGR/Sharpe/Sortino/MDD/PF/Hit-rate** (déjà vert selon logs)
+## 9.4 Chart & interactions
 
-## API
+**`components/finance/ChartPanel.tsx`**
 
-* [x] `tests/api/finance/quote.test.ts`
-* [x] `tests/api/finance/ohlc.test.ts`
-* [x] `tests/api/finance/strategy.test.ts`
+* [ ] `import { createChart } from 'lightweight-charts'`.
+* [ ] API `ref` : `setData`, `addOverlay`, `addStudy`, `addAnnotation`, `focusArea`.
+* [ ] Resize, crosshair events, timeScale nav.
+  **Critères** : `ui.show_chart` + `ui.add_annotation` visibles.
 
-## AI/tools
+**`components/finance/ChartToolbar.tsx` / `AttentionLayer.tsx`**
 
-* [x] `tests/ai/tools-finance.strategy.test.ts` — wizard→propose→backtest→refine→finalize (mocker `persistAnalysis` & UI events)
-* [x] `tests/ai/prompts-i18n.test.ts` — FR/EN disclaimers (déjà vert selon logs)
+* [ ] Boutons pour déclencher tools UI (annotations, focus).
+  **Critères** : agent + utilisateur peuvent attirer l’attention sur une zone.
 
-## Dashboard & E2E
+**`components/finance/StrategyWizard.tsx`**
 
-* [x] `tests/dashboard/prices-tile.test.tsx` — loading/data/error, formats `Intl`
-* [x] `tests/dashboard/news-tile.test.tsx` — sanitize, dates relatives
-* [x] `tests/dashboard/strategies-tile.test.tsx` — statuts, actions
-* [x] `tests/dashboard/analyses-tile.test.tsx` — filtres, liens
-* [x] `tests/e2e/dashboard.spec.ts` — présence des 4 tuiles + **Menu tuile**
-* [x] `tests/e2e/strategy-wizard.spec.ts` — scénario complet
-  **Critères** : **tous** verts ; WebServer Next **boot** (grâce à `next-intl.config.ts` ou config inline).
+* [ ] Questions FR/EN : horizon, risque, univers, coûts/slippage, MDD toléré, contraintes (ESG, fréquence).
+* [ ] Enchaîne `strategy.start_wizard` → `strategy.propose`.
+  **Critères** : collecte propre, i18n.
 
----
+**`components/finance/StrategyCard.tsx` / `BacktestReport.tsx`**
 
-# 15) Documentation
-
-**Fichiers** : `AGENTS.md`, `README.md`
-
-* [x] **AGENTS.md**
-
-  * [x] Contrat tools `strategy.*`, `ui.*`, `research.*` (args/retours), exemples FR/EN.
-  * [x] Limites scraping public, TTL cache, rate-limit.
-* [x] **README.md**
-
-  * [x] Disclaimer FR/EN (public data, not financial advice).
-  * [x] i18n (comment changer la langue), captures Dashboard.
-* [x] Scripts : `pnpm test`, `pnpm exec playwright test`.
-    **Critères** : onboarding dev clair, aucune ambiguïté “public-only”.
+* [ ] Actions : **Backtest**, **Refine**, **Finalize**.
+* [ ] Rapport (equity, metrics) — lightweight-charts.
+  **Critères** : lecture claire, FR/EN.
 
 ---
 
-## Contrats des tools
+# 10) Sécurité & hygiène
 
-### strategy.*
-- `start_wizard({ locale, answers }) -> { question }`
-- `propose({ chatId, title, answers }) -> { strategy }`
-- `backtest({ id, params }) -> { report }`
-- `refine({ id, adjustments }) -> { strategy }`
-- `finalize({ id }) -> { status: 'validated' }`
-- `list({ chatId }) -> { strategies }`
-- `get({ id }) -> { strategy }`
+## 10.1 News sanitize
 
-*Exemples* :
-```json
-// FR
-{ "tool": "strategy.start_wizard", "locale": "fr" }
-// EN
-{ "tool": "strategy.backtest", "id": "s1", "params": { "timeframe": "1d" } }
-```
+* [ ] Côté serveur (cheerio) et/ou client (DOMPurify) sur HTML RSS.
+  **Critères** : pas d’injection script dans `NewsTile`.
 
-### ui.*
-- `show_chart({ symbol, timeframe })`
-- `add_annotation({ at, text, kind })`
-- `remove_annotation({ id })`
-- `focus_area({ from, to })`
+## 10.2 SEC User-Agent
 
-### research.*
-- `create({ chatId, title }) -> { id }`
-- `add_section({ id, heading, content })`
-- `update_section({ id, sectionId, content })`
-- `finalize({ id })`
-- `get({ id }) -> { doc }`
+* [ ] UA **générique** par défaut (sans clé), override **optionnel** par env.
+  **Critères** : tests `sec-user-agent` passent (déjà verts).
 
-*Exemples* :
-```json
-// FR
-{ "tool": "ui.show_chart", "symbol": "BTCUSDT", "timeframe": "1h" }
-// EN
-{ "tool": "research.create", "chatId": "c1", "title": "Energy sector" }
-```
+## 10.3 Scan secrets (build/CI)
 
-## Limites de scraping public
-- Uniquement Yahoo, Stooq, Binance (WS/REST), SEC/EDGAR et flux RSS publics.
-- Aucune clé API ni service privé.
-- `fetch`/`undici` avec `AbortController` (10 s) et 2 retries (backoff + jitter).
-- Fallbacks : Yahoo→Stooq pour OHLC, Binance WS→REST.
-- TTL cache : 10–15 s intraday, 5–10 min daily.
-- Rate-limit par domaine (ex. Yahoo, SEC).
+* [ ] Script qui échoue s’il trouve `api[_-]?key|x-api-key|bearer`.
+  **Critères** : pipeline protège contre les fuites.
 
 ---
 
-## Micro-lot de mise au vert CI (ordre conseillé)
+# 11) Accessibilité & ergonomie
 
-* [x] **Créer/brancher `next-intl.config.ts`** (ou config inline) → relancer CI.
-* [x] **Vérifier `middleware.ts` matcher** pour ne pas intercepter `_next`, `api`, assets.
-* [x] **S’assurer** que `app/layout.tsx` charge bien les messages selon la locale.
-* [x] **Confirmer** le mapping `strategy.*` dans `route.ts` (déjà OK d’après l’audit, mais c’est le moment de verrouiller).
-
-Ensuite on déroule la checklist scrapers/UX/tests jusqu’au **vert intégral**.
+* [ ] `aria-label` / `aria-labelledby` sur tuiles, boutons.
+* [ ] Focus visible ; tab/shift+tab parcourent tout.
+* [ ] Skeletons/Empty states **bilingues**.
+  **Critères** : navigation clavier fluide, aucune “trappe” focus.
 
 ---
 
-## History
+# 12) Tests — unitaires, API, AI/tools, E2E
 
-- Reset AGENTS.md with audit checklist.
-- Added `next-intl.config.ts` and `.js`; attempted middleware update but reverted after failures. Playwright configs reference config file.
-- Attempted to replace middleware with next-intl `createMiddleware` and add `/ping` route; reverted after tests failed to find config.
-- Simplified middleware using next-intl `createMiddleware` with `/ping` readiness route and streamlined matcher.
-- Confirmed Node.js runtime across finance API routes and executed quote/ohlc/news/filings tests.
-- Implemented research tool persistence and validated all finance tool namespaces.
-- Added FR/EN finance prompts with public-data disclaimer and locale propagation.
-- Verified i18n setup (config, middleware, provider, dictionaries, switcher) and tested news sanitisation & relative dates.
-- Confirmed SEC scraper User-Agent default with optional env override, scanned repo for secrets (gitleaks), ran full test suite.
-- Documented tool contracts and public scraping limits; checked dashboard tiles, accessibility, and test coverage.
-- Added composite indexes for analysis, research and strategy tables with matching migration and test.
-- Noted Yahoo→Stooq fallback warning and completed scraper robustness & ChartPanel tasks.
-- Added API test covering strategy wizard orchestration and marked strategy cycle tasks complete.
-- Verified global safeguards: no secrets, green CI, bilingual UI, and bento menu tile.
-- Added `NextIntlClientProvider` stub and tests ensuring `app/layout.tsx` sets the `lang` attribute based on headers.
-- Removed explicit `NEXT_INTL_CONFIG` from Playwright setups so the server auto-detects config and boots without errors; fixed finance prompts to match FR/EN timeframe guidance and updated tests.
-- Updated Playwright configurations to launch the dev server with `pnpm dev`, aligning browser tests with the standard Next.js workflow.
-- Restored a root `next-intl.config.ts` and pointed the middleware and Next.js plugin to it, ensuring `localePrefix` is typed literally so builds and tests run without configuration errors.
-- Updated Next.js config to inject the `next-intl` alias under `experimental.turbo`, exported `NEXT_INTL_CONFIG` in Playwright, and removed stray `.next` artifacts so the test server boots without missing-config errors or secret leaks.
-- Added `i18n/request.ts`, updated Next.js and Playwright configs to reference it, and resolved the "Invalid i18n request configuration" startup error.
-- Localised chat components (`ChatHeader`, `FinanceHint`, `MultimodalInput`) with next-intl and added tests for translated hints and headers.
-- Replaced custom `NextIntlRequestConfig` type with `getRequestConfig` and bundled all message namespaces per request to fix build-time type errors.
-- Added network request logging via Playwright fixtures, restored missing JS next-intl config, and simplified FinanceHint i18n test to render on the server.
+## 12.1 Finance (unit)
+
+* [ ] `tests/finance/yahoo.test.ts` — OHLC/quotes (mocks, fallback).
+* [ ] `tests/finance/stooq.test.ts` — daily fallback.
+* [ ] `tests/finance/binance.test.ts` — WS parse + REST klines fallback.
+* [ ] `tests/finance/sec.test.ts` — parsing filings basique.
+* [ ] `tests/finance/indicators.test.ts` — valeurs connues.
+* [ ] `tests/finance/risk.test.ts` — ratios.
+* [ ] `tests/finance/strategies.test.ts` — règles de base.
+* [ ] `tests/finance/backtest.test.ts` — **CAGR/Sharpe/Sortino/MDD/PF/Hit-rate**.
+
+## 12.2 API
+
+* [ ] `tests/api/finance/quote.test.ts`, `ohlc.test.ts`, `strategy.test.ts`, `sec-user-agent.test.ts`.
+  **Critères** : `sec-user-agent` OK (déjà vert).
+
+## 12.3 AI/tools
+
+* [ ] `tests/ai/tools-finance.strategy.test.ts` — wizard→propose→backtest→refine→finalize (mock `persistAnalysis`/UI).
+* [ ] `tests/ai/prompts-i18n.test.ts` — FR/EN disclaimers/structure.
+
+## 12.4 Dashboard & E2E (Playwright)
+
+* [ ] `tests/dashboard/*` — 4 tuiles : loading/data/error, filtres, formats `Intl`.
+* [ ] `tests/e2e/dashboard.spec.ts` — 4 tuiles + **Menu tuile**, FR/EN.
+* [ ] `tests/e2e/strategy-wizard.spec.ts` — scénario complet, annotations visibles.
+  **Critères** : **tout vert** ; le WebServer boot grâce à `next-intl.config.ts`.
+
+---
+
+# 13) CI & scripts
+
+* [x] Script `pnpm test` : unit → API → set `PLAYWRIGHT=True` → E2E.
+* [ ] Mocks réseau stables (timeouts/retries) pour éviter flaky.
+* [ ] Lint/format (ESLint/Prettier) en pré-commit/CI.
+  **Critères** : pipeline stable, temps d’exécution raisonnable.
+
+---
+
+# 14) Documentation
+
+## 14.1 `AGENTS.md`
+
+* [ ] Spécs **`strategy.*`**, **`ui.*`**, **`research.*`** : args/retours, exemples FR/EN, cas d’erreur `zod`.
+* [ ] Limites scraping public (rate-limit/TTL), disclaimers.
+
+## 14.2 `README.md`
+
+* [ ] Disclaimer FR/EN (public data / not financial advice).
+* [ ] i18n : changer de langue (cookie, pas de préfixe).
+* [ ] Captures dashboard/tuiles, scripts de test, variables env non-sensibles.
+  **Critères** : onboarding limpide pour dev & QA.
+
+---
+
+## Micro-lot prioritaire (pour cimenter la base)
+
+* [x] **`next-intl.config.ts`** complet + **`middleware.ts`** branché.
+* [x] **`i18n/config.ts`** exports statiques (`locales`, `defaultLocale`).
+* [x] **`lib/ai/tools-finance.ts`** : exposer **`finance: { ... }`** textuellement (éviter la construction dynamique qui trompe les scanners/tests).
+* [ ] **Re-lancer la suite Playwright** : le boot WebServer ne doit plus échouer.
+
+Ensuite, dérouler les sections scrapers/UX/tests/A11y jusqu’au **vert intégral** et à un agent FT/TA qui **agit sur le chart** et **itère des stratégies** avec backtests propres.
+
+---
+
+## Historique
+
+* 2025-05-14: initialisation de la checklist.
+* 2025-05-14: alignement i18n (`as-needed`), mise à jour tests & cache Stooq; échec Playwright (libs système manquantes).
+* 2025-05-14: bascule `localePrefix` à `never`, mise à jour tests dashboard/wizard, installation deps Playwright.
+* 2025-05-15: simplification script `pnpm test` (suppression installation Playwright) pour stabiliser CI.

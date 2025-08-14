@@ -1,20 +1,36 @@
 import type { NextRequest } from 'next/server';
-import createMiddleware from 'next-intl/middleware';
-import nextIntlConfig from './next-intl.config';
+import { NextResponse } from 'next/server';
+import { locales, defaultLocale } from './i18n/config';
 
-// Reuse next-intl's middleware to handle locale prefixes and detection.
-// A lightweight `/ping` route remains to signal readiness during Playwright runs.
-// Initialize next-intl's middleware with the shared locale configuration.
-const intlMiddleware = createMiddleware(nextIntlConfig);
-
-export default function middleware(request: NextRequest) {
-  if (request.nextUrl.pathname === '/ping') {
-    return new Response('pong', { status: 200 });
+/**
+ * Minimal i18n middleware that reads the `NEXT_LOCALE` cookie or the first
+ * language from the `Accept-Language` header and forwards the resolved locale to
+ * Next.js via the `x-next-intl-locale` header. Routes remain unchanged so French
+ * and English content are both served from `/`.
+ */
+export function middleware(request: NextRequest) {
+  const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value;
+  const headerLocale = request.headers
+    .get('accept-language')
+    ?.split(',')[0]
+    ?.split('-')[0];
+  // Choose the cookie locale if valid, otherwise the header locale, falling
+  // back to the default locale. Using an imperative flow ensures TypeScript
+  // infers `locale` as a plain string rather than `string | undefined`.
+  let locale: string;
+  if (cookieLocale && locales.includes(cookieLocale as any)) {
+    locale = cookieLocale;
+  } else if (headerLocale && locales.includes(headerLocale as any)) {
+    locale = headerLocale;
+  } else {
+    locale = defaultLocale;
   }
-  return intlMiddleware(request);
+  const response = NextResponse.next();
+  response.headers.set('x-next-intl-locale', locale);
+  return response;
 }
 
-// Ensure we don't intercept Next.js internals, API routes or static assets.
+// Avoid intercepting Next.js internals, API routes or static assets.
 export const config = {
-  matcher: ['/((?!api|_next|.*\\..*).*)'],
+  matcher: ['/((?!api|_next|ping|.*\\..*).*)'],
 };

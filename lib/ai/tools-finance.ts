@@ -170,7 +170,9 @@ export function createFinanceTools(
     }
   }
 
-  return {
+  // Group core market data helpers under a dedicated `finance` namespace so
+  // the chat route can expose them with a `finance.` prefix.
+  const finance = {
     /**
      * Retrieve the latest market quote for a symbol.
      */
@@ -342,7 +344,10 @@ export function createFinanceTools(
         return items;
       },
     }),
+  };
 
+  return {
+    finance,
     ui: {
       /**
        * Request the client to display a chart for a given symbol.

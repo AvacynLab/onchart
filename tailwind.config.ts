@@ -10,7 +10,9 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-geist)'],
+        // Geist fonts are loaded from the `geist` package via CSS variables.
+        // Using the explicit variable names avoids storing binary font files in the repository.
+        sans: ['var(--font-geist-sans)'],
         mono: ['var(--font-geist-mono)'],
       },
       screens: {

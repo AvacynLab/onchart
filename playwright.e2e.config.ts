@@ -14,6 +14,8 @@ export default defineConfig({
      * Base URL so tests can navigate with relative paths such as `/api/auth/guest`.
      */
     baseURL: 'http://localhost:3000',
+    // Force French locale during tests to avoid middleware redirects to `/en`.
+    extraHTTPHeaders: { 'Accept-Language': 'fr' },
   },
   projects: [
     {
@@ -40,6 +42,9 @@ export default defineConfig({
       AUTH_SECRET: 'test',
       POSTGRES_URL: '',
       PLAYWRIGHT: '1',
+      // Point the dev server to the same request-level i18n configuration so
+      // locale negotiation behaves consistently with the production setup.
+      NEXT_INTL_CONFIG: './i18n/request.ts',
     },
   },
 });
