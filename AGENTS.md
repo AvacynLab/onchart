@@ -342,7 +342,7 @@ Parfait. Voici la **checklist exhaustive et cochable**, **fichier par fichier**,
 
 # 13) CI & scripts
 
-* [ ] Script `pnpm test` : unit → API → set `PLAYWRIGHT=True` → E2E.
+* [x] Script `pnpm test` : unit → API → set `PLAYWRIGHT=True` → E2E.
 * [ ] Mocks réseau stables (timeouts/retries) pour éviter flaky.
 * [ ] Lint/format (ESLint/Prettier) en pré-commit/CI.
   **Critères** : pipeline stable, temps d’exécution raisonnable.
@@ -381,3 +381,4 @@ Ensuite, dérouler les sections scrapers/UX/tests/A11y jusqu’au **vert intégr
 * 2025-05-14: initialisation de la checklist.
 * 2025-05-14: alignement i18n (`as-needed`), mise à jour tests & cache Stooq; échec Playwright (libs système manquantes).
 * 2025-05-14: bascule `localePrefix` à `never`, mise à jour tests dashboard/wizard, installation deps Playwright.
+* 2025-05-15: simplification script `pnpm test` (suppression installation Playwright) pour stabiliser CI.
