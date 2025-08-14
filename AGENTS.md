@@ -424,3 +424,4 @@ Ensuite, dérouler les sections scrapers/UX/tests/A11y jusqu’au **vert intégr
 - Verified finance system prompts contain FR/EN disclaimers and time-frame guidance; installed Playwright browsers though E2E runs still hit port conflicts.
 - Reworked local font loading to avoid Google fetches and checked off scraper TTL, retry, fallback, and rate-limit tasks; reran unit finance tests (E2E specs still failing).
 - Restored cookie-based locales by setting `localePrefix: 'never'` again and updating middleware, Playwright config, and E2E tests to drop route-based language prefixes.
+- Fixed JSDOM setup in `strategy-wizard` node test by importing the component after attaching `window`/`document` globals, allowing the test runner to reach Playwright suites (dashboard and strategy wizard E2E specs still failing).
