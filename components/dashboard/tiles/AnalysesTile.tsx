@@ -1,27 +1,10 @@
-import { useState } from 'react';
+import React from 'react';
 import BentoCard from '../BentoCard';
 import type { Analysis, Research } from '@/lib/db/schema';
 import AnalysesTileEmpty from '../empty/AnalysesTileEmpty';
-import { useTranslations, useLocale } from 'next-intl';
 import { getTranslations, getLocale } from 'next-intl/server';
-
-/**
- * Format a date into a human readable relative string using
- * Intl.RelativeTimeFormat. Chooses the largest appropriate unit among
- * seconds, minutes, hours and days.
- */
-function formatRelative(date: Date, locale: string): string {
-  const diffMs = date.getTime() - Date.now();
-  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
-  const seconds = Math.round(diffMs / 1000);
-  if (Math.abs(seconds) < 60) return rtf.format(seconds, 'second');
-  const minutes = Math.round(seconds / 60);
-  if (Math.abs(minutes) < 60) return rtf.format(minutes, 'minute');
-  const hours = Math.round(minutes / 60);
-  if (Math.abs(hours) < 24) return rtf.format(hours, 'hour');
-  const days = Math.round(hours / 24);
-  return rtf.format(days, 'day');
-}
+import AnalysesTileClient from './AnalysesTileClient';
+import AnalysisList from './AnalysisList';
 
 /** Summary information used by the analyses tile list */
 export interface AnalysisSummary {
@@ -41,52 +24,6 @@ export interface AnalysisGroup {
   items: AnalysisSummary[];
 }
 
-/**
- * Pure presentational component rendering a list of analysis summaries.
- * Exported for unit testing.
- */
-export function AnalysisList({
-  items,
-  locale,
-  emptyLabel,
-  labelledBy,
-}: {
-  /** Analyses and research summaries to render */
-  items: AnalysisSummary[];
-  /** Active UI locale */
-  locale: string;
-  /** Localised empty state text */
-  emptyLabel: string;
-  /** id of title used for aria-labelledby */
-  labelledBy: string;
-}) {
-  if (items.length === 0) {
-    return <AnalysesTileEmpty message={emptyLabel} />;
-  }
-
-  return (
-    <ul className="space-y-2" aria-labelledby={labelledBy}>
-      {items.map((item) => {
-        const relativeDate = formatRelative(item.date, locale);
-        return (
-          <li key={item.id} className="text-sm">
-            <a
-              href={`/chat/${item.chatId}`}
-              className="font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-            >
-              {item.title}
-            </a>
-            <div className="text-xs text-muted-foreground">
-              <span className="mr-2 capitalize">{item.type}</span>
-              · {relativeDate}
-              {item.symbol && <span className="ml-2">{item.symbol}</span>}
-            </div>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
 
 /**
  * Render analysis summaries grouped by chat with optional last-message context.
@@ -139,64 +76,6 @@ export function AnalysisGroupList({
   );
 }
 
-/** Client component implementing simple filtering by type and symbol */
-export function AnalysesClient({
-  items,
-  titleId,
-}: {
-  items: AnalysisSummary[];
-  titleId: string;
-}) {
-  'use client';
-  const t = useTranslations('dashboard.analyses');
-  const locale = useLocale();
-  const [typeFilter, setTypeFilter] = useState('');
-  const [symbolFilter, setSymbolFilter] = useState('');
-
-  const filtered = items.filter((i) => {
-    const typeMatch = typeFilter ? i.type === typeFilter : true;
-    const symbolMatch = symbolFilter
-      ? i.symbol?.toLowerCase().includes(symbolFilter.toLowerCase())
-      : true;
-    return typeMatch && symbolMatch;
-  });
-
-  const uniqueTypes = Array.from(new Set(items.map((i) => i.type)));
-
-  return (
-    <div>
-      <div className="flex gap-2 mb-2">
-        <select
-          aria-label={t('filters.typeLabel')}
-          className="border p-1 text-sm"
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-        >
-          <option value="">{t('filters.allTypes')}</option>
-          {uniqueTypes.map((tVal) => (
-            <option key={tVal} value={tVal} className="capitalize">
-              {tVal}
-            </option>
-          ))}
-        </select>
-        <input
-          aria-label={t('filters.symbolLabel')}
-          type="text"
-          placeholder={t('filters.symbol')}
-          className="border p-1 text-sm flex-1"
-          value={symbolFilter}
-          onChange={(e) => setSymbolFilter(e.target.value)}
-        />
-      </div>
-      <AnalysisList
-        items={filtered}
-        locale={locale}
-        emptyLabel={t('empty')}
-        labelledBy={titleId}
-      />
-    </div>
-  );
-}
 
 async function fetchAnalyses(chatId?: string): Promise<AnalysisSummary[]> {
   if (!chatId) return [];
@@ -319,7 +198,7 @@ export default async function AnalysesTile({
     const items = await fetchAnalyses(chatId);
     return (
       <BentoCard title={t('analyses.title')} titleId={titleId}>
-        <AnalysesClient items={items} titleId={titleId} />
+        <AnalysesTileClient items={items} titleId={titleId} />
       </BentoCard>
     );
   }

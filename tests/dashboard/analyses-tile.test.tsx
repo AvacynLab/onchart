@@ -2,11 +2,8 @@ import test from 'node:test';
 import { strict as assert } from 'node:assert';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import {
-  AnalysisList,
-  AnalysisGroupList,
-  type AnalysisSummary,
-} from '../../components/dashboard/tiles/AnalysesTile';
+import { AnalysisGroupList, type AnalysisSummary } from '../../components/dashboard/tiles/AnalysesTile';
+import AnalysisList from '../../components/dashboard/tiles/AnalysisList';
 
 test('AnalysisList formats relative dates and symbol', () => {
   const realNow = Date.now;
