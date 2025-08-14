@@ -17,7 +17,7 @@ test('financePrompts include FR and EN disclaimers', () => {
     'missing French disclaimer'
   );
   assert.ok(
-    financePrompts.fr.includes('Toujours préciser la **timeframe** avant ui.show_chart.'),
+    financePrompts.fr.includes('Préciser la **timeframe** avant `ui.show_chart`.'),
     'missing French timeframe reminder'
   );
   assert.ok(
@@ -27,7 +27,7 @@ test('financePrompts include FR and EN disclaimers', () => {
     'missing English disclaimer'
   );
   assert.ok(
-    financePrompts.en.includes('Always specify **timeframe** before ui.show_chart.'),
+    financePrompts.en.includes('Specify **timeframe** before `ui.show_chart`.'),
     'missing English timeframe reminder'
   );
 });

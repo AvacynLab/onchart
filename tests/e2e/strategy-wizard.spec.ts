@@ -11,6 +11,11 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://fonts.gstatic.com/*', (route) =>
     route.fulfill({ status: 200, body: '' }),
   );
+  // Force English locale for this suite so the dashboard renders in English
+  // without relying on URL prefixes.
+  await page.context().addCookies([
+    { name: 'NEXT_LOCALE', value: 'en', domain: 'localhost', path: '/' },
+  ]);
 });
 
 /**
@@ -36,10 +41,10 @@ test('completes strategy wizard flow', async ({ page }) => {
     });
   });
 
-  // Navigate to the English dashboard providing a chat id so strategies can be
-  // created.
-  await page.goto('/en?chatId=c1');
-  await expect(page).toHaveURL(/\/en\?chatId=c1$/);
+  // Navigate to the dashboard with a chat id so strategies can be created. The
+  // locale cookie selects English but the path remains unchanged.
+  await page.goto('/?chatId=c1');
+  await expect(page).toHaveURL(/\/?chatId=c1$/);
 
   // Open the strategy wizard via the tile's action button.
   await page

@@ -12,6 +12,11 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://fonts.gstatic.com/*', (route) =>
     route.fulfill({ status: 200, body: '' }),
   );
+  // Force the default locale to French for each test run so the middleware
+  // renders `/` in French without needing path redirects.
+  await page.context().addCookies([
+    { name: 'NEXT_LOCALE', value: 'fr', domain: 'localhost', path: '/' },
+  ]);
 });
 
 /**
@@ -19,10 +24,10 @@ test.beforeEach(async ({ page }) => {
  * previous floating toolbar overlay is absent from the page.
  */
 test('menu tile toggles finance actions', async ({ page }) => {
-  // Navigate directly to the French dashboard; authentication is optional for
-  // this smoke test because the menu tile is public.
-  await page.goto('/fr');
-  await expect(page).toHaveURL(/\/fr$/);
+  // Navigate to the dashboard. Locale negotiation happens via cookies or
+  // headers and leaves the path unchanged.
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/$/);
 
   // The overlay toolbar should no longer render globally.
   await expect(page.locator('[role="toolbar"]')).toHaveCount(0);
@@ -44,9 +49,10 @@ test('menu tile toggles finance actions', async ({ page }) => {
  * specifics while still asserting localized labels.
  */
 test('renders tiles and switches locales', async ({ page }) => {
-  // Start from the default French dashboard.
-  await page.goto('/fr');
-  await expect(page).toHaveURL(/\/fr$/);
+  // Start from the default French dashboard. The root `/` route resolves to
+  // French without an explicit locale prefix.
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/$/);
 
   // The "Current prices" heading should appear in French.
   await expect(
@@ -55,9 +61,10 @@ test('renders tiles and switches locales', async ({ page }) => {
     }),
   ).toBeVisible();
 
-  // Switch to English via the header language switcher.
+  // Switch to English via the header language switcher. The URL stays the same;
+  // only the translations change based on the updated `NEXT_LOCALE` cookie.
   await page.getByRole('link', { name: 'EN' }).click();
-  await expect(page).toHaveURL(/\/en$/);
+  await expect(page).toHaveURL(/\/$/);
 
   // Headings should now be translated to English.
   await expect(

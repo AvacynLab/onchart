@@ -5,6 +5,7 @@ import {
   fetchFilingDocument,
   fetchCompanyFacts,
 } from '../../lib/finance/sources/sec';
+import { invalidateCache } from '../../lib/finance/cache';
 
 // Sample dataset for company_tickers.json
 const tickersJson = {
@@ -65,6 +66,8 @@ const fakeFetch = async (url: any) => {
 };
 
 test('searchCompanyCIK finds ticker', async () => {
+  // Clear any previous cached response to ensure our fake dataset is used
+  invalidateCache('https://www.sec.gov/files/company_tickers.json');
   const matches = await searchCompanyCIK('AAPL', fakeFetch as any);
   expect(matches[0]).toEqual({
     cik: '0000000032',
