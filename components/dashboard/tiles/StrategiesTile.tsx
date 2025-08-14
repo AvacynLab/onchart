@@ -19,10 +19,13 @@ export async function fetchStrategies(
 ): Promise<StrategyPage> {
   if (!chatId) return { items: [], nextCursor: null };
   try {
+    // Build the absolute URL to the API using either the deployed Vercel domain
+    // or the port of the local dev server. Playwright sets `PORT` explicitly so
+    // internal fetches work during tests.
     const baseUrl =
       process.env.NEXT_PUBLIC_VERCEL_URL
         ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-        : 'http://localhost:3000';
+        : `http://localhost:${process.env.PORT ?? 3000}`;
     const params = new URLSearchParams({ chatId });
     if (cursor) params.set('cursor', cursor);
     const res = await fetch(

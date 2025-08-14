@@ -877,6 +877,12 @@ export async function listStrategiesByChat({
   /** Maximum number of rows to return */
   limit?: number;
 }) {
+  // In test environments the `POSTGRES_URL` may be unset. Avoid attempting a
+  // database query and instead return an empty page so callers can operate
+  // without persistent storage.
+  if (!process.env.POSTGRES_URL) {
+    return { items: [], nextCursor: null };
+  }
   try {
     const rows = await db
       .select()

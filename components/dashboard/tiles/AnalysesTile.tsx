@@ -2,9 +2,11 @@ import React from 'react';
 import BentoCard from '../BentoCard';
 import type { Analysis, Research } from '@/lib/db/schema';
 import AnalysesTileEmpty from '../empty/AnalysesTileEmpty';
-import { getTranslations, getLocale } from 'next-intl/server';
+import { getLocale } from 'next-intl/server';
 import AnalysesTileClient from './AnalysesTileClient';
 import AnalysisList from './AnalysisList';
+import fr from '@/messages/fr/dashboard.json' assert { type: 'json' };
+import en from '@/messages/en/dashboard.json' assert { type: 'json' };
 
 /** Summary information used by the analyses tile list */
 export interface AnalysisSummary {
@@ -189,7 +191,7 @@ export default async function AnalysesTile({
   chatId?: string;
 }) {
   const locale = await getLocale();
-  const t = await getTranslations('dashboard');
+  const messages = locale === 'en' ? (en as any) : (fr as any);
   // Generate a deterministic id for accessibility without relying on React
   // hooks (server components cannot use `useId`).
   const titleId = `analyses-${Math.random().toString(36).slice(2)}`;
@@ -197,18 +199,18 @@ export default async function AnalysesTile({
   if (chatId) {
     const items = await fetchAnalyses(chatId);
     return (
-      <BentoCard title={t('analyses.title')} titleId={titleId}>
+      <BentoCard title={messages.analyses.title} titleId={titleId}>
         <AnalysesTileClient items={items} titleId={titleId} />
       </BentoCard>
     );
   }
   const groups = await fetchAnalysesGrouped();
   return (
-    <BentoCard title={t('analyses.title')} titleId={titleId}>
+    <BentoCard title={messages.analyses.title} titleId={titleId}>
       <AnalysisGroupList
         groups={groups}
         locale={locale}
-        emptyLabel={t('analyses.empty')}
+        emptyLabel={messages.analyses.empty}
         labelledBy={titleId}
       />
     </BentoCard>

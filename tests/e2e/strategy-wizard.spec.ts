@@ -54,23 +54,33 @@ test('completes strategy wizard flow', async ({ page }) => {
   await page
     .getByLabel((enFinance as any).wizard.horizon)
     .fill('1y');
-  await page.getByRole('button', { name: (enFinance as any).wizard.next }).click();
+  await page
+    .getByRole('button', { name: (enFinance as any).wizard.next, exact: true })
+    .click();
 
   // Step 2: risk tolerance.
   await page.getByLabel((enFinance as any).wizard.risk).fill('medium');
-  await page.getByRole('button', { name: (enFinance as any).wizard.next }).click();
+  await page
+    .getByRole('button', { name: (enFinance as any).wizard.next, exact: true })
+    .click();
 
   // Step 3: universe of assets.
   await page.getByLabel((enFinance as any).wizard.universe).fill('stocks');
-  await page.getByRole('button', { name: (enFinance as any).wizard.next }).click();
+  await page
+    .getByRole('button', { name: (enFinance as any).wizard.next, exact: true })
+    .click();
 
   // Step 4: fees.
   await page.getByLabel((enFinance as any).wizard.fees).fill('0.1');
-  await page.getByRole('button', { name: (enFinance as any).wizard.next }).click();
+  await page
+    .getByRole('button', { name: (enFinance as any).wizard.next, exact: true })
+    .click();
 
   // Step 5: maximum drawdown.
   await page.getByLabel((enFinance as any).wizard.drawdown).fill('10');
-  await page.getByRole('button', { name: (enFinance as any).wizard.next }).click();
+  await page
+    .getByRole('button', { name: (enFinance as any).wizard.next, exact: true })
+    .click();
 
   // Step 6: additional constraints.
   await page.getByLabel((enFinance as any).wizard.constraints).fill('ESG');
