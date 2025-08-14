@@ -1,6 +1,6 @@
 import { cachedJsonFetch, INTRADAY_TTL_MS, DAILY_TTL_MS } from '../cache';
 import { rateLimit } from '../rate-limit';
-import fetchWithRetry from '../request';
+import { fetchWithRetry } from '../request';
 import { DataSourceError } from '../errors';
 import { fetchDailyStooq } from './stooq';
 

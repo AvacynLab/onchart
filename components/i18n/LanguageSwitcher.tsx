@@ -3,7 +3,7 @@
 import { useLocale } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useTransition } from 'react';
-import i18n from '@/i18n/config';
+import { locales } from '@/i18n/config';
 import { updatePreferredLocale } from './actions';
 
 /**
@@ -18,7 +18,7 @@ export default function LanguageSwitcher() {
 
   return (
     <nav aria-label="language switcher" className="flex gap-2">
-      {i18n.locales.map((l) => (
+      {locales.map((l) => (
         <button
           key={l}
           type="button"

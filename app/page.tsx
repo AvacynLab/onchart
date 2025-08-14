@@ -13,7 +13,7 @@ import StrategiesTileSkeleton from '@/components/dashboard/skeletons/StrategiesT
 import AnalysesTileSkeleton from '@/components/dashboard/skeletons/AnalysesTileSkeleton';
 import LanguageSwitcher from '@/components/i18n/LanguageSwitcher';
 import { fetchLiveQuotes, type QuoteResult } from '@/lib/finance/live';
-import fetchRssFeeds, { type NewsItem } from '@/lib/finance/sources/news';
+import { fetchRssFeeds, type NewsItem } from '@/lib/finance/sources/news';
 
 /**
  * Dashboard landing page exposing the Bento layout.

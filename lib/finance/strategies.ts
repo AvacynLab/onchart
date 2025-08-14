@@ -418,7 +418,7 @@ export async function generalResearch(
   return { topic, context, data, insights: [], risks: [], sources };
 }
 
-export default {
+const strategies = {
   maCrossover,
   rsiReversion,
   breakoutBB,
@@ -427,4 +427,6 @@ export default {
   ftReport,
   generalResearch,
 };
+
+export default strategies;
 

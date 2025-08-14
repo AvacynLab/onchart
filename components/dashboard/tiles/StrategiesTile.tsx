@@ -1,5 +1,4 @@
-import React from 'react';
-import { useLocale } from 'next-intl';
+import { getLocale } from 'next-intl/server';
 import type { Strategy } from '@/lib/db/schema';
 import StrategyCard from '@/components/finance/StrategyCard';
 import StrategiesTileClient from './StrategiesTileClient';
@@ -175,7 +174,7 @@ export default async function StrategiesTile({
 }: {
   chatId?: string;
 }) {
-  const locale = useLocale();
+  const locale = await getLocale();
   const messages = locale === 'en' ? (en as any) : (fr as any);
   const titleId = `strategies-${Math.random().toString(36).slice(2)}`;
   if (chatId) {

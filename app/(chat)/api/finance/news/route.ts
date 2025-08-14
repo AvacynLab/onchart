@@ -1,4 +1,4 @@
-import fetchRssFeeds from '@/lib/finance/sources/news';
+import { fetchRssFeeds } from '@/lib/finance/sources/news';
 import { getCache, setCache } from '@/lib/finance/cache';
 
 /** Ensure server-side execution to avoid edge limitations */

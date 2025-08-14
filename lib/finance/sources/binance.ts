@@ -1,6 +1,6 @@
 import { getCache, setCache, INTRADAY_TTL_MS } from '../cache';
 import { rateLimit } from '../rate-limit';
-import fetchWithRetry from '../request';
+import { fetchWithRetry } from '../request';
 
 export interface Candle {
   time: number; // unix timestamp

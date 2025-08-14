@@ -100,7 +100,7 @@ export function sortinoRatio(
   const excess = r.map((x) => x - rfPerPeriod);
   const mean = excess.reduce((a, b) => a + b, 0) / excess.length;
   const downs = excess.filter((x) => x < 0); // only negative returns
-  if (downs.length === 0) return Infinity;
+  if (downs.length === 0) return Number.POSITIVE_INFINITY;
   const downsideDev = Math.sqrt(
     downs.reduce((s, v) => s + v * v, 0) / downs.length,
   );
@@ -133,11 +133,13 @@ export function beta(
   return varB === 0 ? 0 : cov / varB;
 }
 
-export default {
+const risk = {
   annualizedVolatility,
   maxDrawdown,
   sharpeRatio,
   sortinoRatio,
   beta,
 };
+
+export default risk;
 

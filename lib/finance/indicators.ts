@@ -74,7 +74,7 @@ export function rsi(prices: number[], period: number): number[] {
   for (let i = n; i < gains.length; i++) {
     avgGain = (avgGain * (n - 1) + gains[i]) / n;
     avgLoss = (avgLoss * (n - 1) + losses[i]) / n;
-    const rs = avgLoss === 0 ? Infinity : avgGain / avgLoss;
+    const rs = avgLoss === 0 ? Number.POSITIVE_INFINITY : avgGain / avgLoss;
     result.push(100 - 100 / (1 + rs));
   }
   return result;
@@ -215,7 +215,7 @@ export function stochastic(
   return { k, d };
 }
 
-export default {
+const indicators = {
   sma,
   ema,
   rsi,
@@ -224,3 +224,5 @@ export default {
   atr,
   stochastic,
 };
+
+export default indicators;

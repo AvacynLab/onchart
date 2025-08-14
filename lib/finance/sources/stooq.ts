@@ -1,7 +1,7 @@
-import Papa from 'papaparse';
+import { parse } from 'papaparse';
 import { getCache, setCache, DAILY_TTL_MS } from '../cache';
 import { rateLimit } from '../rate-limit';
-import fetchWithRetry from '../request';
+import { fetchWithRetry } from '../request';
 
 export interface Candle {
   time: number; // unix timestamp
@@ -30,7 +30,7 @@ export async function fetchDailyStooq(symbol: string): Promise<Candle[]> {
   if (cached) return cached;
   const res = await fetchWithRetry(url);
   const text = await res.text();
-  const { data } = Papa.parse(text.trim(), { header: true, dynamicTyping: true });
+  const { data } = parse(text.trim(), { header: true, dynamicTyping: true });
   const candles = (data as any[]).map((row) => ({
     time: Math.floor(new Date(row.Date).getTime() / 1000),
     open: Number(row.Open),

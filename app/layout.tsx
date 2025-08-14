@@ -6,7 +6,7 @@ import { NextIntlClientProvider } from 'next-intl';
 // Messages are loaded manually below; no need for next-intl helpers that
 // require a project-level config file.
 import { headers } from 'next/headers';
-import i18n, { type Locale } from '@/i18n/config';
+import { locales, defaultLocale, type Locale } from '@/i18n/config';
 import { auth } from '@/app/(auth)/auth';
 import { getUserSettings } from '@/lib/db/queries';
 import localFont from 'next/font/local';
@@ -100,14 +100,14 @@ export default async function RootLayout({
   let locale: Locale | undefined;
   if (session?.user?.id) {
     const preferred = await getUserSettings(session.user.id);
-    if (preferred && i18n.locales.includes(preferred as Locale)) {
+    if (preferred && locales.includes(preferred as Locale)) {
       locale = preferred as Locale;
     }
   }
   if (!locale) {
-    locale = cookieLocale && i18n.locales.includes(cookieLocale)
+    locale = cookieLocale && locales.includes(cookieLocale)
       ? cookieLocale
-      : i18n.defaultLocale;
+      : defaultLocale;
   }
   const messages =
     locale === 'en'

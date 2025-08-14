@@ -45,10 +45,13 @@ import { ChatSDKError } from '../errors';
 // use the Drizzle adapter for Auth.js / NextAuth
 // https://authjs.dev/reference/adapter/drizzle
 
-// biome-ignore lint: Forbidden non-null assertion.
-const client = process.env.POSTGRES_URL
-  ? postgres(process.env.POSTGRES_URL)
-  : undefined;
+let client: any;
+const url = process.env.POSTGRES_URL;
+try {
+  client = url && url !== 'undefined' ? postgres(url) : undefined;
+} catch {
+  client = undefined;
+}
 const db = client ? drizzle(client) : ({} as any);
 
 export async function getUser(email: string): Promise<Array<User>> {
@@ -99,7 +102,7 @@ export async function getUserSettings(
   userId: string,
 ): Promise<string | null> {
   try {
-    if (!process.env.POSTGRES_URL) return null;
+    if (!client) return null;
     const [row] = await db
       .select({ preferredLocale: userSettings.preferredLocale })
       .from(userSettings)
@@ -116,7 +119,7 @@ export async function setUserPreferredLocale(
   userId: string,
   locale: 'fr' | 'en',
 ) {
-  if (!process.env.POSTGRES_URL) return;
+  if (!client) return;
   try {
     await db
       .insert(userSettings)

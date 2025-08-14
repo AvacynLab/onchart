@@ -1,8 +1,9 @@
-import React from 'react';
+import { useState } from 'react';
 import BentoCard from '../BentoCard';
 import type { Analysis, Research } from '@/lib/db/schema';
 import AnalysesTileEmpty from '../empty/AnalysesTileEmpty';
 import { useTranslations, useLocale } from 'next-intl';
+import { getTranslations, getLocale } from 'next-intl/server';
 
 /**
  * Format a date into a human readable relative string using
@@ -149,8 +150,8 @@ export function AnalysesClient({
   'use client';
   const t = useTranslations('dashboard.analyses');
   const locale = useLocale();
-  const [typeFilter, setTypeFilter] = React.useState('');
-  const [symbolFilter, setSymbolFilter] = React.useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [symbolFilter, setSymbolFilter] = useState('');
 
   const filtered = items.filter((i) => {
     const typeMatch = typeFilter ? i.type === typeFilter : true;
@@ -308,8 +309,8 @@ export default async function AnalysesTile({
 }: {
   chatId?: string;
 }) {
-  const locale = useLocale();
-  const t = useTranslations('dashboard');
+  const locale = await getLocale();
+  const t = await getTranslations('dashboard');
   // Generate a deterministic id for accessibility without relying on React
   // hooks (server components cannot use `useId`).
   const titleId = `analyses-${Math.random().toString(36).slice(2)}`;
