@@ -425,3 +425,4 @@ Ensuite, dérouler les sections scrapers/UX/tests/A11y jusqu’au **vert intégr
 - Reworked local font loading to avoid Google fetches and checked off scraper TTL, retry, fallback, and rate-limit tasks; reran unit finance tests (E2E specs still failing).
 - Restored cookie-based locales by setting `localePrefix: 'never'` again and updating middleware, Playwright config, and E2E tests to drop route-based language prefixes.
 - Fixed JSDOM setup in `strategy-wizard` node test by importing the component after attaching `window`/`document` globals, allowing the test runner to reach Playwright suites (dashboard and strategy wizard E2E specs still failing).
+- Switched `next-intl` to `localePrefix: 'never'` in both TypeScript and JavaScript configs to serve French at the root path; installed Playwright browsers and system deps, though E2E suites still require port overrides to run reliably.

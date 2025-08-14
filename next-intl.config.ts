@@ -6,11 +6,10 @@
 const intlConfig = {
   locales: ['fr', 'en'],
   defaultLocale: 'fr',
-  // Expose the default French locale at the root while prefixing other
-  // languages only when needed. This mirrors production routing and lets tests
-  // navigate to `/` without redirects while still supporting `/en` for English
-  // content.
-  localePrefix: 'as-needed',
+  // Avoid locale-specific URL segments; negotiation happens via cookies or the
+  // `Accept-Language` header. The application renders French at the root `/`
+  // while still allowing other locales to be selected without path redirects.
+  localePrefix: 'never',
 } as const;
 
 export default intlConfig;
