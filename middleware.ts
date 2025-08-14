@@ -14,11 +14,17 @@ export function middleware(request: NextRequest) {
     .get('accept-language')
     ?.split(',')[0]
     ?.split('-')[0];
-  const locale = locales.includes(cookieLocale as any)
-    ? cookieLocale
-    : locales.includes(headerLocale as any)
-      ? headerLocale
-      : defaultLocale;
+  // Choose the cookie locale if valid, otherwise the header locale, falling
+  // back to the default locale. Using an imperative flow ensures TypeScript
+  // infers `locale` as a plain string rather than `string | undefined`.
+  let locale: string;
+  if (cookieLocale && locales.includes(cookieLocale as any)) {
+    locale = cookieLocale;
+  } else if (headerLocale && locales.includes(headerLocale as any)) {
+    locale = headerLocale;
+  } else {
+    locale = defaultLocale;
+  }
   const response = NextResponse.next();
   response.headers.set('x-next-intl-locale', locale);
   return response;
