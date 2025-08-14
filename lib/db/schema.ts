@@ -21,6 +21,24 @@ export const user = pgTable('User', {
 
 export type User = InferSelectModel<typeof user>;
 
+// Préférences utilisateur persistées, notamment la langue choisie.
+export const userSettings = pgTable(
+  'UserSettings',
+  {
+    id: uuid('id').primaryKey().notNull().defaultRandom(),
+    userId: uuid('userId')
+      .notNull()
+      .references(() => user.id),
+    preferredLocale: varchar('preferredLocale', { enum: ['fr', 'en'] }).notNull(),
+    updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+  },
+  (t) => ({
+    userIdx: index('usersettings_user_idx').on(t.userId),
+  }),
+);
+
+export type UserSettings = InferSelectModel<typeof userSettings>;
+
 export const chat = pgTable('Chat', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   createdAt: timestamp('createdAt').notNull(),

@@ -6,19 +6,38 @@ import React from 'react';
 import { renderToString } from 'react-dom/server';
 
 /**
- * Mock `next/headers` and `next-auth/react` so the app layout can be rendered
- * in isolation. The layout reads the `x-next-intl-locale` header to decide
- * which translation files to load, while `SessionProvider` simply renders its
- * children in this test environment.
+ * Mock environment modules so the app layout can render in isolation. The
+ * layout reads the `lang` cookie or user settings from the database to
+ * determine the active locale.
  */
-function mockEnv(locale?: string) {
+function mockEnv(cookieLang?: string, dbLocale?: string) {
   const originalLoad = (Module as any)._load;
   (Module as any)._load = function (request: string, parent: any, isMain: boolean) {
     if (request === 'next/headers') {
-      return { headers: () => new Headers(locale ? { 'x-next-intl-locale': locale } : {}) };
+      return {
+        headers: async () => ({
+          get: (name: string) =>
+            name === 'cookie' && cookieLang ? `lang=${cookieLang}` : undefined,
+        }),
+      } as any;
+    }
+    if (request === '@/app/(auth)/auth') {
+      return { auth: async () => (dbLocale ? { user: { id: 'u1' } } : null) } as any;
+    }
+    if (request === '@/lib/db/queries') {
+      return { getUserSettings: async () => dbLocale } as any;
     }
     if (request === 'next-auth/react') {
-      return { SessionProvider: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children) };
+      return {
+        SessionProvider: ({ children }: { children: React.ReactNode }) =>
+          React.createElement(React.Fragment, null, children),
+      } as any;
+    }
+    if (request.endsWith('.css')) {
+      return {};
+    }
+    if (request === 'next/font/local') {
+      return () => ({ className: '', variable: '' });
     }
     if (request === 'server-only') return {};
     return originalLoad(request, parent, isMain);
@@ -28,26 +47,20 @@ function mockEnv(locale?: string) {
   };
 }
 
-/**
- * The layout should propagate the locale header to the HTML `lang` attribute so
- * assistive technologies and `Intl` formatting behave correctly on the client.
- */
-test('sets lang attribute based on locale header', async () => {
+// The layout should honor the `lang` cookie when present.
+test('renders with cookie locale', async () => {
   const restore = mockEnv('en');
-  const { default: Layout } = await import('../../app/layout');
+  const { default: Layout } = await import(`../../app/layout?test=${Date.now()}`);
   const element = await Layout({ children: React.createElement('div') });
   const html = renderToString(element);
   assert.match(html, /<html lang="en"/);
   restore();
 });
 
-/**
- * When no locale header is supplied, the layout should fall back to the default
- * locale (`fr`).
- */
-test('defaults to fr when locale header missing', async () => {
+// When no cookie or preference exists, the default French locale is used.
+test('falls back to default locale', async () => {
   const restore = mockEnv();
-  const { default: Layout } = await import('../../app/layout');
+  const { default: Layout } = await import(`../../app/layout?test=${Date.now()}`);
   const element = await Layout({ children: React.createElement('div') });
   const html = renderToString(element);
   assert.match(html, /<html lang="fr"/);

@@ -15,7 +15,7 @@ test.beforeEach(async ({ page }) => {
   // Force the default locale to French for each test run so navigating to `/`
   // immediately renders French content.
   await page.context().addCookies([
-    { name: 'NEXT_LOCALE', value: 'fr', domain: 'localhost', path: '/' },
+    { name: 'lang', value: 'fr', domain: 'localhost', path: '/' },
   ]);
 });
 
@@ -61,10 +61,12 @@ test('renders tiles and switches locales', async ({ page }) => {
     }),
   ).toBeVisible();
 
-  // Switch to English via the header language switcher. The path remains
-  // unchanged; locale negotiation relies on the `NEXT_LOCALE` cookie.
-  await page.getByRole('link', { name: 'EN' }).click();
-  await expect(page).toHaveURL(/\/$/);
+  // Switch to English via the header language switcher. Capture the current
+  // URL and ensure it remains unchanged after the locale update, proving that
+  // language negotiation no longer relies on path prefixes.
+  const currentUrl = page.url();
+  await page.getByRole('button', { name: 'EN', exact: true }).click();
+  await expect(page).toHaveURL(currentUrl);
 
   // Headings should now be translated to English.
   await expect(

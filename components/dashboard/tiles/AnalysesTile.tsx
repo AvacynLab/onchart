@@ -308,13 +308,10 @@ export default async function AnalysesTile({
 }: {
   chatId?: string;
 }) {
-  // Load translation helpers on demand so this server component can resolve the
-  // active locale without relying on `next-intl` middleware helpers.
-  const { getLocale, getTranslations } = await import('next-intl/server');
-  const locale = await getLocale();
-  const t = await getTranslations({ locale, namespace: 'dashboard' });
-  // Generate a deterministic id for accessibility without relying on React hooks
-  // (server components cannot use `useId`).
+  const locale = useLocale();
+  const t = useTranslations('dashboard');
+  // Generate a deterministic id for accessibility without relying on React
+  // hooks (server components cannot use `useId`).
   const titleId = `analyses-${Math.random().toString(36).slice(2)}`;
 
   if (chatId) {

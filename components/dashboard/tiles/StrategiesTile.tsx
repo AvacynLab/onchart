@@ -1,11 +1,12 @@
 import React from 'react';
-import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { useLocale } from 'next-intl';
 import type { Strategy } from '@/lib/db/schema';
 import StrategyCard from '@/components/finance/StrategyCard';
 import StrategiesTileClient from './StrategiesTileClient';
 import StrategiesTileEmpty from '../empty/StrategiesTileEmpty';
 import BentoCard from '../BentoCard';
+import fr from '@/messages/fr/dashboard.json' assert { type: 'json' };
+import en from '@/messages/en/dashboard.json' assert { type: 'json' };
 
 export interface StrategyPage {
   items: Strategy[];
@@ -93,13 +94,14 @@ async function fetchStrategiesGrouped(): Promise<StrategyGroup[]> {
 export function StrategyList({
   items,
   labelledBy,
+  messages,
 }: {
   items: Strategy[];
   labelledBy: string;
+  messages: any;
 }) {
-  const t = useTranslations('dashboard.strategies');
   if (items.length === 0) {
-    return <StrategiesTileEmpty message={t('empty')} />;
+    return <StrategiesTileEmpty message={messages.strategies.empty} />;
   }
   return (
     <ul className="space-y-2" aria-labelledby={labelledBy}>
@@ -127,13 +129,14 @@ export interface StrategyGroup {
 export function StrategyGroupList({
   groups,
   labelledBy,
+  messages,
 }: {
   groups: StrategyGroup[];
   labelledBy: string;
+  messages: any;
 }) {
-  const t = useTranslations('dashboard.strategies');
   if (groups.length === 0) {
-    return <StrategiesTileEmpty message={t('empty')} />;
+    return <StrategiesTileEmpty message={messages.strategies.empty} />;
   }
   return (
     <div className="space-y-4" aria-labelledby={labelledBy}>
@@ -152,7 +155,11 @@ export function StrategyGroupList({
               {g.lastMessage}
             </p>
           )}
-          <StrategyList items={g.items} labelledBy={labelledBy} />
+          <StrategyList
+            items={g.items}
+            labelledBy={labelledBy}
+            messages={messages}
+          />
         </div>
       ))}
     </div>
@@ -168,9 +175,9 @@ export default async function StrategiesTile({
 }: {
   chatId?: string;
 }) {
-  // Generate a unique id for the heading without relying on hooks.
+  const locale = useLocale();
+  const messages = locale === 'en' ? (en as any) : (fr as any);
   const titleId = `strategies-${Math.random().toString(36).slice(2)}`;
-  const t = await getTranslations('dashboard.strategies');
   if (chatId) {
     const page = await fetchStrategies(chatId);
     return (
@@ -184,8 +191,12 @@ export default async function StrategiesTile({
   }
   const groups = await fetchStrategiesGrouped();
   return (
-    <BentoCard title={t('title')} titleId={titleId}>
-      <StrategyGroupList groups={groups} labelledBy={titleId} />
+    <BentoCard title={messages.strategies.title} titleId={titleId}>
+      <StrategyGroupList
+        groups={groups}
+        labelledBy={titleId}
+        messages={messages}
+      />
     </BentoCard>
   );
 }

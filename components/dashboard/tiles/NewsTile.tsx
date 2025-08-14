@@ -3,6 +3,9 @@ import BentoCard from '../BentoCard';
 import type { NewsItem } from '@/lib/finance/sources/news';
 import NewsTileEmpty from '../empty/NewsTileEmpty';
 import { load } from 'cheerio';
+import { useLocale } from 'next-intl';
+import fr from '@/messages/fr/dashboard.json' assert { type: 'json' };
+import en from '@/messages/en/dashboard.json' assert { type: 'json' };
 
 /**
  * Sanitize an RSS description by stripping all tags and removing potentially
@@ -101,22 +104,17 @@ export function NewsList({
  * in the dashboard page so this component simply formats and displays the
  * articles with proper localisation.
  */
-export default async function NewsTile({ items }: { items: NewsItem[] }) {
-  // Resolve the active locale and translation function without relying on
-  // project-wide middleware. `getTranslations` returns a locale-aware `t` helper.
-  const { getLocale, getTranslations } = await import('next-intl/server');
-  const locale = await getLocale();
-  const t = await getTranslations({ locale, namespace: 'dashboard' });
-  // Generate a unique id so the list can reference the tile's heading.
-  // Server components cannot use React hooks, so generate an id manually.
+export default function NewsTile({ items }: { items: NewsItem[] }) {
+  const locale = useLocale();
+  const messages = locale === 'en' ? (en as any) : (fr as any);
   const titleId = `news-${Math.random().toString(36).slice(2)}`;
 
   return (
-    <BentoCard title={t('news.title')} titleId={titleId}>
+    <BentoCard title={messages.news.title} titleId={titleId}>
       <NewsList
         items={items}
         locale={locale}
-        emptyLabel={t('news.empty')}
+        emptyLabel={messages.news.empty}
         labelledBy={titleId}
       />
     </BentoCard>

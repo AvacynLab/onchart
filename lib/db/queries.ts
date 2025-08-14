@@ -33,6 +33,7 @@ import {
   strategy,
   strategyVersion,
   strategyBacktest,
+  userSettings,
 } from './schema';
 import type { ArtifactKind } from '@/components/artifact';
 import { generateUUID } from '../utils';
@@ -45,8 +46,10 @@ import { ChatSDKError } from '../errors';
 // https://authjs.dev/reference/adapter/drizzle
 
 // biome-ignore lint: Forbidden non-null assertion.
-const client = postgres(process.env.POSTGRES_URL!);
-const db = drizzle(client);
+const client = process.env.POSTGRES_URL
+  ? postgres(process.env.POSTGRES_URL)
+  : undefined;
+const db = client ? drizzle(client) : ({} as any);
 
 export async function getUser(email: string): Promise<Array<User>> {
   try {
@@ -88,6 +91,42 @@ export async function createGuestUser() {
   } catch (error) {
     console.error('failed to create guest user', error);
     return [{ id: generateUUID(), email }];
+  }
+}
+
+// Récupérer la langue préférée d'un utilisateur depuis la base.
+export async function getUserSettings(
+  userId: string,
+): Promise<string | null> {
+  try {
+    if (!process.env.POSTGRES_URL) return null;
+    const [row] = await db
+      .select({ preferredLocale: userSettings.preferredLocale })
+      .from(userSettings)
+      .where(eq(userSettings.userId, userId))
+      .limit(1);
+    return row?.preferredLocale ?? null;
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to get user settings');
+  }
+}
+
+// Enregistrer ou mettre à jour la langue préférée d'un utilisateur.
+export async function setUserPreferredLocale(
+  userId: string,
+  locale: 'fr' | 'en',
+) {
+  if (!process.env.POSTGRES_URL) return;
+  try {
+    await db
+      .insert(userSettings)
+      .values({ userId, preferredLocale: locale, updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: userSettings.userId,
+        set: { preferredLocale: locale, updatedAt: new Date() },
+      });
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to set user preferred locale');
   }
 }
 

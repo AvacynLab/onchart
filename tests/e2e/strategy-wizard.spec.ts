@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
   );
   // Force English locale for this suite via cookie; paths remain unchanged.
   await page.context().addCookies([
-    { name: 'NEXT_LOCALE', value: 'en', domain: 'localhost', path: '/' },
+    { name: 'lang', value: 'en', domain: 'localhost', path: '/' },
   ]);
 });
 
