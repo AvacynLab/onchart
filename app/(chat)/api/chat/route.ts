@@ -108,10 +108,10 @@ function prefixTools(prefix: string, tools: Record<string, Tool>) {
  */
 export function buildFinanceToolMap(ft: ReturnType<typeof createFinanceTools>) {
   const {
+    finance,
     ui: uiTools,
     research: researchTools,
     strategy: strategyTools,
-    ...finance
   } = ft as any;
   return {
     ...prefixTools('finance', finance as Record<string, Tool>),

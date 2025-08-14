@@ -4,22 +4,25 @@ import assert from 'node:assert/strict';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { JSDOM } from 'jsdom';
-import StrategyWizard from '../../components/finance/StrategyWizard';
 
-// Minimal DOM setup for React rendering
+// Establish a minimal DOM environment before running the component so any code
+// executed during import can access `window` and `document` globals.
 const dom = new JSDOM('<!doctype html><html><body></body></html>');
-// @ts-ignore
+// @ts-ignore - attach JSDOM objects to the Node global scope
 globalThis.window = dom.window;
 // @ts-ignore
 globalThis.document = dom.window.document;
-// @ts-ignore
-globalThis.navigator = dom.window.navigator;
 
 function tick() {
   return new Promise((r) => setTimeout(r, 0));
 }
 
 test('collects answers through all steps', async () => {
+  // Dynamically import the component after the JSDOM globals are set.
+  const { default: StrategyWizard } = await import(
+    '../../components/finance/StrategyWizard'
+  );
+
   const container = document.createElement('div');
   let result: any = null;
   createRoot(container).render(

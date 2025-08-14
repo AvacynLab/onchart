@@ -1,23 +1,24 @@
 import { test, expect } from '@playwright/test';
-import Module from 'module';
 
-// Mock finance tools to intercept wizard calls
-const originalLoad = (Module as any)._load;
-(Module as any)._load = function (request: string, parent: any, isMain: boolean) {
-  if (request === '@/lib/ai/tools-finance') {
-    return {
-      createFinanceTools: () => ({
-        strategy: {
-          start_wizard: { execute: async () => ({ question: 'horizon?' }) },
-          propose: {
-            execute: async () => ({ strategy: { id: 's1', title: 'T', status: 'draft' } }),
-          },
-        },
-      }),
-    };
-  }
-  return originalLoad(request, parent, isMain);
-};
+// ---------------------------------------------------------------------------
+// Stub the finance tools module so the strategy wizard API can be exercised
+// without hitting the database. The real implementation dynamically imports
+// `lib/db/queries` which requires a Postgres instance. By overriding
+// `createFinanceTools` before the API route is loaded we can simulate the
+// wizard flow with deterministic outputs.
+// ---------------------------------------------------------------------------
+const tools = require('../../../lib/ai/tools-finance');
+const originalCreateFinanceTools = tools.createFinanceTools;
+tools.createFinanceTools = () => ({
+  strategy: {
+    // Minimal question set to mimic the wizard's first step
+    start_wizard: { execute: async () => ({ question: 'horizon?' }) },
+    // Return a draft strategy without touching the database
+    propose: {
+      execute: async () => ({ strategy: { id: 's1', title: 'T', status: 'draft' } }),
+    },
+  },
+});
 
 /**
  * Ensures the strategy wizard API route orchestrates the start and proposal
@@ -41,5 +42,7 @@ test('runs start_wizard then propose', async () => {
   expect(json.strategy.id).toBe('s1');
 });
 
-// Restore original loader after tests
-(Module as any)._load = originalLoad;
+// Restore the original implementation so other tests receive the real tools
+test.afterAll(() => {
+  tools.createFinanceTools = originalCreateFinanceTools;
+});

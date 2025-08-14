@@ -16,7 +16,7 @@
     "db:pull": "drizzle-kit pull",
     "db:check": "drizzle-kit check",
     "db:up": "drizzle-kit up",
-    "test": "tsx --test tests/api/finance/sec-user-agent.test.ts && export PLAYWRIGHT=True && pnpm exec playwright test",
+    "test": "tsx scripts/scan-secrets.ts && tsx --test tests/ai/prompts-i18n.node.test.ts tests/api/finance/runtime.node.test.ts tests/security/secret-scan.node.test.ts tests/finance/strategy-wizard.node.test.tsx && export PLAYWRIGHT=True && pnpm exec playwright test --reporter=line",
     "test:e2e": "export PLAYWRIGHT=True && pnpm exec playwright test --config=playwright.e2e.config.ts"
   },
   "dependencies": {

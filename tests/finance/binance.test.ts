@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { fetchKlinesBinance } from '../../lib/finance/sources/binance';
+import { invalidateCache } from '../../lib/finance/cache';
 
 /**
  * Binance tests verify retry logic by simulating a transient failure on the
@@ -7,6 +8,11 @@ import { fetchKlinesBinance } from '../../lib/finance/sources/binance';
  */
 test('fetchKlinesBinance retries after failure and parses candles', async () => {
   const originalFetch = global.fetch;
+  // Ensure the request isn't served from cache so the mocked fetch below is
+  // exercised and retry logic is validated deterministically.
+  invalidateCache(
+    'https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=1',
+  );
   let calls = 0;
   global.fetch = (async () => {
     calls += 1;

@@ -40,6 +40,10 @@ export async function fetchStrategies(
 
 /** Fetch strategies across all chats for the current user and group them by chat id. */
 async function fetchStrategiesGrouped(): Promise<StrategyGroup[]> {
+  // In test environments the database connection string is absent. Skip any
+  // queries and return an empty list so the dashboard can render without
+  // hitting Postgres.
+  if (!process.env.POSTGRES_URL) return [];
   try {
     const { auth } = await import('@/app/(auth)/auth');
     const session = await auth();
