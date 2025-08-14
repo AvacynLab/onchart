@@ -1,11 +1,16 @@
 import { test, expect } from '@playwright/test';
 import { fetchDailyStooq } from '../../lib/finance/sources/stooq';
+import { invalidateCache } from '../../lib/finance/cache';
 
 /**
  * Stooq tests stub the CSV endpoint and force one failure to ensure the
  * retry logic in {@link fetchWithRetry} is exercised.
  */
 test('fetchDailyStooq retries and parses CSV data', async () => {
+  // Ensure no cached value short-circuits the network fetch so the retry logic
+  // is exercised deterministically.
+  invalidateCache('https://stooq.com/q/d/l/?s=aapl.us&i=d');
+
   const originalFetch = global.fetch;
   let calls = 0;
   global.fetch = (async () => {

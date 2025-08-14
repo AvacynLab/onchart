@@ -10,7 +10,7 @@ Parfait. Voici la **checklist exhaustive et cochable**, **fichier par fichier**,
 
 # 0) Garde-fous & critères d’acceptation (globaux)
 
-* [x] **Public-only** : aucune clé/token, pas de tier privé.
+* [ ] **Public-only** : aucune clé/token, pas de tier privé.
   **Critères** : scan repo → 0 motif `api[_-]?key|x-api-key|bearer`.
 * [ ] **Build & tests** : `pnpm build` OK, `pnpm test` OK (unit, API, AI/tools, E2E).
 * [ ] **FR/EN** 100% (middleware + provider + messages + formats Intl).
@@ -23,40 +23,40 @@ Parfait. Voici la **checklist exhaustive et cochable**, **fichier par fichier**,
 
 ## 1.1 `next-intl.config.ts` (racine)
 
-* [x] Créer/vérifier qu’il **existe** et **exporte** statiquement :
+* [ ] Créer/vérifier qu’il **existe** et **exporte** statiquement :
 
-  * [x] `locales: ['fr','en']`
-  * [x] `defaultLocale: 'fr'`
-  * [x] `localePrefix: 'never'`
+  * [ ] `locales: ['fr','en']`
+  * [ ] `defaultLocale: 'fr'`
+  * [ ] `localePrefix: 'always'` (ou `as-needed`, mais l’un des deux explicitement)
     **Objectif** : Next/Playwright trouvent la config sans magie.
     **Critères** : le serveur E2E **boot** (plus d’erreur “Couldn’t find next-intl config file”).
 
 ## 1.2 `middleware.ts`
 
-* [x] Importer `createMiddleware` depuis `next-intl/middleware`.
-* [x] Importer la config : `import intlConfig from './next-intl.config'`.
-* [x] `export default createMiddleware(intlConfig)`.
-* [x] `export const config = { matcher: ['/((?!api|_next|.*\\..*).*)'] }` (ne pas intercepter `_next`, `api`, assets).
-  **Critères** : négociation via cookie, chemins inchangés.
+* [ ] Importer `createMiddleware` depuis `next-intl/middleware`.
+* [ ] Importer la config : `import intlConfig from './next-intl.config'`.
+* [ ] `export default createMiddleware(intlConfig)`.
+* [ ] `export const config = { matcher: ['/((?!api|_next|.*\\..*).*)'] }` (ne pas intercepter `_next`, `api`, assets).
+  **Critères** : navigation `/fr`/`/en` OK, pas d’interception indue.
 
 ## 1.3 `i18n/config.ts`
 
-* [x] Exporter **statique** (non dérivé dynamiquement) :
+* [ ] Exporter **statique** (non dérivé dynamiquement) :
 
-  * [x] `export const locales = ['fr','en'] as const;`
-  * [x] `export const defaultLocale = 'fr' as const;`
+  * [ ] `export const locales = ['fr','en'] as const;`
+  * [ ] `export const defaultLocale = 'fr' as const;`
     **Critères** : tests et SSR peuvent lire ces constantes sans import circulaire.
 
 ## 1.4 `app/layout.tsx`
 
-* [x] Envelopper l’app via le **provider next-intl**.
-* [x] Charger les `messages` selon `locale`.
+* [ ] Envelopper l’app via le **provider next-intl**.
+* [ ] Charger les `messages` selon `locale`.
   **Critères** : labels traduits, formats `Intl` alignés sur la locale.
 
 ## 1.5 Dictionnaires
 
-* [x] `messages/fr/common.json`, `messages/en/common.json` existants et cohérents.
-* [x] Ajouter si manquants : `messages/fr/{dashboard,finance}.json`, `messages/en/{dashboard,finance}.json`.
+* [ ] `messages/fr/common.json`, `messages/en/common.json` existants et cohérents.
+* [ ] Ajouter si manquants : `messages/fr/{dashboard,finance}.json`, `messages/en/{dashboard,finance}.json`.
   **Critères** : aucune clé manquante à l’exécution (warning console interdit).
 
 ---
@@ -65,20 +65,19 @@ Parfait. Voici la **checklist exhaustive et cochable**, **fichier par fichier**,
 
 ## 2.1 `app/(chat)/api/chat/route.ts`
 
-* [x] **Déstructurer** :
+* [ ] **Déstructurer** :
 
-  * [x] `const { ui: uiTools, research: researchTools, strategy: strategyTools, ...finance } = ft;`
-* [x] **Mapper** :
+  * [ ] `const { ui: uiTools, research: researchTools, strategy: strategyTools, ...finance } = ft;`
+* [ ] **Mapper** :
 
-  * [x] `...prefixTools('finance', finance)`
-  * [x] `...prefixTools('ui', uiTools)`
-  * [x] `...prefixTools('research', researchTools)`
-  * [x] `...prefixTools('strategy', strategyTools)`
-* [x] **Activer** (si filtrage) :
+  * [ ] `...prefixTools('finance', finance)`
+  * [ ] `...prefixTools('ui', uiTools)`
+  * [ ] `...prefixTools('research', researchTools)`
+  * [ ] `...prefixTools('strategy', strategyTools)`
+* [ ] **Activer** (si filtrage) :
 
-  * [x] `experimental_activeTools: Object.keys(financeToolMap)`
+  * [ ] `experimental_activeTools: Object.keys(financeToolMap)`
     **Objectif** : rendre accessibles **finance.***, **ui.***, **research.***, **strategy.***.
-    **Critères** : l’agent appelle `strategy.start_wizard`/`backtest`/`refine` sans erreur “tool not found”.
 
 ---
 
@@ -86,9 +85,9 @@ Parfait. Voici la **checklist exhaustive et cochable**, **fichier par fichier**,
 
 ## 3.1 `app/(chat)/api/finance/**/route.ts`
 
-* [x] **En tête de chaque fichier** :
+* [ ] **En tête de chaque fichier** :
 
-  * [x] `export const runtime = 'nodejs'`
+  * [ ] `export const runtime = 'nodejs'`
     **Objectif** : scrapers sur Node (Yahoo/SEC/RSS/Binance REST/WS).
     **Critères** : toutes les routes scannées contiennent ce flag (audit passe).
 
@@ -98,21 +97,21 @@ Parfait. Voici la **checklist exhaustive et cochable**, **fichier par fichier**,
 
 ## 4.1 `lib/ai/tools-finance.ts`
 
-* [x] **Sections présentes** et nommées **exactement** ainsi (pour matcher `prefixTools`) :
+* [ ] **Sections présentes** et nommées **exactement** ainsi (pour matcher `prefixTools`) :
 
-  * [x] `finance: { get_quote, get_ohlc, compute_indicators, compute_risk, get_fundamentals, get_filings, news, search_symbol }`
-  * [x] `ui: { show_chart, add_annotation, remove_annotation, focus_area }` (doit émettre **`emitUIEvent`**)
-  * [x] `research: { create, add_section, update_section, finalize, get }`
-  * [x] `strategy: { start_wizard, propose, backtest, refine, finalize, list, get }`
-* [x] **Validation d’entrées** via **`zod`** :
+  * [ ] `finance: { get_quote, get_ohlc, compute_indicators, compute_risk, get_fundamentals, get_filings, news, search_symbol }`
+  * [ ] `ui: { show_chart, add_annotation, remove_annotation, focus_area }` (doit émettre **`emitUIEvent`**)
+  * [ ] `research: { create, add_section, update_section, finalize, get }`
+  * [ ] `strategy: { start_wizard, propose, backtest, refine, finalize, list, get }`
+* [ ] **Validation d’entrées** via **`zod`** :
 
-  * [x] symbol, timeframe, périodes indicateurs, params backtest (coûts, slippage), filtres filings/news, etc.
-* [x] **Persistance** via `persistAnalysis(...)` :
+  * [ ] symbol, timeframe, périodes indicateurs, params backtest (coûts, slippage), filtres filings/news, etc.
+* [ ] **Persistance** via `persistAnalysis(...)` :
 
-  * [x] wizard / propose → trace
-  * [x] backtest (params + résultats/metrics)
-  * [x] refine (delta params + nouveaux résultats)
-  * [x] finalize (version retenue)
+  * [ ] wizard / propose → trace
+  * [ ] backtest (params + résultats/metrics)
+  * [ ] refine (delta params + nouveaux résultats)
+  * [ ] finalize (version retenue)
     **Objectif** : robustesse contre entrées invalides + traçabilité.
     **Critères** : erreurs `zod` claires, “Mes analyses/stratégies” se remplissent au fil des tools.
 
@@ -122,17 +121,19 @@ Parfait. Voici la **checklist exhaustive et cochable**, **fichier par fichier**,
 
 ## 5.1 `lib/ai/prompts.ts`
 
-  * [x] **FR** (textuel détectable) :
-    * [x] “Données **publiques**, **non garanties** (Yahoo/SEC/RSS). **Pas un conseil en investissement.**”
-    * [x] “Préciser la **timeframe** avant `ui.show_chart`.”
-    * [x] “Utiliser `compute_indicators` pour l’AT.”
-    * [x] “Structurer : **Résumé, Contexte, Données, Graphiques, Signaux, Risques, Sources**.”
-  * [x] **EN** (miroir) :
-    * [x] “Data is **public** and **not guaranteed**. **Not financial advice.**”
-    * [x] “Specify **timeframe** before `ui.show_chart`.”
-    * [x] “Use `compute_indicators` for TA.”
-    * [x] “Structure: **Summary, Context, Data, Charts, Signals, Risks, Sources**.”
-* [x] **Locale** propagée au builder du prompt.
+* [ ] **FR** (textuel détectable) :
+
+  * [ ] “Données **publiques**, **non garanties** (Yahoo/SEC/RSS). **Pas un conseil en investissement.**”
+  * [ ] “Préciser la **timeframe** avant `ui.show_chart`.”
+  * [ ] “Utiliser `compute_indicators` pour l’AT.”
+  * [ ] “Structurer : **Résumé, Contexte, Données, Graphiques, Signaux, Risques, Sources**.”
+* [ ] **EN** (miroir) :
+
+  * [ ] “Data is **public** and **not guaranteed**. **Not financial advice.**”
+  * [ ] “Specify **timeframe** before `ui.show_chart`.”
+  * [ ] “Use `compute_indicators` for TA.”
+  * [ ] “Structure: **Summary, Context, Data, Charts, Signals, Risks, Sources**.”
+* [ ] **Locale** propagée au builder du prompt.
   **Critères** : tests `prompts-i18n` valident FR/EN.
 
 ---
@@ -141,23 +142,23 @@ Parfait. Voici la **checklist exhaustive et cochable**, **fichier par fichier**,
 
 ## 6.1 `lib/finance/sources/{yahoo.ts,stooq.ts,binance.ts,sec.ts,news.ts}`
 
-* [x] **Timeout** 10s (AbortController).
-* [x] **Retries** 2× (backoff exponentiel + jitter).
-* [x] **Fallbacks** :
+* [ ] **Timeout** 10s (AbortController).
+* [ ] **Retries** 2× (backoff exponentiel + jitter).
+* [ ] **Fallbacks** :
 
-  * [x] OHLC : Yahoo → Stooq (daily), message clair en dégradé.
-  * [x] Crypto : Binance **WS** → fallback **REST klines**.
-* [x] **Sanitize** (news) côté serveur si nécessaire (cheerio).
+  * [ ] OHLC : Yahoo → Stooq (daily), message clair en dégradé.
+  * [ ] Crypto : Binance **WS** → fallback **REST klines**.
+* [ ] **Sanitize** (news) côté serveur si nécessaire (cheerio).
   **Critères** : tests unitaires de retry/fallback **verts** (mocks).
 
 ## 6.2 `lib/finance/cache.ts`
 
-* [x] TTL **intraday 10–15s**, **daily 5–10 min**.
+* [ ] TTL **intraday 10–15s**, **daily 5–10 min**.
   **Critères** : pas de spam réseau, rafraîchis prédictibles.
 
 ## 6.3 `lib/finance/rate-limit.ts`
 
-* [x] Rate limit par **domaine** (Yahoo/SEC…).
+* [ ] Rate limit par **domaine** (Yahoo/SEC…).
   **Critères** : pas de 429 lors des runs de tests.
 
 ---
@@ -257,7 +258,7 @@ Parfait. Voici la **checklist exhaustive et cochable**, **fichier par fichier**,
 
 **`components/finance/ChartPanel.tsx`**
 
-* [ ] `import { createChart } from 'lightweight-charts`.
+* [ ] `import { createChart } from 'lightweight-charts'`.
 * [ ] API `ref` : `setData`, `addOverlay`, `addStudy`, `addAnnotation`, `focusArea`.
 * [ ] Resize, crosshair events, timeScale nav.
   **Critères** : `ui.show_chart` + `ui.add_annotation` visibles.
@@ -313,14 +314,14 @@ Parfait. Voici la **checklist exhaustive et cochable**, **fichier par fichier**,
 
 ## 12.1 Finance (unit)
 
-* [x] `tests/finance/yahoo.test.ts` — OHLC/quotes (mocks, fallback).
-* [x] `tests/finance/stooq.test.ts` — daily fallback.
-* [x] `tests/finance/binance.test.ts` — WS parse + REST klines fallback.
-* [x] `tests/finance/sec.test.ts` — parsing filings basique.
-* [x] `tests/finance/indicators.test.ts` — valeurs connues.
-* [x] `tests/finance/risk.test.ts` — ratios.
-* [x] `tests/finance/strategies.test.ts` — règles de base.
-* [x] `tests/finance/backtest.test.ts` — **CAGR/Sharpe/Sortino/MDD/PF/Hit-rate**.
+* [ ] `tests/finance/yahoo.test.ts` — OHLC/quotes (mocks, fallback).
+* [ ] `tests/finance/stooq.test.ts` — daily fallback.
+* [ ] `tests/finance/binance.test.ts` — WS parse + REST klines fallback.
+* [ ] `tests/finance/sec.test.ts` — parsing filings basique.
+* [ ] `tests/finance/indicators.test.ts` — valeurs connues.
+* [ ] `tests/finance/risk.test.ts` — ratios.
+* [ ] `tests/finance/strategies.test.ts` — règles de base.
+* [ ] `tests/finance/backtest.test.ts` — **CAGR/Sharpe/Sortino/MDD/PF/Hit-rate**.
 
 ## 12.2 API
 
@@ -357,45 +358,10 @@ Parfait. Voici la **checklist exhaustive et cochable**, **fichier par fichier**,
 * [ ] Spécs **`strategy.*`**, **`ui.*`**, **`research.*`** : args/retours, exemples FR/EN, cas d’erreur `zod`.
 * [ ] Limites scraping public (rate-limit/TTL), disclaimers.
 
-### Tool specs
-
-#### `strategy.*`
-- `start_wizard({ horizon, risk, universe, fees, drawdown, constraints })`
-  - Récupère les préférences utilisateur et renvoie un `id` de stratégie.
-- `propose({ id })` → proposition initiale basée sur les réponses du wizard.
-- `backtest({ id, params })` → exécute un backtest; retourne `metrics` et `equity`.
-- `refine({ id, tweaks })` → ajuste les paramètres et renvoie la nouvelle proposition.
-- `finalize({ id })` → marque la stratégie comme validée.
-
-**FR** : `strategy.backtest` renvoie `{ metrics: { cagr: 0.12 }, equity: [...] }`.
-
-**EN** : `strategy.refine` -> `{ summary: "lower drawdown", id: "s1" }`.
-
-Erreurs `zod` : `{ "message": "Invalid fees" }` si `fees < 0`.
-
-#### `ui.*`
-- `show_chart({ symbol, timeframe })` → ouvre un graphique.
-- `add_annotation({ id, text, at })` → ajoute une note.
-- `remove_annotation({ id })` → supprime la note.
-- `focus_area({ from, to })` → zoome sur une période.
-
-#### `research.*`
-- `create({ title })` → initialise une recherche.
-- `add_section({ id, heading, content })` → ajoute une section.
-- `update_section({ id, sectionId, content })` → modifie une section.
-- `finalize({ id })` → clôt la recherche.
-- `get({ id })` → renvoie la recherche complète.
-
-### Scraping limits
-- Chaque source publique applique un **rate‑limit par domaine**.
-- Cache : **10–15 s** pour l’intraday, **5–10 min** pour le daily.
-- Les routes finance utilisent des **retries** (2×) et un **timeout** de 10 s.
-- Aucune clé ou endpoint privé n’est utilisé.
-
 ## 14.2 `README.md`
 
 * [ ] Disclaimer FR/EN (public data / not financial advice).
-* [ ] i18n : changer de langue sans préfixes `/fr` ou `/en`.
+* [ ] i18n : changer de langue, routing `/fr`/`/en`.
 * [ ] Captures dashboard/tuiles, scripts de test, variables env non-sensibles.
   **Critères** : onboarding limpide pour dev & QA.
 
@@ -406,23 +372,13 @@ Erreurs `zod` : `{ "message": "Invalid fees" }` si `fees < 0`.
 * [x] **`next-intl.config.ts`** complet + **`middleware.ts`** branché.
 * [x] **`i18n/config.ts`** exports statiques (`locales`, `defaultLocale`).
 * [x] **`lib/ai/tools-finance.ts`** : exposer **`finance: { ... }`** textuellement (éviter la construction dynamique qui trompe les scanners/tests).
-* [x] **Re-lancer la suite Playwright** : le boot WebServer ne doit plus échouer.
+* [ ] **Re-lancer la suite Playwright** : le boot WebServer ne doit plus échouer.
 
 Ensuite, dérouler les sections scrapers/UX/tests/A11y jusqu’au **vert intégral** et à un agent FT/TA qui **agit sur le chart** et **itère des stratégies** avec backtests propres.
 
 ---
 
-## History
+## Historique
 
-- Reset checklist, removed binary Geist font files, and switched layout to load fonts from the `geist` package.
-- Renamed Node test files and adjusted test script so unit tests run via `tsx`; updated secret scanner exclusions and verified node-based suites pass.
-- Switched layout to load Geist fonts locally from `node_modules` and reran tests so Playwright no longer attempts to fetch Google Fonts.
-- Adjusted Playwright E2E config to use `next-intl` request settings and French headers; added locale cookie setup in dashboard tests, though dashboard and strategy wizard specs still fail to locate UI controls.
-- Aligned the JavaScript Next-Intl config with the TypeScript variant, setting `localePrefix: 'as-needed'` so the dev server and tooling resolve locales consistently; dashboard and strategy wizard E2E specs still 404 and require further debugging.
-- Removed URL locale prefixes by switching `localePrefix` to `'never'`, updating the language switcher to rely on cookies, and adapting E2E tests and documentation to the new routing.
-- Unified locale routing by setting `localePrefix: 'as-needed'` across configs and skipped font loading when `PLAYWRIGHT` is set so tests run without hitting Google Fonts.
-- Verified finance system prompts contain FR/EN disclaimers and time-frame guidance; installed Playwright browsers though E2E runs still hit port conflicts.
-- Reworked local font loading to avoid Google fetches and checked off scraper TTL, retry, fallback, and rate-limit tasks; reran unit finance tests (E2E specs still failing).
-- Restored cookie-based locales by setting `localePrefix: 'never'` again and updating middleware, Playwright config, and E2E tests to drop route-based language prefixes.
-- Fixed JSDOM setup in `strategy-wizard` node test by importing the component after attaching `window`/`document` globals, allowing the test runner to reach Playwright suites (dashboard and strategy wizard E2E specs still failing).
-- Switched `next-intl` to `localePrefix: 'never'` in both TypeScript and JavaScript configs to serve French at the root path; installed Playwright browsers and system deps, though E2E suites still require port overrides to run reliably.
+* 2025-05-14: initialisation de la checklist.
+* 2025-05-14: alignement i18n (`as-needed`), mise à jour tests & cache Stooq; échec Playwright (libs système manquantes).

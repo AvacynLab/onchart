@@ -6,10 +6,11 @@
 const intlConfig = {
   locales: ['fr', 'en'],
   defaultLocale: 'fr',
-  // Avoid locale-specific URL segments; negotiation happens via cookies or the
-  // `Accept-Language` header. The application renders French at the root `/`
-  // while still allowing other locales to be selected without path redirects.
-  localePrefix: 'never',
+  // Expose English pages under `/en` while serving French content from the
+  // root `/`. Other locales would also receive a path prefix when added.
+  // Using `as-needed` keeps the default locale segment-free but still
+  // generates predictable URLs for non-default languages.
+  localePrefix: 'as-needed',
 } as const;
 
 export default intlConfig;

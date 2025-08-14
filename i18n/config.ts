@@ -11,11 +11,10 @@ export type Locale = (typeof locales)[number];
 const i18n = {
   locales,
   defaultLocale,
-  // Keep URLs identical across locales and rely on the `NEXT_LOCALE` cookie or
-  // `Accept-Language` header to select the active language. This mirrors the
-  // `next-intl.config.ts` used by middleware and tooling while avoiding route
-  // conflicts.
-  localePrefix: 'never',
+// Serve the default French locale at the root path while prefixing other
+// locales such as English under `/en`. Using `as-needed` ensures predictable
+// URLs for non-default languages without cluttering the default route.
+  localePrefix: 'as-needed',
 } as const;
 
 export default i18n;

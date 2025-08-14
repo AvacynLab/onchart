@@ -12,8 +12,8 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://fonts.gstatic.com/*', (route) =>
     route.fulfill({ status: 200, body: '' }),
   );
-  // Force the default locale to French for each test run so the middleware
-  // renders `/` in French without needing path redirects.
+  // Force the default locale to French for each test run so navigating to `/`
+  // immediately renders French content.
   await page.context().addCookies([
     { name: 'NEXT_LOCALE', value: 'fr', domain: 'localhost', path: '/' },
   ]);
@@ -61,10 +61,11 @@ test('renders tiles and switches locales', async ({ page }) => {
     }),
   ).toBeVisible();
 
-  // Switch to English via the header language switcher. The URL stays the same;
-  // only the translations change based on the updated `NEXT_LOCALE` cookie.
+  // Switch to English via the header language switcher. The URL gains the
+  // `/en` prefix since non-default locales are prefixed when using
+  // `localePrefix: 'as-needed'`.
   await page.getByRole('link', { name: 'EN' }).click();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/en$/);
 
   // Headings should now be translated to English.
   await expect(
