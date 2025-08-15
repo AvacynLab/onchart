@@ -50,6 +50,14 @@ préfixes `/fr` ou `/en`).
 Un sélecteur de langue dans l’entête du dashboard met à jour ce cookie pour
 basculer instantanément entre les locales.
 
+Pour tester une locale spécifique en local :
+
+1. Ouvrir les DevTools du navigateur → **Application** → **Cookies**.
+2. Ajouter ou modifier `lang` avec `en` ou `fr`.
+3. Recharger la page ; le serveur utilise d’abord ce cookie, puis
+   `Accept-Language`, et enfin la préférence éventuelle enregistrée en base de
+   données.
+
 ## Model Providers
 
 This template ships with [xAI](https://x.ai) `grok-2-1212` as the default chat model. However, with the [AI SDK](https://sdk.vercel.ai/docs), you can switch LLM providers to [OpenAI](https://openai.com), [Anthropic](https://anthropic.com), [Cohere](https://cohere.com/), and [many more](https://sdk.vercel.ai/providers/ai-sdk-providers) with just a few lines of code.
@@ -101,6 +109,13 @@ pnpm test:e2e
 - `node --test` exécute les tests unitaires (Node.js test runner).
 - `pnpm test` lance la suite end-to-end Playwright.
 - `pnpm test:e2e` permet de cibler uniquement les scénarios Playwright end-to-end.
+
+Deux scripts de garde-fous s’exécutent automatiquement avant les tests E2E :
+
+- `scripts/ci/ensure-no-only-fixme.ts` échoue si un test est marqué `.only` ou
+  `fixme`/`skip`.
+- `scripts/ci/count-tests.ts` vérifie que le nombre de tests reste supérieur au
+  seuil attendu.
 
 ## Disclaimer
 

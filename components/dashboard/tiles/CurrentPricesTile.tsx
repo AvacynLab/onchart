@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useEffect, useState, useId } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
@@ -69,14 +69,15 @@ export function PricesClient({
   }, [initialQuotes]);
 
   return (
-    <BentoCard title={t('title')} titleId={titleId}>
+    <BentoCard
+      title={t('title')}
+      titleId={titleId}
+      titleTestId="tile-prices-title"
+    >
       {quotes.length === 0 ? (
         <PricesTileEmpty message={t('empty')} />
       ) : (
-        <table
-          className="w-full text-sm"
-          aria-labelledby={titleId}
-        >
+        <table className="w-full text-sm" aria-labelledby={titleId}>
           <thead>
             <tr>
               <th className="text-left">{t('symbol')}</th>

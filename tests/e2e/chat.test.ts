@@ -151,15 +151,11 @@ test.describe('Chat activity', () => {
     expect(assistantMessage.content).toContain("It's just blue duh!");
   });
 
-  test('auto-scrolls to bottom after submitting new messages', async () => {
-    test.fixme();
-    await chatPage.sendMultipleMessages(5, (i) => `filling message #${i}`);
+  test('auto-scrolls to bottom after submitting new messages', async () => {    await chatPage.sendMultipleMessages(5, (i) => `filling message #${i}`);
     await chatPage.waitForScrollToBottom();
   });
 
-  test('scroll button appears when user scrolls up, hides on click', async () => {
-    test.fixme();
-    await chatPage.sendMultipleMessages(5, (i) => `filling message #${i}`);
+  test('scroll button appears when user scrolls up, hides on click', async () => {    await chatPage.sendMultipleMessages(5, (i) => `filling message #${i}`);
     await expect(chatPage.scrollToBottomButton).not.toBeVisible();
 
     await chatPage.scrollToTop();

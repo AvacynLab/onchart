@@ -22,10 +22,9 @@ export async function fetchStrategies(
     // Build the absolute URL to the API using either the deployed Vercel domain
     // or the port of the local dev server. Playwright sets `PORT` explicitly so
     // internal fetches work during tests.
-    const baseUrl =
-      process.env.NEXT_PUBLIC_VERCEL_URL
-        ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-        : `http://localhost:${process.env.PORT ?? 3000}`;
+    const baseUrl = process.env.NEXT_PUBLIC_VERCEL_URL
+      ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
+      : `http://localhost:${process.env.PORT ?? 3000}`;
     const params = new URLSearchParams({ chatId });
     if (cursor) params.set('cursor', cursor);
     const res = await fetch(
@@ -180,6 +179,7 @@ export default async function StrategiesTile({
   const locale = await getLocale();
   const messages = locale === 'en' ? (en as any) : (fr as any);
   const titleId = `strategies-${Math.random().toString(36).slice(2)}`;
+  const titleTestId = 'tile-strategies-title';
   if (chatId) {
     const page = await fetchStrategies(chatId);
     return (
@@ -188,12 +188,17 @@ export default async function StrategiesTile({
         chatId={chatId}
         initialCursor={page.nextCursor}
         titleId={titleId}
+        titleTestId={titleTestId}
       />
     );
   }
   const groups = await fetchStrategiesGrouped();
   return (
-    <BentoCard title={messages.strategies.title} titleId={titleId}>
+    <BentoCard
+      title={messages.strategies.title}
+      titleId={titleId}
+      titleTestId={titleTestId}
+    >
       <StrategyGroupList
         groups={groups}
         labelledBy={titleId}
@@ -202,4 +207,3 @@ export default async function StrategiesTile({
     </BentoCard>
   );
 }
-

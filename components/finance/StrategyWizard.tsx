@@ -2,21 +2,25 @@
 
 import React, { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { z } from 'zod';
 
 /**
- * Answers collected from the strategy creation wizard.
+ * Schema describing the answers collected from the strategy creation wizard.
+ * The `constraints` field is optional so tests can omit it when not needed.
  */
-export interface WizardAnswers {
-  horizon: string;
-  risk: string;
-  universe: string;
+const wizardSchema = z.object({
+  horizon: z.string(),
+  risk: z.string(),
+  universe: z.string(),
   /** Estimated fees or slippage percentage. */
-  fees: number;
+  fees: z.number(),
   /** Maximum acceptable drawdown percentage. */
-  drawdown: number;
+  drawdown: z.number(),
   /** Additional constraints such as ESG or trading frequency. */
-  constraints: string;
-}
+  constraints: z.string().optional(),
+});
+
+export type WizardAnswers = z.infer<typeof wizardSchema>;
 
 interface Props {
   /** Callback invoked when the wizard collects all answers. */
@@ -37,14 +41,10 @@ export default function StrategyWizard({ onComplete }: Props) {
     universe: '',
     fees: 0,
     drawdown: 0,
-    constraints: '',
+    constraints: undefined,
   });
 
-  const fields: Array<{
-    label: string;
-    name: keyof WizardAnswers;
-    type: string;
-  }> = [
+  const fields: Array<{ label: string; name: keyof WizardAnswers; type: string }> = [
     { label: t('horizon'), name: 'horizon', type: 'text' },
     { label: t('risk'), name: 'risk', type: 'text' },
     { label: t('universe'), name: 'universe', type: 'text' },
@@ -54,7 +54,6 @@ export default function StrategyWizard({ onComplete }: Props) {
   ];
 
   const current = fields[step];
-
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleSubmit(e: React.FormEvent) {
@@ -66,7 +65,9 @@ export default function StrategyWizard({ onComplete }: Props) {
     if (step < fields.length - 1) {
       setStep(step + 1);
     } else {
-      onComplete?.(nextAnswers);
+      // Validate collected answers before forwarding them to the parent.
+      const parsed = wizardSchema.parse(nextAnswers);
+      onComplete?.(parsed);
     }
   }
 
@@ -76,9 +77,10 @@ export default function StrategyWizard({ onComplete }: Props) {
         {current.label}
         <input
           name={current.name}
+          data-testid={current.name === 'constraints' ? 'constraints-input' : undefined}
           type={current.type}
           ref={inputRef}
-          defaultValue={answers[current.name] as string | number}
+          defaultValue={answers[current.name] as string | number | undefined}
           className="border rounded px-2 py-1"
         />
       </label>
@@ -88,4 +90,3 @@ export default function StrategyWizard({ onComplete }: Props) {
     </form>
   );
 }
-

@@ -3,21 +3,8 @@ import { Toaster } from 'sonner';
 import type { Metadata } from 'next';
 import { ThemeProvider } from '@/components/theme-provider';
 import { NextIntlClientProvider } from 'next-intl';
-// Messages are loaded manually below; no need for next-intl helpers that
-// require a project-level config file.
-import { headers } from 'next/headers';
-import { locales, defaultLocale, type Locale } from '@/i18n/config';
-import { auth } from '@/app/(auth)/auth';
-import { getUserSettings } from '@/lib/db/queries';
+import { getMessages, getLocale } from 'next-intl/server';
 import localFont from 'next/font/local';
-import frCommon from '../messages/fr/common.json' assert { type: 'json' };
-import frDashboard from '../messages/fr/dashboard.json' assert { type: 'json' };
-import frFinance from '../messages/fr/finance.json' assert { type: 'json' };
-import frChat from '../messages/fr/chat.json' assert { type: 'json' };
-import enCommon from '../messages/en/common.json' assert { type: 'json' };
-import enDashboard from '../messages/en/dashboard.json' assert { type: 'json' };
-import enFinance from '../messages/en/finance.json' assert { type: 'json' };
-import enChat from '../messages/en/chat.json' assert { type: 'json' };
 
 // Load Geist fonts locally to avoid external network requests (e.g. Google
 // Fonts) so builds and tests can run offline. When Playwright sets the
@@ -83,46 +70,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Déterminer la langue : priorité à celle stockée en base pour un
-  // utilisateur connecté, sinon lecture du cookie `lang`, puis fallback sur la
-  // locale par défaut.
-  const headerList = await headers();
-  const cookieLocale = headerList
-    .get('cookie')
-    ?.split(';')
-    .map((c) => c.trim())
-    .find((c) => c.startsWith('lang='))
-    ?.split('=')[1] as Locale | undefined;
-  // In Playwright tests we skip the NextAuth session lookup to avoid async
-  // hooks that can trigger React "suspended thenable" errors when no auth
-  // provider is configured.
-  const session = process.env.PLAYWRIGHT ? null : await auth();
-  let locale: Locale | undefined;
-  if (session?.user?.id) {
-    const preferred = await getUserSettings(session.user.id);
-    if (preferred && locales.includes(preferred as Locale)) {
-      locale = preferred as Locale;
-    }
-  }
-  if (!locale) {
-    locale = cookieLocale && locales.includes(cookieLocale)
-      ? cookieLocale
-      : defaultLocale;
-  }
-  const messages =
-    locale === 'en'
-      ? {
-          common: enCommon,
-          dashboard: enDashboard,
-          finance: enFinance,
-          chat: enChat,
-        }
-      : {
-          common: frCommon,
-          dashboard: frDashboard,
-          finance: frFinance,
-          chat: frChat,
-        };
+  // Resolve the active locale and its message bundles using the configuration
+  // in `i18n/request.ts`. This ensures that the language chosen by the
+  // middleware (cookie, database or Accept-Language) is honoured consistently
+  // for both server and client components.
+  const locale = await getLocale();
+  const messages = await getMessages();
   return (
     <html
       lang={locale}

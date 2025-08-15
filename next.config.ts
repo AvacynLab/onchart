@@ -6,9 +6,13 @@ import createNextIntlPlugin from 'next-intl/plugin';
 // resolve locales for each request.
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
+// Disable Partial Pre-rendering during Playwright runs to avoid
+// `clientModules` hydration errors in the production build used for tests.
+const isPlaywright = Boolean(process.env.PLAYWRIGHT);
+
 const nextConfig: NextConfig = {
   experimental: {
-    ppr: true,
+    ppr: !isPlaywright,
     // Providing an empty `turbo` object ensures the next-intl plugin injects
     // its alias under `experimental.turbo` instead of the deprecated
     // top-level `turbopack` key, avoiding "unrecognized option" warnings in

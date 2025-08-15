@@ -3,7 +3,9 @@
 import React, { useState, useId } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import BentoCard from '../BentoCard';
-import StrategyWizard, { type WizardAnswers } from '@/components/finance/StrategyWizard';
+import StrategyWizard, {
+  type WizardAnswers,
+} from '@/components/finance/StrategyWizard';
 import StrategyCard from '@/components/finance/StrategyCard';
 import type { Strategy } from '@/lib/db/schema';
 import StrategiesTileEmpty from '../empty/StrategiesTileEmpty';
@@ -15,6 +17,8 @@ interface Props {
   chatId?: string;
   /** id of the title element so lists can reference it */
   titleId?: string;
+  /** Optional test id attached to the tile heading. */
+  titleTestId?: string;
 }
 
 /**
@@ -26,11 +30,14 @@ export default function StrategiesTileClient({
   initialCursor,
   chatId,
   titleId: externalTitleId,
+  titleTestId,
 }: Props) {
   const t = useTranslations('dashboard.strategies');
   const locale = useLocale();
   const [items, setItems] = useState<Strategy[]>(initial);
-  const [cursor, setCursor] = useState<string | null | undefined>(initialCursor);
+  const [cursor, setCursor] = useState<string | null | undefined>(
+    initialCursor,
+  );
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   // Generate a title id if the parent did not provide one.
@@ -72,7 +79,10 @@ export default function StrategiesTileClient({
         { cache: 'no-store' },
       );
       if (res.ok) {
-        const page = (await res.json()) as { items: Strategy[]; nextCursor: string | null };
+        const page = (await res.json()) as {
+          items: Strategy[];
+          nextCursor: string | null;
+        };
         setItems((prev) => [...prev, ...page.items]);
         setCursor(page.nextCursor);
       }
@@ -113,6 +123,7 @@ export default function StrategiesTileClient({
     <BentoCard
       title={t('title')}
       titleId={titleId}
+      titleTestId={titleTestId}
       actions={
         <button
           type="button"
@@ -132,4 +143,3 @@ export default function StrategiesTileClient({
     </BentoCard>
   );
 }
-

@@ -39,5 +39,14 @@
     "mdd": "MDD",
     "hitRate": "Hit rate",
     "profitFactor": "Profit factor"
+  },
+  "research": {
+    "summary": "Summary",
+    "market-context": "Market Context",
+    "data": "Data",
+    "charts": "Charts",
+    "signals": "Signals",
+    "risks": "Risks",
+    "sources": "Sources"
   }
 }
