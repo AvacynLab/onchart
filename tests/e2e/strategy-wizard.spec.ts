@@ -73,7 +73,11 @@ test('completes strategy wizard flow', async ({ page }) => {
   }
 
   // Final step: additional constraints.
-  await page.locator('input[name="constraints"]').fill('ESG');
+  const constraints = page.locator('input[name="constraints"]');
+  // Wait explicitly for the constraints field to appear before interacting to
+  // avoid flakiness when the wizard transitions between steps.
+  await expect(constraints).toBeVisible();
+  await constraints.fill('ESG');
   await page.locator('form button[type="submit"]').click();
 
   // The mocked response should cause the new strategy to appear in the list.
