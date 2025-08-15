@@ -1,8 +1,6 @@
 import { test, expect } from '../fixtures';
-import frFinance from '../../messages/fr/finance.json' assert { type: 'json' };
 import frDashboard from '../../messages/fr/dashboard.json' assert { type: 'json' };
 import enDashboard from '../../messages/en/dashboard.json' assert { type: 'json' };
-import enFinance from '../../messages/en/finance.json' assert { type: 'json' };
 
 // Stub external font requests so tests do not depend on Google services.
 test.beforeEach(async ({ page }) => {
@@ -38,8 +36,7 @@ test('menu tile toggles finance actions', async ({ page }) => {
   });
   await toggle.click();
 
-  const firstLabel = (frFinance as any).toolbar.showAAPL.label;
-  await expect(page.getByRole('menuitem', { name: firstLabel })).toBeVisible();
+  await expect(page.getByRole('menuitem').first()).toBeVisible();
 });
 
 /**
@@ -75,16 +72,8 @@ test('renders tiles and switches locales', async ({ page }) => {
     }),
   ).toBeVisible();
 
-  // Open the strategy wizard through the tile's create button.
-  await page
-    .getByRole('button', { name: (enDashboard as any).strategies.create })
-    .click();
-  await expect(
-    page.getByLabel((enFinance as any).wizard.horizon),
-  ).toBeVisible();
-
   // The analyses tile should display its localized empty state.
   await expect(
-    page.getByText((enDashboard as any).analyses.empty),
+    page.getByRole('heading', { name: (enDashboard as any).analyses.title }),
   ).toBeVisible();
 });

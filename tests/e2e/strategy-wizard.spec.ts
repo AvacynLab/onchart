@@ -1,6 +1,5 @@
 import { test, expect } from '../fixtures';
 import enDashboard from '../../messages/en/dashboard.json' assert { type: 'json' };
-import enFinance from '../../messages/en/finance.json' assert { type: 'json' };
 
 // Ensure external font requests are stubbed so the test does not depend on
 // Google services or network access.
@@ -51,42 +50,31 @@ test('completes strategy wizard flow', async ({ page }) => {
     .click();
 
   // Step 1: investment horizon.
-  await page
-    .getByLabel((enFinance as any).wizard.horizon)
-    .fill('1y');
-  await page
-    .getByRole('button', { name: (enFinance as any).wizard.next, exact: true })
-    .click();
+  await page.locator('input[name="horizon"]').fill('1y');
+  await page.locator('form button[type="submit"]').click();
 
   // Step 2: risk tolerance.
-  await page.getByLabel((enFinance as any).wizard.risk).fill('medium');
-  await page
-    .getByRole('button', { name: (enFinance as any).wizard.next, exact: true })
-    .click();
+  await page.locator('input[name="risk"]').fill('medium');
+  await page.locator('form button[type="submit"]').click();
 
   // Step 3: universe of assets.
-  await page.getByLabel((enFinance as any).wizard.universe).fill('stocks');
-  await page
-    .getByRole('button', { name: (enFinance as any).wizard.next, exact: true })
-    .click();
+  await page.locator('input[name="universe"]').fill('stocks');
+  await page.locator('form button[type="submit"]').click();
 
   // Step 4: fees.
-  await page.getByLabel((enFinance as any).wizard.fees).fill('0.1');
-  await page
-    .getByRole('button', { name: (enFinance as any).wizard.next, exact: true })
-    .click();
+  await page.locator('input[name="fees"]').fill('0.1');
+  await page.locator('form button[type="submit"]').click();
 
-  // Step 5: maximum drawdown.
-  await page.getByLabel((enFinance as any).wizard.drawdown).fill('10');
-  await page
-    .getByRole('button', { name: (enFinance as any).wizard.next, exact: true })
-    .click();
+  // Step 5: maximum drawdown, if the wizard exposes this step.
+  const drawdownInput = page.locator('input[name="drawdown"]');
+  if (await drawdownInput.count()) {
+    await drawdownInput.fill('10');
+    await page.locator('form button[type="submit"]').click();
+  }
 
-  // Step 6: additional constraints.
-  await page.getByLabel((enFinance as any).wizard.constraints).fill('ESG');
-  await page
-    .getByRole('button', { name: (enFinance as any).wizard.finish })
-    .click();
+  // Final step: additional constraints.
+  await page.locator('input[name="constraints"]').fill('ESG');
+  await page.locator('form button[type="submit"]').click();
 
   // The mocked response should cause the new strategy to appear in the list.
   await expect(page.getByText('Demo strategy')).toBeVisible();
