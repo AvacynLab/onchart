@@ -37,7 +37,9 @@ export default defineConfig({
   // Emit progress to the terminal via the lightweight line reporter while
   // still generating an HTML report for deeper debugging when a test fails.
   // Using the array form allows multiple reporters to run in parallel.
-  reporter: [ ['line'], ['html'] ],
+  // Generate an HTML report for failed tests but never open a web server,
+  // allowing CI runs to exit automatically.
+  reporter: [ ['line'], ['html', { open: 'never' }] ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
