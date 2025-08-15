@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 import { getCache, setCache } from '../cache';
 import { rateLimit } from '../rate-limit';
-import fetchWithRetry from '../request';
+import { fetchWithRetry } from '../request';
 
 /**
  * Resolve the User-Agent header required by the SEC when scraping their APIs.
@@ -107,7 +107,7 @@ export async function listFilings(
       const filedAt = recent.filingDate[i];
       const primary = recent.primaryDocument[i];
       const accNo = accession.replace(/-/g, '');
-      const urlDoc = `https://www.sec.gov/Archives/edgar/data/${parseInt(padded, 10)}/${accNo}/${primary}`;
+      const urlDoc = `https://www.sec.gov/Archives/edgar/data/${Number.parseInt(padded, 10)}/${accNo}/${primary}`;
       filings.push({
         accession,
         form,
@@ -169,16 +169,16 @@ export async function fetchCompanyFacts(
   };
   return {
     revenue: latest(
-      facts['Revenues'] ||
-        facts['RevenueFromContractWithCustomerExcludingAssessedTax'],
+      facts.Revenues ||
+        facts.RevenueFromContractWithCustomerExcludingAssessedTax,
       'USD',
     ),
     eps: latest(
-      facts['EarningsPerShareDiluted'] || facts['EarningsPerShareBasic'],
+      facts.EarningsPerShareDiluted || facts.EarningsPerShareBasic,
       'USD',
     ),
-    assets: latest(facts['Assets'], 'USD'),
-    liabilities: latest(facts['Liabilities'], 'USD'),
+    assets: latest(facts.Assets, 'USD'),
+    liabilities: latest(facts.Liabilities, 'USD'),
   };
 }
 

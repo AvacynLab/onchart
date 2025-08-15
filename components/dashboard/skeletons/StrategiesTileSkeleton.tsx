@@ -1,12 +1,13 @@
 import React from 'react';
 import ListTileSkeleton from './ListTileSkeleton';
-import { getTranslations } from 'next-intl/server';
+import fr from '@/messages/fr/dashboard.json' assert { type: 'json' };
+import en from '@/messages/en/dashboard.json' assert { type: 'json' };
 
 /**
  * Skeleton for the strategies tile, translating the title to match the current
  * locale.
  */
-export default async function StrategiesTileSkeleton() {
-  const t = await getTranslations('dashboard');
-  return <ListTileSkeleton title={t('strategies.title')} />;
+export default function StrategiesTileSkeleton({ locale }: { locale: string }) {
+  const messages = locale === 'en' ? (en as any) : (fr as any);
+  return <ListTileSkeleton title={messages.strategies.title} />;
 }

@@ -44,7 +44,7 @@
 ## Internationalisation
 
 L’interface est bilingue **FR/EN**. La langue active est déterminée par le cookie
-`NEXT_LOCALE` ou l’en‑tête `Accept-Language`. Les URLs restent inchangées (pas de
+`lang` ou l’en‑tête `Accept-Language`. Les URLs restent inchangées (pas de
 préfixes `/fr` ou `/en`).
 
 Un sélecteur de langue dans l’entête du dashboard met à jour ce cookie pour

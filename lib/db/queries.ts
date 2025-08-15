@@ -33,6 +33,7 @@ import {
   strategy,
   strategyVersion,
   strategyBacktest,
+  userSettings,
 } from './schema';
 import type { ArtifactKind } from '@/components/artifact';
 import { generateUUID } from '../utils';
@@ -44,9 +45,14 @@ import { ChatSDKError } from '../errors';
 // use the Drizzle adapter for Auth.js / NextAuth
 // https://authjs.dev/reference/adapter/drizzle
 
-// biome-ignore lint: Forbidden non-null assertion.
-const client = postgres(process.env.POSTGRES_URL!);
-const db = drizzle(client);
+let client: any;
+const url = process.env.POSTGRES_URL;
+try {
+  client = url && url !== 'undefined' ? postgres(url) : undefined;
+} catch {
+  client = undefined;
+}
+const db = client ? drizzle(client) : ({} as any);
 
 export async function getUser(email: string): Promise<Array<User>> {
   try {
@@ -88,6 +94,42 @@ export async function createGuestUser() {
   } catch (error) {
     console.error('failed to create guest user', error);
     return [{ id: generateUUID(), email }];
+  }
+}
+
+// Récupérer la langue préférée d'un utilisateur depuis la base.
+export async function getUserSettings(
+  userId: string,
+): Promise<string | null> {
+  try {
+    if (!client) return null;
+    const [row] = await db
+      .select({ preferredLocale: userSettings.preferredLocale })
+      .from(userSettings)
+      .where(eq(userSettings.userId, userId))
+      .limit(1);
+    return row?.preferredLocale ?? null;
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to get user settings');
+  }
+}
+
+// Enregistrer ou mettre à jour la langue préférée d'un utilisateur.
+export async function setUserPreferredLocale(
+  userId: string,
+  locale: 'fr' | 'en',
+) {
+  if (!client) return;
+  try {
+    await db
+      .insert(userSettings)
+      .values({ userId, preferredLocale: locale, updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: userSettings.userId,
+        set: { preferredLocale: locale, updatedAt: new Date() },
+      });
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to set user preferred locale');
   }
 }
 
@@ -440,7 +482,7 @@ export async function deleteMessagesByChatIdAfterTimestamp({
         and(eq(message.chatId, chatId), gte(message.createdAt, timestamp)),
       );
 
-    const messageIds = messagesToDelete.map((message) => message.id);
+    const messageIds = messagesToDelete.map((m: { id: string }) => m.id);
 
     if (messageIds.length > 0) {
       await db
@@ -539,7 +581,7 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
       .orderBy(asc(stream.createdAt))
       .execute();
 
-    return streamIds.map(({ id }) => id);
+    return streamIds.map(({ id }: { id: string }) => id);
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -835,6 +877,12 @@ export async function listStrategiesByChat({
   /** Maximum number of rows to return */
   limit?: number;
 }) {
+  // In test environments the `POSTGRES_URL` may be unset. Avoid attempting a
+  // database query and instead return an empty page so callers can operate
+  // without persistent storage.
+  if (!process.env.POSTGRES_URL) {
+    return { items: [], nextCursor: null };
+  }
   try {
     const rows = await db
       .select()

@@ -116,7 +116,7 @@ export default function FinancePanel({
         rememberSymbol(symbol);
       }
     });
-  }, []);
+  }, [subscribe]);
 
   // Load data whenever the panel is open and the symbol/timeframe change.
   useEffect(() => {
@@ -130,7 +130,7 @@ export default function FinancePanel({
 
   return (
     <aside
-      className="fixed right-0 top-0 h-full w-full md:w-1/3 border-l bg-background p-2 flex flex-col gap-2"
+      className="fixed right-0 top-0 size-full md:w-1/3 border-l bg-background p-2 flex flex-col gap-2"
       data-testid="finance-panel"
     >
       <SymbolRecent

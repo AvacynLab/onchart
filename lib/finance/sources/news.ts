@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio';
-import fetchWithRetry from '../request';
+import { fetchWithRetry } from '../request';
 
 /** News item returned by RSS feeds */
 export interface NewsItem {
@@ -69,5 +69,3 @@ export async function fetchRssFeeds(
 
   return all.sort((a, b) => b.pubDate.getTime() - a.pubDate.getTime());
 }
-
-export default fetchRssFeeds;

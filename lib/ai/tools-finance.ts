@@ -7,7 +7,7 @@ import {
   listFilings as secListFilings,
   searchCompanyCIK,
 } from '../finance/sources/sec';
-import fetchRssFeeds from '../finance/sources/news';
+import { fetchRssFeeds } from '../finance/sources/news';
 import { sma, ema, rsi } from '../finance/indicators';
 import {
   maCrossover,

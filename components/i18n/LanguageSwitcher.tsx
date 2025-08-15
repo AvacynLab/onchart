@@ -1,30 +1,38 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { useLocale } from 'next-intl';
-import i18n from '@/i18n/config';
+import { useRouter } from 'next/navigation';
+import { useTransition } from 'react';
+import { locales } from '@/i18n/config';
+import { updatePreferredLocale } from './actions';
 
 /**
- * Locale switcher that toggles between available languages without relying on
- * URL prefixes. The current route is preserved and `next-intl` sets the
- * `NEXT_LOCALE` cookie when a new locale is chosen.
+ * Switch between locales without relying on URL prefixes. Selecting a language
+ * updates the `lang` cookie, persists the choice for authenticated users and
+ * refreshes the current route so translations update in place.
  */
 export default function LanguageSwitcher() {
-  const pathname = usePathname();
   const locale = useLocale();
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
 
   return (
     <nav aria-label="language switcher" className="flex gap-2">
-      {i18n.locales.map((l) => (
-        <Link
+      {locales.map((l) => (
+        <button
           key={l}
-          href={pathname}
-          locale={l}
+          type="button"
+          disabled={pending}
           className={locale === l ? 'font-bold underline' : ''}
+          onClick={() =>
+            startTransition(async () => {
+              await updatePreferredLocale(l);
+              router.refresh();
+            })
+          }
         >
           {l.toUpperCase()}
-        </Link>
+        </button>
       ))}
     </nav>
   );

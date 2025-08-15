@@ -3,7 +3,8 @@ import { strict as assert } from 'node:assert';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { IntlProvider } from 'next-intl';
-import { AnalysesClient, type AnalysisSummary } from '../../components/dashboard/tiles/AnalysesTile';
+import AnalysesTileClient from '../../components/dashboard/tiles/AnalysesTileClient';
+import type { AnalysisSummary } from '../../components/dashboard/tiles/AnalysesTile';
 
 test('AnalysesClient renders filter controls', () => {
   const items: AnalysisSummary[] = [
@@ -31,7 +32,7 @@ test('AnalysesClient renders filter controls', () => {
   };
   const html = renderToStaticMarkup(
     <IntlProvider locale="en" messages={messages} now={new Date('2024-01-02T00:00:00Z')} timeZone="UTC">
-      <AnalysesClient items={items} titleId="t" />
+      <AnalysesTileClient items={items} titleId="t" />
     </IntlProvider>,
   );
   // Should render a select for type filtering and an input for symbol filtering

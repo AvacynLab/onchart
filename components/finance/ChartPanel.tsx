@@ -1,5 +1,6 @@
 import React, {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
@@ -109,7 +110,7 @@ const ChartPanel = forwardRef<ChartPanelRef, ChartPanelProps>(
     const annotationsRef = useRef<Record<string, { remove: () => void }>>({});
 
     // Helper to add an annotation and keep track of it for later removal.
-    const addAnnotation = (a: ChartAnnotation) => {
+    const addAnnotation = useCallback((a: ChartAnnotation) => {
       const line = seriesRef.current?.createPriceLine({
         price: a.price,
         title: a.text,
@@ -124,21 +125,28 @@ const ChartPanel = forwardRef<ChartPanelRef, ChartPanelProps>(
           remove: () => seriesRef.current?.removePriceLine(line),
         };
       }
-    };
+    }, []);
 
     // Helper to add a line series overlay or study and store a reference so it
     // can be manipulated later.
-    const addLine = (
-      target: React.MutableRefObject<Record<string, ISeriesApi<'Line'>>>,
-      l: ChartLine,
-    ) => {
-      const series = chartRef.current?.addSeries(LineSeries, { color: l.color });
-      series?.setData(l.data);
-      if (series) target.current[l.id] = series;
-    };
+    const addLine = useCallback(
+      (
+        target: React.MutableRefObject<Record<string, ISeriesApi<'Line'>>>,
+        l: ChartLine,
+      ) => {
+        const series = chartRef.current?.addSeries(LineSeries, { color: l.color });
+        series?.setData(l.data);
+        if (series) target.current[l.id] = series;
+      },
+      [],
+    );
 
-    const addOverlay = (o: ChartLine) => addLine(overlayRefs, o);
-    const addStudy = (s: ChartLine) => addLine(studyRefs, s);
+    const addOverlay = useCallback((o: ChartLine) => addLine(overlayRefs, o), [
+      addLine,
+    ]);
+    const addStudy = useCallback((s: ChartLine) => addLine(studyRefs, s), [
+      addLine,
+    ]);
 
     // Create the chart instance on mount.
     useEffect(() => {
@@ -212,7 +220,17 @@ const ChartPanel = forwardRef<ChartPanelRef, ChartPanelProps>(
         mounted = false;
         cleanupRef.current();
       };
-    }, [createChartFn, seriesType]);
+    }, [
+      createChartFn,
+      seriesType,
+      overlays,
+      studies,
+      annotations,
+      addOverlay,
+      addStudy,
+      addAnnotation,
+      symbol,
+    ]);
 
     useImperativeHandle(ref, () => ({
       setData(data) {
@@ -254,22 +272,22 @@ const ChartPanel = forwardRef<ChartPanelRef, ChartPanelProps>(
           chartRef.current?.timeScale().setVisibleRange({ from: start, to: end });
         }
       });
-    }, [symbol]);
+    }, [symbol, addAnnotation]);
 
     // Apply any overlays, studies or annotations provided as props when they
     // change. Using a shallow effect keeps the implementation simple for
     // demonstration purposes; production code might require diffing.
     useEffect(() => {
       overlays?.forEach(addOverlay);
-    }, [overlays]);
+    }, [overlays, addOverlay]);
 
     useEffect(() => {
       studies?.forEach(addStudy);
-    }, [studies]);
+    }, [studies, addStudy]);
 
     useEffect(() => {
       annotations?.forEach(addAnnotation);
-    }, [annotations]);
+    }, [annotations, addAnnotation]);
 
     return <div ref={containerRef} data-testid="chart-panel" />;
   },

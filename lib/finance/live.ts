@@ -1,6 +1,6 @@
 import type { QuoteResult } from './sources/yahoo';
 import { getCache, setCache, INTRADAY_TTL_MS } from './cache';
-import fetchWithRetry from './request';
+import { fetchWithRetry } from './request';
 
 /** Determine if the given symbol should be treated as a crypto pair. */
 export function isCryptoSymbol(symbol: string): boolean {
@@ -10,7 +10,7 @@ export function isCryptoSymbol(symbol: string): boolean {
 /** Convert a hyphenated USD crypto symbol into the Binance stream format. */
 function toBinanceStream(symbol: string): string {
   // BTC-USD -> btcusdt (Binance uses USDT quotes for USD pairs)
-  return symbol.replace('-', '').toLowerCase() + 't';
+  return `${symbol.replace('-', '').toLowerCase()}t`;
 }
 
 /**

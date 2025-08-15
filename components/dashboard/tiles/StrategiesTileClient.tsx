@@ -116,6 +116,7 @@ export default function StrategiesTileClient({
       actions={
         <button
           type="button"
+          data-testid="strategy-create"
           onClick={() => setOpen((v) => !v)}
           className="text-xs underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
         >

@@ -67,4 +67,3 @@ export async function fetchWithRetry(
     : new DataSourceError('Request failed');
 }
 
-export default fetchWithRetry;

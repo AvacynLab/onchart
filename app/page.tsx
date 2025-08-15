@@ -1,4 +1,5 @@
 import React, { Suspense } from 'react';
+import { getLocale } from 'next-intl/server';
 import BentoGrid from '@/components/dashboard/BentoGrid';
 import CurrentPricesTile from '@/components/dashboard/tiles/CurrentPricesTile';
 import { DEFAULT_SYMBOLS } from '@/lib/finance/default-symbols';
@@ -12,7 +13,7 @@ import StrategiesTileSkeleton from '@/components/dashboard/skeletons/StrategiesT
 import AnalysesTileSkeleton from '@/components/dashboard/skeletons/AnalysesTileSkeleton';
 import LanguageSwitcher from '@/components/i18n/LanguageSwitcher';
 import { fetchLiveQuotes, type QuoteResult } from '@/lib/finance/live';
-import fetchRssFeeds, { type NewsItem } from '@/lib/finance/sources/news';
+import { fetchRssFeeds, type NewsItem } from '@/lib/finance/sources/news';
 
 /**
  * Dashboard landing page exposing the Bento layout.
@@ -64,22 +65,23 @@ export default async function HomePage({
     }
   }
 
+  const locale = await getLocale();
   return (
     <>
       <div className="p-4">
         <LanguageSwitcher />
       </div>
       <BentoGrid>
-        <Suspense fallback={<PricesTileSkeleton />}>
+        <Suspense fallback={<PricesTileSkeleton locale={locale} />}>
           <CurrentPricesTile initialQuotes={quotes} />
         </Suspense>
-        <Suspense fallback={<NewsTileSkeleton />}>
+        <Suspense fallback={<NewsTileSkeleton locale={locale} />}>
           <NewsTile items={news} />
         </Suspense>
-        <Suspense fallback={<StrategiesTileSkeleton />}>
+        <Suspense fallback={<StrategiesTileSkeleton locale={locale} />}>
           <StrategiesTile chatId={params?.chatId} />
         </Suspense>
-        <Suspense fallback={<AnalysesTileSkeleton />}>
+        <Suspense fallback={<AnalysesTileSkeleton locale={locale} />}>
           <AnalysesTile chatId={params?.chatId} />
         </Suspense>
         <MenuTile />

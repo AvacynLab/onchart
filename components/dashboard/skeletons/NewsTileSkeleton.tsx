@@ -1,12 +1,13 @@
 import React from 'react';
 import ListTileSkeleton from './ListTileSkeleton';
-import { getTranslations } from 'next-intl/server';
+import fr from '@/messages/fr/dashboard.json' assert { type: 'json' };
+import en from '@/messages/en/dashboard.json' assert { type: 'json' };
 
 /**
- * Skeleton placeholder for the news tile. Title is resolved through
- * `next-intl` so the loading state matches the active locale.
+ * Skeleton placeholder for the news tile. The title adapts to the active
+ * locale so loading states remain bilingual.
  */
-export default async function NewsTileSkeleton() {
-  const t = await getTranslations('dashboard');
-  return <ListTileSkeleton title={t('news.title')} />;
+export default function NewsTileSkeleton({ locale }: { locale: string }) {
+  const messages = locale === 'en' ? (en as any) : (fr as any);
+  return <ListTileSkeleton title={messages.news.title} />;
 }
