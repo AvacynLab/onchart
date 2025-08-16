@@ -11,10 +11,10 @@ export type Locale = (typeof locales)[number];
 const i18n = {
   locales,
   defaultLocale,
-// Serve the default French locale at the root path while prefixing other
-// locales such as English under `/en`. Using `as-needed` ensures predictable
-// URLs for non-default languages without cluttering the default route.
-  localePrefix: 'as-needed',
+// Serve both French and English from the same root path. Locale negotiation
+// occurs via the `lang` cookie or `Accept-Language` headers rather than URL
+// prefixes, so no language codes appear in the path.
+  localePrefix: 'never',
 } as const;
 
 export default i18n;

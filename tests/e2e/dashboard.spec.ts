@@ -1,6 +1,10 @@
 import { test, expect } from '../fixtures';
-import frDashboard from '../../messages/fr/dashboard.json' assert { type: 'json' };
-import enDashboard from '../../messages/en/dashboard.json' assert { type: 'json' };
+import frDashboard from '../../messages/fr/dashboard.json' assert {
+  type: 'json',
+};
+import enDashboard from '../../messages/en/dashboard.json' assert {
+  type: 'json',
+};
 
 // Stub external font requests so tests do not depend on Google services.
 test.beforeEach(async ({ page }) => {
@@ -10,11 +14,22 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://fonts.gstatic.com/*', (route) =>
     route.fulfill({ status: 200, body: '' }),
   );
-  // Force the default locale to French for each test run so navigating to `/`
-  // immediately renders French content.
-  await page.context().addCookies([
-    { name: 'lang', value: 'fr', domain: 'localhost', path: '/' },
-  ]);
+  // Mock the live quote API to keep tests hermetic and avoid hitting real
+  // network providers. Returning a single deterministic quote is sufficient
+  // because the dashboard test only asserts that the tile hydrates.
+  await page.route('**/api/finance/quote*', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        symbol: 'AAPL',
+        price: 100,
+        change: 0,
+        changePercent: 0,
+        marketState: 'REG',
+      }),
+    }),
+  );
 });
 
 /**
@@ -26,18 +41,15 @@ test('menu tile toggles finance actions', async ({ page }) => {
   // headers and leaves the path unchanged.
   await page.goto('/');
   await expect(page).toHaveURL(/\/$/);
-  // Ensure all client scripts have hydrated before interacting with the menu
-  // toggle. Without waiting for hydration the click would be a no-op and the
-  // menu items would never render, causing the test to time out.
-  await page.waitForLoadState('networkidle');
+
+  // Wait for the menu toggle to render which signals that client-side
+  // hydration completed. Relying on `networkidle` is brittle because the
+  // dashboard may open long-lived connections (e.g. websockets).
+  const toggle = page.getByTestId('tile-menu-toggle');
+  await expect(toggle).toBeVisible();
 
   // The overlay toolbar should no longer render globally.
   await expect(page.locator('[role="toolbar"]')).toHaveCount(0);
-
-  // The menu tile exposes its toggle button with a localized label.
-  const toggle = page.getByRole('button', {
-    name: (frDashboard as any).menu.toggle,
-  });
   await toggle.click();
 
   // Rather than querying for menu items directly (which can be flaky if
@@ -53,38 +65,45 @@ test('menu tile toggles finance actions', async ({ page }) => {
  * specifics while still asserting localized labels.
  */
 test('renders tiles and switches locales', async ({ page }) => {
-  // Start from the default French dashboard. The root `/` route resolves to
-  // French without an explicit locale prefix.
+  // Force English via cookie before navigating so the server renders the page
+  // in English on first load.
+  await page
+    .context()
+    .addCookies([
+      // Specify the full URL so Playwright automatically assigns the
+      // cookie's domain and path, avoiding mismatches with the test
+      // server host.
+      { name: 'lang', value: 'en', url: 'http://localhost:3110/' },
+    ]);
   await page.goto('/');
   await expect(page).toHaveURL(/\/$/);
 
-  // The "Current prices" heading should appear in French.
-  await expect(
-    page.getByRole('heading', {
-      name: (frDashboard as any).prices.title,
-    }),
-  ).toBeVisible();
-
-  // Switch to English via the header language switcher. Capture the current
-  // URL and ensure it remains unchanged after the locale update, proving that
-  // language negotiation no longer relies on path prefixes.
-  const currentUrl = page.url();
-  await page.getByRole('button', { name: 'EN', exact: true }).click();
-  // Reload the page so the server can render the dashboard with the new
-  // `lang` cookie. The URL should remain unchanged, proving that locale
-  // selection no longer relies on path prefixes.
-  await page.reload();
-  await expect(page).toHaveURL(currentUrl);
-
-  // Headings should now be translated to English.
+  // The "Current prices" heading should appear in English. Waiting for the
+  // heading ensures the page finished hydrating without relying on network
+  // idleness which can hang when background requests remain open.
   await expect(
     page.getByRole('heading', {
       name: (enDashboard as any).prices.title,
     }),
   ).toBeVisible();
 
+  // Switch to French via the header language switcher. Capture the current URL
+  // and ensure it remains unchanged after the locale update, proving that
+  // language negotiation no longer relies on path prefixes.
+  const currentUrl = page.url();
+  await page.getByRole('button', { name: 'FR', exact: true }).click();
+  await page.reload();
+  await expect(page).toHaveURL(currentUrl);
+
+  // Headings should now be translated to French.
+  await expect(
+    page.getByRole('heading', {
+      name: (frDashboard as any).prices.title,
+    }),
+  ).toBeVisible();
+
   // The analyses tile should display its localized empty state.
   await expect(
-    page.getByRole('heading', { name: (enDashboard as any).analyses.title }),
+    page.getByRole('heading', { name: (frDashboard as any).analyses.title }),
   ).toBeVisible();
 });

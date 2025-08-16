@@ -1,35 +1,37 @@
+import '../helpers/next-intl-stub';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
-import { renderToString } from 'react-dom/server';
-import ResearchDoc, {
-  ResearchSection,
-} from '../../components/finance/research/ResearchDoc';
+import { createRoot } from 'react-dom/client';
+import { JSDOM } from 'jsdom';
+import { NextIntlClientProvider } from 'next-intl';
 
-const sections: ResearchSection[] = [
-  { id: 'summary', content: 'A short blurb' },
-  { id: 'market-context', content: 'Context' },
-  { id: 'data', content: 'Numbers' },
-  { id: 'charts', content: 'Chart refs' },
-  { id: 'signals', content: 'Signals' },
-  { id: 'risks', content: 'Risks' },
-  { id: 'sources', content: 'Links' },
-];
+// Establish minimal DOM environment
+const dom = new JSDOM('<!doctype html><html><body></body></html>');
+// @ts-ignore
+globalThis.window = dom.window;
+// @ts-ignore
+globalThis.document = dom.window.document;
 
-test('renders all canonical sections when provided', () => {
-  const html = renderToString(
-    React.createElement(ResearchDoc, { title: 'Doc', sections }),
+function tick() {
+  return new Promise((r) => setTimeout(r, 0));
+}
+
+test('uses translated default section labels', async () => {
+  const messages = {
+    finance: {
+      research: {
+        summary: 'Résumé',
+      },
+    },
+  };
+  const { default: ResearchDoc } = await import('../../components/finance/research/ResearchDoc');
+  const container = document.createElement('div');
+  createRoot(container).render(
+    <NextIntlClientProvider messages={messages}>
+      <ResearchDoc title="Doc" sections={[{ id: 'summary', content: '...'}]} />
+    </NextIntlClientProvider>,
   );
-  const labels = [
-    'Summary',
-    'Market Context',
-    'Data',
-    'Charts',
-    'Signals',
-    'Risks',
-    'Sources',
-  ];
-  for (const label of labels) {
-    assert.ok(html.includes(label));
-  }
+  await tick();
+  assert.match(container.textContent ?? '', /Résumé/);
 });

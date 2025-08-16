@@ -16,8 +16,9 @@
     "db:pull": "drizzle-kit pull",
     "db:check": "drizzle-kit check",
     "db:up": "drizzle-kit up",
-    "test": "tsx scripts/scan-secrets.ts && tsx --test tests/ai/prompts-i18n.node.test.ts tests/api/finance/runtime.node.test.ts tests/security/secret-scan.node.test.ts tests/finance/strategy-wizard.node.test.tsx && export PLAYWRIGHT=True && pnpm exec playwright test --reporter=line",
-    "test:e2e": "export PLAYWRIGHT=True && pnpm exec playwright test --config=playwright.e2e.config.ts"
+    "test:unit": "tsx scripts/scan-secrets.ts && tsx --test tests/ai/prompts-i18n.node.test.ts tests/api/finance/runtime.node.test.ts tests/security/secret-scan.node.test.ts tests/finance/strategy-wizard.node.test.tsx tests/i18n/cookie-locale.test.ts tests/i18n/accept-language.test.ts tests/i18n/db-locale.test.ts tests/db/user-settings.test.ts",
+    "test:e2e": "tsx scripts/ci/ensure-no-only-fixme.ts && tsx scripts/ci/count-tests.ts && PLAYWRIGHT=True OTEL_SDK_DISABLED=1 pnpm exec playwright test",
+    "test": "pnpm test:unit && pnpm test:e2e"
   },
   "dependencies": {
     "@ai-sdk/cerebras": "^1.0.3",

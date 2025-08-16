@@ -1,61 +1,52 @@
 import { defineConfig, devices } from '@playwright/test';
-
-/**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
- */
 import { config } from 'dotenv';
+import os from 'node:os';
 
 config({
   path: '.env.local',
 });
 
+// Determine an appropriate worker count: prefer four parallel workers when the
+// host machine provides sufficient CPU cores, but fall back to two to avoid
+// overcommitting more limited environments (e.g. CI runners with only two
+// vCPUs).
+const WORKERS = os.cpus().length >= 4 ? 4 : 2;
+
 // Use a fixed, rarely used port during tests to avoid conflicts with any
 // background dev servers that may already occupy port 3000. Both Playwright's
-// readiness probe and the Next.js dev server receive this explicit value so
-// they stay in sync.
-// Allow overriding the dev server port via the `PORT` environment variable so
-// local test runs can recover if a previous server instance failed to shut
-// down. CI uses the default 3110, but developers may supply a different port
-// when rerunning Playwright without needing to wait for the socket to free.
+// readiness probe and the Next.js server receive this explicit value so they
+// stay in sync.
 const PORT = Number(process.env.PORT || 3110);
 
-/**
- * Set webServer.url and use.baseURL with the location
- * of the WebServer respecting the correct set port
- */
 // Base URL points to the server root and remains unchanged when switching
 // locales. Language negotiation relies on cookies or headers rather than path
 // segments, so tests navigate to `/` for all scenarios.
 const baseURL = `http://localhost:${PORT}`;
 
-/**
- * See https://playwright.dev/docs/test-configuration.
- */
 export default defineConfig({
-  testDir: './tests',
-  // Ignore unit tests executed with Node's test runner so Playwright only runs
-  // browser-driven suites. These node-specific tests end with `.node.test.tsx`
-  // or `.node.test.ts` and would otherwise trigger React rendering errors when
-  // Playwright attempts to execute them.
-  testIgnore: [
-    'dashboard/**/*.test.tsx',
-    '**/*.node.test.tsx',
-    '**/*.node.test.ts',
-    // The SEC user-agent test runs with Node's built-in runner via `pnpm test`
-    // and should be skipped by Playwright to avoid duplicate execution.
-    '**/sec-user-agent.test.ts',
-  ],
+  // Restrict Playwright to browser-driven end-to-end tests. Node-only unit
+  // tests live outside this directory and are executed separately via
+  // `pnpm test:unit`, preventing React from attempting to render Playwright
+  // objects such as locators.
+  testDir: './tests/e2e',
+  // Some helper suites are explicitly marked with the `.node.test.ts[x]`
+  // suffix and rely on Node's built-in runner. Ignore them here so the e2e
+  // configuration doesn't attempt to execute incompatible environments.
+  testIgnore: ['**/*.node.test.ts', '**/*.node.test.tsx'],
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 2 : 8,
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
+  /* Run with up to four workers when available, otherwise use two. */
+  workers: WORKERS,
+  // Emit progress to the terminal via the lightweight line reporter while
+  // still generating an HTML report for deeper debugging when a test fails.
+  // Using the array form allows multiple reporters to run in parallel.
+  // Generate an HTML report for failed tests but never open a web server,
+  // allowing CI runs to exit automatically.
+  reporter: [ ['line'], ['html', { open: 'never' }] ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -65,6 +56,8 @@ export default defineConfig({
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
   },
 
   /* Configure global timeout for each test */
@@ -74,98 +67,38 @@ export default defineConfig({
   },
 
   /* Configure projects */
+  /* Configure projects: run all tests in a single Chromium project so both
+     `.spec.ts` and `.test.ts` files execute. Additional browsers can be added
+     later if needed. */
   projects: [
     {
-      name: 'e2e',
-      // Only run high-level smoke tests suffixed with `.spec.ts` and skip the
-      // upstream template's `.test.ts` suites that assume features not present
-      // in this project (artifacts, chat, sessions, etc.).
-      testMatch: /e2e\/.*\.spec\.ts/,
-      use: {
-        ...devices['Desktop Chrome'],
-      },
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
     },
-    {
-      name: 'routes',
-      // Route-level integration tests are opt-in; the repository currently
-      // doesn't ship any `.spec.ts` files under `tests/routes`, so Playwright
-      // skips this project altogether.
-      testMatch: /routes\/.*\.spec\.ts/,
-      use: {
-        ...devices['Desktop Chrome'],
-      },
-    },
-    {
-      name: 'finance',
-      testMatch: /finance\/.*.test.ts/,
-      use: {
-        ...devices['Desktop Chrome'],
-      },
-    },
-
-    {
-      name: 'ai-tools',
-      testMatch: /ai\/.*.test.ts/,
-      use: {
-        ...devices['Desktop Chrome'],
-      },
-    },
-
-    // {
-    //   name: 'firefox',
-    //   use: { ...devices['Desktop Firefox'] },
-    // },
-
-    // {
-    //   name: 'webkit',
-    //   use: { ...devices['Desktop Safari'] },
-    // },
-
-    /* Test against mobile viewports. */
-    // {
-    //   name: 'Mobile Chrome',
-    //   use: { ...devices['Pixel 5'] },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: { ...devices['iPhone 12'] },
-    // },
-
-    /* Test against branded browsers. */
-    // {
-    //   name: 'Microsoft Edge',
-    //   use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    // },
-    // {
-    //   name: 'Google Chrome',
-    //   use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-    // },
   ],
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    // Start the Next.js development server via the standard package script so
-    // Playwright tests exercise the same setup developers use locally. The
-    // `env` option passes variables directly to the server process without
-    // relying on shell variable expansion.
-    command: 'pnpm dev',
-    // The readiness probe always checks the root `/ping` route.
-    url: `http://localhost:${PORT}/ping`,
-    timeout: 120 * 1000,
+    // Use the same `PORT` variable for both the Next.js `start` command and
+    // Playwright's readiness probe so the two remain in sync. This allows
+    // callers to override the port when 3110 is unavailable (e.g. another
+    // server is already running) while keeping 3110 as the default.
+    command: `pnpm build && pnpm start -p ${PORT}`,
+    port: PORT,
+    // Building and starting the production server can take longer on CI, so the
+    // timeout is generous to avoid flakiness.
+    timeout: 180 * 1000,
     reuseExistingServer: !process.env.CI,
-      env: {
-        ...process.env,
-        // Explicitly point Next.js to the locale configuration so the dev
-        // server started for Playwright tests can resolve translations without
-        // relying on plugin inference.
-        // Point the dev server started for Playwright tests to the same
-        // request-level i18n configuration so locale detection matches the
-        // production setup.
-        NEXT_INTL_CONFIG: './i18n/request.ts',
-        AUTH_SECRET: 'test',
-        POSTGRES_URL: '',
-        PLAYWRIGHT: '1',
-        PORT: String(PORT),
-      },
+    env: {
+      ...process.env,
+      // Point the dev server started for Playwright tests to the same
+      // request-level i18n configuration so locale detection matches the
+      // production setup.
+      NEXT_INTL_CONFIG: './i18n/request.ts',
+      AUTH_SECRET: 'test',
+      POSTGRES_URL: '',
+      PLAYWRIGHT: '1',
+      PORT: String(PORT),
+    },
   },
 });

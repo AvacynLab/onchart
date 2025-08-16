@@ -26,7 +26,6 @@ export interface AnalysisGroup {
   items: AnalysisSummary[];
 }
 
-
 /**
  * Render analysis summaries grouped by chat with optional last-message context.
  * Exported for unit testing.
@@ -78,7 +77,6 @@ export function AnalysisGroupList({
   );
 }
 
-
 async function fetchAnalyses(chatId?: string): Promise<AnalysisSummary[]> {
   if (!chatId) return [];
   // Avoid importing the database layer when no connection string is provided
@@ -110,9 +108,10 @@ async function fetchAnalyses(chatId?: string): Promise<AnalysisSummary[]> {
       date: r.updatedAt,
     });
 
-    return [...analyses.map(mapAnalysis), ...researchDocs.map(mapResearch)].sort(
-      (a, b) => b.date.getTime() - a.date.getTime(),
-    );
+    return [
+      ...analyses.map(mapAnalysis),
+      ...researchDocs.map(mapResearch),
+    ].sort((a, b) => b.date.getTime() - a.date.getTime());
   } catch (err) {
     console.error('failed to load analyses', err);
     return [];
@@ -130,10 +129,8 @@ async function fetchAnalysesGrouped(): Promise<AnalysisGroup[]> {
     const { auth } = await import('@/app/(auth)/auth');
     const session = await auth();
     if (!session) return [];
-    const {
-      listAnalysesAndResearchByUser,
-      getLastMessagesByChatIds,
-    } = await import('@/lib/db/queries');
+    const { listAnalysesAndResearchByUser, getLastMessagesByChatIds } =
+      await import('@/lib/db/queries');
     const rows = await listAnalysesAndResearchByUser({
       userId: session.user.id,
     });
@@ -195,18 +192,27 @@ export default async function AnalysesTile({
   // Generate a deterministic id for accessibility without relying on React
   // hooks (server components cannot use `useId`).
   const titleId = `analyses-${Math.random().toString(36).slice(2)}`;
+  const titleTestId = 'tile-analyses-title';
 
   if (chatId) {
     const items = await fetchAnalyses(chatId);
     return (
-      <BentoCard title={messages.analyses.title} titleId={titleId}>
+      <BentoCard
+        title={messages.analyses.title}
+        titleId={titleId}
+        titleTestId={titleTestId}
+      >
         <AnalysesTileClient items={items} titleId={titleId} />
       </BentoCard>
     );
   }
   const groups = await fetchAnalysesGrouped();
   return (
-    <BentoCard title={messages.analyses.title} titleId={titleId}>
+    <BentoCard
+      title={messages.analyses.title}
+      titleId={titleId}
+      titleTestId={titleTestId}
+    >
       <AnalysisGroupList
         groups={groups}
         locale={locale}

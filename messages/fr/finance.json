@@ -39,5 +39,14 @@
     "mdd": "DD max",
     "hitRate": "Taux de réussite",
     "profitFactor": "Facteur de profit"
+  },
+  "research": {
+    "summary": "Résumé",
+    "market-context": "Contexte de marché",
+    "data": "Données",
+    "charts": "Graphiques",
+    "signals": "Signaux",
+    "risks": "Risques",
+    "sources": "Sources"
   }
 }

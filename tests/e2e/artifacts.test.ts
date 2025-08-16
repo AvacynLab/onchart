@@ -13,9 +13,7 @@ test.describe('Artifacts activity', () => {
     await chatPage.createNewChat();
   });
 
-  test('Create a text artifact', async () => {
-    test.fixme();
-    await chatPage.createNewChat();
+  test('Create a text artifact', async () => {    await chatPage.createNewChat();
 
     await chatPage.sendUserMessage(
       'Help me write an essay about Silicon Valley',
@@ -32,9 +30,7 @@ test.describe('Artifacts activity', () => {
     await chatPage.hasChatIdInUrl();
   });
 
-  test('Toggle artifact visibility', async () => {
-    test.fixme();
-    await chatPage.createNewChat();
+  test('Toggle artifact visibility', async () => {    await chatPage.createNewChat();
 
     await chatPage.sendUserMessage(
       'Help me write an essay about Silicon Valley',
@@ -52,9 +48,7 @@ test.describe('Artifacts activity', () => {
     await chatPage.isElementNotVisible('artifact');
   });
 
-  test('Send follow up message after generation', async () => {
-    test.fixme();
-    await chatPage.createNewChat();
+  test('Send follow up message after generation', async () => {    await chatPage.createNewChat();
 
     await chatPage.sendUserMessage(
       'Help me write an essay about Silicon Valley',

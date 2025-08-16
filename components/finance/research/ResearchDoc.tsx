@@ -20,27 +20,34 @@ export interface ResearchDocProps {
   sections: ResearchSection[];
 }
 
-// Canonical order of sections expected by the finance agent.
-const SECTION_ORDER: Array<{ id: string; label: string }> = [
-  { id: 'summary', label: 'Summary' },
-  { id: 'market-context', label: 'Market Context' },
-  { id: 'data', label: 'Data' },
-  { id: 'charts', label: 'Charts' },
-  { id: 'signals', label: 'Signals' },
-  { id: 'risks', label: 'Risks' },
-  { id: 'sources', label: 'Sources' },
-];
+import { useTranslations } from 'next-intl';
+
+// Ordered list of canonical section identifiers expected by the finance agent.
+// The default labels are resolved at runtime via i18n so that empty sections
+// render translated headings in both French and English.
+const SECTION_ORDER = [
+  'summary',
+  'market-context',
+  'data',
+  'charts',
+  'signals',
+  'risks',
+  'sources',
+] as const;
 
 export default function ResearchDoc({ title, sections }: ResearchDocProps) {
+  const t = useTranslations('finance.research');
+
   return (
     <article aria-label={title} className="space-y-6">
       <h2 className="text-xl font-semibold">{title}</h2>
-      {SECTION_ORDER.map(({ id, label }) => {
+      {SECTION_ORDER.map((id) => {
         const section = sections.find((s) => s.id === id);
         if (!section) return null;
+        const label = section.title ?? t(id);
         return (
           <section key={id} className="space-y-2">
-            <h3 className="text-lg font-medium">{section.title ?? label}</h3>
+            <h3 className="text-lg font-medium">{label}</h3>
             <p className="whitespace-pre-wrap text-sm">{section.content}</p>
           </section>
         );

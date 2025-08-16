@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useEffect, useRef, useId } from 'react';
 import { useLocale } from 'next-intl';
@@ -16,11 +16,13 @@ import enFinance from '@/messages/en/finance.json' assert { type: 'json' };
  */
 export default function MenuTile() {
   const locale = useLocale();
-  const dashboard = locale === 'en' ? (enDashboard as any) : (frDashboard as any);
+  const dashboard =
+    locale === 'en' ? (enDashboard as any) : (frDashboard as any);
   const finance = locale === 'en' ? (enFinance as any) : (frFinance as any);
   // Simple dot-notation resolver used by `getFinanceToolbarItems` for
   // translations stored in JSON objects.
-  const t = (path: string) => path.split('.').reduce((acc: any, key) => acc[key], finance);
+  const t = (path: string) =>
+    path.split('.').reduce((acc: any, key) => acc[key], finance);
   const items = getFinanceToolbarItems(t);
   const { isVisible, setIsVisible } = useToolbarStore();
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -42,6 +44,7 @@ export default function MenuTile() {
     <BentoCard
       title={dashboard.menu.title}
       titleId={titleId}
+      titleTestId="tile-menu-title"
       actions={
         <button
           ref={buttonRef}
@@ -51,6 +54,7 @@ export default function MenuTile() {
           aria-expanded={isVisible}
           aria-controls="dashboard-menu-list"
           className="text-xs underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+          data-testid="tile-menu-toggle"
           onClick={() => setIsVisible((v) => !v)}
         >
           {isVisible ? dashboard.menu.close : dashboard.menu.open}

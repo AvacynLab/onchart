@@ -17,6 +17,8 @@ interface BentoCardProps {
    * `aria-labelledby`.
    */
   titleId?: string;
+  /** Optional test id applied to the heading for stable E2E selectors. */
+  titleTestId?: string;
 }
 
 /**
@@ -29,6 +31,7 @@ export default function BentoCard({
   actions,
   children,
   titleId,
+  titleTestId,
 }: BentoCardProps) {
   // Always call `useId` to satisfy the React Hooks rules then fall back to the
   // generated value only when the caller did not provide a custom identifier.
@@ -40,7 +43,11 @@ export default function BentoCard({
       aria-labelledby={headingId}
     >
       <div className="flex items-center justify-between mb-2">
-        <h2 id={headingId} className="text-sm font-semibold">
+        <h2
+          id={headingId}
+          className="text-sm font-semibold"
+          data-testid={titleTestId}
+        >
           {title}
         </h2>
         {actions}

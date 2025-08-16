@@ -110,7 +110,11 @@ export default function NewsTile({ items }: { items: NewsItem[] }) {
   const titleId = `news-${Math.random().toString(36).slice(2)}`;
 
   return (
-    <BentoCard title={messages.news.title} titleId={titleId}>
+    <BentoCard
+      title={messages.news.title}
+      titleId={titleId}
+      titleTestId="tile-news-title"
+    >
       <NewsList
         items={items}
         locale={locale}

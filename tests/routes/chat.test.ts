@@ -313,9 +313,7 @@ test.describe
     test('Babbage can resume a public chat generation that belongs to Ada', async ({
       adaContext,
       babbageContext,
-    }) => {
-      test.fixme();
-      const chatId = generateUUID();
+    }) => {      const chatId = generateUUID();
 
       const firstRequest = adaContext.request.post('/api/chat', {
         data: {
