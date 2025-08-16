@@ -1,20 +1,25 @@
-// Minimal instrumentation file to satisfy Next.js runtime expectations.
-// Next.js will load this module if present and look for a `clientModules` array
-// and optional hooks such as `register`.  We don't need any instrumentation, but
-// providing these named exports prevents `undefined.clientModules` errors during
-// startup.
-// Export a `clientModules` array even if empty so Next.js won't attempt to
-// access the property on an undefined export.
+// Minimal instrumentation stub used to satisfy Next.js runtime expectations.
+// Next.js will attempt to import this module in the production server and read
+// its `clientModules` and `register` named exports.  When these exports are
+// missing, the framework tries to access `undefined.clientModules`, producing
+// the runtime error seen in the E2E logs.
+
+/**
+ * List of client modules to preload.  Our application does not make use of this
+ * feature, but exporting an empty array ensures the property exists on the
+ * module object.
+ */
 export const clientModules: string[] = [];
 
-// No-op register function.  Next.js may call this during boot if defined, so we
-// provide an empty async function to keep the expected interface while avoiding
-// side effects.
+/**
+ * Next.js will invoke this hook during server start-up if present.  We supply a
+ * no‑op implementation to preserve the expected signature while avoiding any
+ * side effects or dependencies.
+ */
 export async function register(): Promise<void> {
-  // Intentionally empty.
+  // intentionally empty
 }
 
-// Next.js expects a default export with `clientModules` and `register` fields.
-// Without this object, the framework reads these properties from `undefined`
-// and the app crashes during start-up.
-export default { register, clientModules };
+// Note: no default export is provided.  Next.js reads the named exports directly
+// and providing a default object can lead to the framework destructuring from an
+// unexpected layer, causing `undefined.clientModules` at runtime.
