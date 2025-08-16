@@ -1,306 +1,359 @@
-Parfait — je reprends tout ce qu’on a établi (audit code + logs E2E) et j’ajoute la **réintégration des tests “fixme”** pour que **tout** soit couvert. Voilà la **checklist complète, détaillée et cochable**, **fichier par fichier**, avec sous-étapes, objectifs et critères d’acceptation.
-Contraintes maintenues : **même URL** pour toutes les langues (pas de `/fr` ou `/en`), **sources publiques seulement** (Yahoo/Stooq/Binance/SEC/RSS) et **scrapers maison**.
+Super clair — merci pour les logs et la version antérieure. J’ai dézippé et passé en revue **les deux archives** :
 
-Avant tout appel à `ui.show_chart`, l’agent doit préciser la **timeframe** souhaitée.
-L’agent respecte toujours la locale active (FR ou EN) et s’appuie uniquement sur des
-**sources publiques** pour récupérer les données financières.
+* `/mnt/data/onchart-alpha-0.1.zip` → projet actuel (`onchart-alpha-0.1/`)
+* `/mnt/data/ai-chatbot-main.zip` → base antérieure (`ai-chatbot-main/`)
 
----
+Ci-dessous :
 
-# 0) Objectifs globaux (terminer quand tout est vert)
-
-* [ ] **Build & tests** : `pnpm build` OK ; `pnpm test` → **0 failed** (unit + API + AI/tools + **tous** les E2E).
-* [ ] **Aucun test masqué** : pas de `test.only`/`describe.only`. Les tests `fixme` ont été **réintégrés** ou **remplacés**.
-* [ ] **I18n** : changement de langue par **cookie et/ou BDD**, **URL inchangée** ; EN/FR cohérents partout.
-* [ ] **Public-only** : aucune clé/API privée ; scrapers robustes (timeout/retry/cache/rate-limit).
+1. un **diagnostic rapide** qui rattache les plantages E2E aux causes probables dans le code,
+2. une **checklist exhaustive, fichier par fichier**, avec sous-étapes, objectifs attendus et corrections à apporter, incluant l’**intégration (et la “fix”) des tests**.
 
 ---
 
-# 1) I18n sans préfixe d’URL : cookie + fallback + BDD
+## 1) Diagnostic rapide (ce qui explique vos logs)
 
-## 1.1 `i18n/request.ts`
+* **500 “Cannot read properties of undefined (reading 'clientModules')”** au chargement de `/`
+  ➜ Dans `onchart-alpha-0.1`, on utilise **next-intl v3 (App Router)** mais il **manque les fichiers clés** pour la config requise par `getLocale()` / `NextIntlClientProvider` :
 
-* [x] **Lire la locale depuis le cookie** `lang` (prioritaire).
-* [x] **Fallback `Accept-Language`** si cookie absent.
-* [x] **(Optionnel/fortement recommandé)** : si user connecté, **prioriser la BDD** (`preferredLocale`).
-* [x] **Charger les bundles** `common`, `dashboard`, `finance`, `chat` selon la locale active.
-  **Objectif** : la home doit afficher **EN** si un cookie `lang=en` existe avant `page.goto('/')`.
-  **Critères** : E2E `dashboard.spec.ts` (switch locales) **passe** ; aucun `/en` dans l’URL.
+  * `i18n/request.ts` (avec `getRequestConfig`)
+  * `i18n/routing.ts` (utilisé par `components/i18n/LanguageSwitcher.tsx`)
+    ➜ De plus, `middleware.ts` est configuré pour **préfixer l’URL par la locale** (ex: `/en`), alors que la consigne (et vos tests récents) exigent **aucun préfixe `/en|/fr`**.
 
-## 1.2 `app/layout.tsx`
+* **Time out Playwright sur `getByTestId('multimodal-input')` et autres boutons**
+  ➜ L’UI ne se monte pas (500 plus haut), donc les éléments testés n’existent pas.
 
-* [x] Garder `NextIntlProvider`.
-* [x] **Ne pas surcharger** la locale via `headers()` si cela ignore le cookie/BDD.
-* [x] S’aligner strictement sur la locale résolue par `i18n/request.ts`.
-  **Critères** : SSR et CSR alignés, pas de “flicker” de langue.
+* **`/register` 500 “Cannot destructure property 'update' of ... useSession()”**
+  ➜ Route NextAuth manquante. On a `app/(auth)/auth.ts` (v5) mais **pas de handler de route** `app/(auth)/api/auth/[...nextauth]/route.ts` qui doit réexporter `handlers`.
 
-## 1.3 `next-intl.config.ts`
+* **`helpers.ts` tente `http://localhost:3000/register`** et “connection refused” dans d’autres runs
+  ➜ **Incohérence de ports** entre le serveur Playwright (WebServer) et les helpers. Il faut un **baseURL unique**, et ne **pas** hardcoder `:3000` dans les tests.
 
-* [x] Vérifier : `locales: ['fr','en']`, `defaultLocale: 'fr'`, **`localePrefix: 'never'`**.
-  **Critères** : jamais de `/fr|/en` dans les URLs.
+* **Tests i18n récents (sans changement d’URL) vs code actuel (avec locales en chemin)**
+  ➜ Vos tests modernes (messages/locale en cookie/DB, pas de `/fr|/en`) sont **incompatibles** avec la `middleware.ts` actuelle + `LanguageSwitcher` basé sur `createLocalizedPathnamesNavigation`.
 
-## 1.4 `middleware.ts`
+* **E2E `dashboard`** : test attend `data-testid="tile-menu-toggle"`
+  ➜ Pas présent dans l’UI actuelle → à ajouter.
 
-* [x] **Aucune** réécriture liée à la langue.
-* [x] (Facultatif) Middleware maison : si **aucun** cookie `lang`, **poser** `lang` depuis `Accept-Language` **sans redirect**.
-  **Critères** : traces Playwright sans redirect i18n.
-
-## 1.5 Messages
-
-* [x] `messages/en/dashboard.json` : `prices.title` = **"Current prices"** (exact).
-* [x] `messages/fr/dashboard.json` : `prices.title` = **"Cours actuels"**.
-  **Critères** : heading détectable en EN/FR selon cookie/BDD.
+* **E2E `chat`** : attente réseau `/api/chat`
+  ➜ Le handler existe (`app/(chat)/api/chat/route.ts`, 👍), mais l’appli ne passe pas la phase i18n/NextAuth, donc on n’atteint pas ce point dans le run.
 
 ---
 
-# 2) Réintégration des **tests fixme** & couverture Playwright
+## 2) Liste de tâches à cocher (agent IA) — **fichier par fichier**, avec sous-étapes & objectifs
 
-## 2.1 **Inventaire & dé-fixation**
-
-* [x] **Scanner le repo** pour `test.fixme(`, `test.skip(`, `describe.fixme(`.
-* [x] **Lister** chaque test (fichier + ligne + motif), **documenter** la raison historique du “fixme”. *(Aucun fixme/skip restant.)*
-* [x] Pour chaque cas, choisir :
-
-  * [x] **Corriger la cause** (flaky sélecteur, attente d’hydratation, réseau non mocké, debouncing non attendu, etc.) et **enlever `fixme`**.
-  * [x] Ou **réécrire** le test avec sélecteurs stables et mocks déterministes.
-    **Critères** : nombre de “fixme/skip” **= 0** dans le dossier `tests/e2e` (ou justifié par un ticket ouvert).
-
-## 2.2 **Sentinelle anti-skip**
-
-* [x] Ajouter un script `scripts/ci/ensure-no-only-fixme.ts` qui **échoue** s’il trouve `.only` ou `fixme/skip` dans `tests/e2e`.
-* [x] Appeler ce script **avant** `pnpm exec playwright test` dans la CI.
-  **Critères** : la CI bloque toute régression (test isolé par erreur, etc.).
-
-## 2.3 **Couverture minimale**
-
-* [x] Script (Node) qui **compte** le nombre de tests exécutables (`tests/**/*.spec.ts` & `tests/**/*.test.ts`) **hors** fixme/skip et **échoue** si < **seuil attendu** (≈85).
-  **Critères** : impossible de “perdre” des tests en silence.
+> Objectifs globaux :
+>
+> * Faire passer **toutes** les suites *unit* + *e2e*.
+> * **Aucune locale dans l’URL**, la langue se pilote par **cookie** (et DB si dispo).
+> * Rester **100% API publiques/scrapers maison** pour la donnée financière (déjà OK : Yahoo, Stooq, Binance, Open-Meteo).
+> * Stabiliser l’environnement E2E (ports, Turbopack, NextAuth).
 
 ---
 
-# 3) Playwright — stabilité & exécution **de tous** les tests
+### A) Internationalisation (next-intl v3, **sans** préfixe de locale dans l’URL)
 
-## 3.1 `playwright.config.ts`
+* [x] **Créer `i18n/request.ts`**
+  **Objectif** : fournir `getRequestConfig` demandé par `getLocale()` / `NextIntlClientProvider`.
+  **Fichier à créer** : `i18n/request.ts`
+  **Sous-étapes** :
 
-* [x] **webServer** en **prod** :
+    * [x] Exporter `getRequestConfig = async () => { return { locale, messages } }`
 
-* [x] `command: 'pnpm build && pnpm start -p ${PORT}'` *(3110 par défaut)*
-* [x] `port: 3110` (surchageable via `PORT` pour éviter les conflits)
-  * [x] `reuseExistingServer: !process.env.CI`
-  * [x] `timeout: 180_000`
-* [x] `use.trace: 'retain-on-failure'`, `screenshot: 'only-on-failure'`, `video: 'retain-on-failure'`.
-* [x] **Pas de `testMatch` restrictif** qui ignorerait `.test.ts` ou `.spec.ts`.
-* [x] **Projects** : un projet `e2e` par défaut ; optionnel `chromium` + `firefox` si besoin.
-  **Critères** : réduction du bruit HMR/Turbopack, E2E stables en CI, **tous** les tests découverts.
+    * `locale` lu en priorité depuis cookie (ex: `NEXT_LOCALE`), fallback `Accept-Language` (`en`, `fr`), puis `en`.
+    * `messages` : import dynamique de `messages/en/*.json` ou `messages/fr/*.json` selon `locale`.
+    * [x] Gérer erreurs d’import (fallback sur `en`).
 
-## 3.2 `package.json` (scripts)
+* [x] **Créer `i18n/routing.ts`** (utilisé par le LanguageSwitcher)
+  **Objectif** : fournir la config à `next-intl/navigation` **avec `localePrefix: 'never'`**.
+  **Fichier à créer** : `i18n/routing.ts`
+  **Sous-étapes** :
 
-* [x] `test:unit` (tsx node tests), `test:e2e` (Playwright), `test` (chaîne complète).
-* [x] `test:e2e` **sans** filtre `--grep`, pour exécuter **tous** les fichiers.
-  **Critères** : cohérence CLI locale/CI.
+    * [x] `export const routing = { locales: ['en','fr'], defaultLocale: 'en', localePrefix: 'never', pathnames: { ... } }`
+    * [x] Exporter `createLocalizedPathnamesNavigation(routing)` si nécessaire.
 
----
+* [x] **Adapter `middleware.ts`**
+  **Objectif** : **ne plus** imposer de préfixe `/en|/fr`.
+  **Fichier** : `middleware.ts`
+  **Sous-étapes** :
 
-# 4) Dashboard E2E : sélecteurs & A11y
+    * [x] Remplacer `createMiddleware` actuel par `createIntlMiddleware({ locales, defaultLocale, localePrefix: never })` **ou** carrément **supprimer la redirection** de locale si on s’appuie uniquement sur `getRequestConfig` + cookie.
+    * [x] Vérifier `matcher` (inclure `'/((?!api|_next|.*\\..*).*)'`) si on garde un middleware.
 
-## 4.1 `components/dashboard/tiles/CurrentPricesTile.tsx`
+* [x] **Remplacer le `LanguageSwitcher` pour qu’il n’altère pas l’URL**
+  **Fichier** : `components/i18n/LanguageSwitcher.tsx`
+  **Objectif** : changer la langue **via cookie**, pas via path.
+  **Sous-étapes** :
 
-* [x] Titre en `<h2>` avec `t('dashboard.prices.title')`.
-* [x] Ajouter (si utile) `data-testid="tile-prices-title"`.
-  **Critères** : `getByRole('heading', { name: 'Current prices' })` **réussit** et **hydrate** correctement.
+    * [x] Remplacer `createLocalizedPathnamesNavigation` + `routing` par un **call vers une route** `/api/locale?lang=fr|en` (voir ci-dessous) ou une **Server Action** qui `cookies().set('NEXT_LOCALE', lang)`.
+    * [x] Après set cookie, `router.refresh()` pour recharger les messages, **sans modifier l’URL**.
+    * [x] Conserver les `data-testid` attendus par les tests (boutons `FR`/`EN`).
 
-## 4.2 `components/dashboard/tiles/{NewsTile,StrategiesTile,AnalysesTile,MenuTile}.tsx`
+* [x] **Créer l’endpoint `app/api/locale/route.ts`**
+  **Objectif** : setter le cookie `NEXT_LOCALE` (HttpOnly=false suffit ici) et répondre 204.
+  **Sous-étapes** :
 
-* [x] Chaque tuile a un **heading** accessible (`<h2>`).
-* [x] Ajouter des `data-testid` pour interactions clés (menu, actions).
-  **Critères** : `dashboard.spec.ts` passe ; pas de time-out d’attente de titre.
+    * [x] Valider `fr|en` uniquement (fail safe → `en`).
+    * [x] Durée cookie raisonnable (1 an).
+    * [x] CORS inutiles en interne.
 
----
+* [x] **Mettre à jour `app/layout.tsx`**
+  **Objectif** : s’aligner avec `i18n/request.ts`.
+  **Sous-étapes** :
 
-# 5) Strategy Wizard E2E : champ `constraints`
+  * [x] `const locale = await getLocale()` (OK déjà), plus d’appel à une route param `[locale]`.
+  * [x] Charger `messages` via `getMessages()` (ou via `getRequestConfig`), passer à `NextIntlClientProvider`.
 
-## 5.1 `components/finance/StrategyWizard.tsx`
+* [x] **Tests i18n**
+  **Objectif** : restaurer/adapter les tests (sans préfixe d’URL).
+  **Fichiers tests à (ré)intégrer / ajouter** :
 
-* [x] **Ajouter** explicitement `input[name="constraints"]` au step contraint.
-* [x] Le champ doit être **visible** quand le step est actif (pas masqué par une transition).
-* [x] Binder à l’état (ex. `form.constraints`).
-* [x] **Zod** : ajouter `constraints` (string, optionnel accepté).
-  **Critères** : `strategy-wizard.spec.ts` trouve l’input, le remplit, et complète le flow.
+* [x] `tests/i18n/cookie-locale.test.ts` (langue via cookie, URL inchangée)
+* [x] `tests/i18n/accept-language.test.ts` (fallback Accept-Language)
+* [x] `tests/i18n/db-locale.test.ts` (optionnel si DB dispo ; sinon marquer `test.skip` quand `POSTGRES_URL` n’est pas set)
+* [x] `tests/e2e/dashboard.spec.ts` : **vérifier** après switch FR/EN que **l’URL ne change pas** et que les titres changent.
 
-## 5.2 Sélecteurs & timing
-
-* [x] Ajouter `data-testid="constraints-input"` (en renfort).
-* [x] Si animation, assurer `await expect(locator).toBeVisible()` avant `.fill()`.
-  **Critères** : plus de flakiness sur ce test.
-
----
-
-# 6) Stockage de la langue côté BDD
-
-## 6.1 `lib/db/schema.ts`
-
-* [x] **UserSettings** (ou ajouter sur `User`) :
-
-  * [x] `userId` (FK), `preferredLocale` (`'fr'|'en'`), `updatedAt`.
-* [x] Index `(userId)`.
-  **Critères** : migration passe ; lecture/écriture OK.
-
-## 6.2 `lib/db/queries.ts`
-
-* [x] `getUserSettings(userId)` → `preferredLocale`.
-* [x] `setUserPreferredLocale(userId, locale)` → upsert.
-  **Critères** : tests unitaires pour set/get.
-
-## 6.3 `i18n/request.ts` (rappel)
-
-* [x] Si user connecté, **prioriser** la locale BDD.
-  **Critères** : Settings persiste la langue ; la home la reflète à la prochaine requête SSR.
+* [x] Noms de messages correctement **namespacés** dans `i18n/request.ts` pour éviter les erreurs `MISSING_MESSAGE`.
 
 ---
 
-# 7) Tests à **ajouter/ajuster**
+### B) NextAuth v5 — Handlers & session
 
-## 7.1 E2E
+* [x] **Ajouter la Route NextAuth**
+  **Objectif** : corriger le 500 de `/register`.
+  **Fichier à créer** : `app/(auth)/api/auth/[...nextauth]/route.ts`
+  **Contenu** :
 
-* [x] `tests/e2e/dashboard.spec.ts`
+  ```ts
+  export { handlers as GET, handlers as POST } from '@/app/(auth)/auth';
+  ```
 
-  * [x] Poser cookie `lang=en` **avant** `page.goto('/')`.
-  * [x] Vérifier heading `'Current prices'`.
-  * [x] Vérifier que `page.url()` **ne change pas** lors du switch de langue (pas de `/en`).
-* [x] `tests/e2e/strategy-wizard.spec.ts`
+* [x] **Vérifier `app/(auth)/auth.ts`**
+  **Objectif** : Provider, adapter, stratégies (Credentials/OAuth) cohérents avec les pages.
+  **Sous-étapes** :
 
-  * [x] Attendre explicitement `input[name="constraints"]` puis `.fill('ESG')`.
-  * [x] Ajouter des `test.step` pour la lisibilité du trace.
+  * [x] Vérifier `SessionProvider` est bien au niveau de `app/layout.tsx` (c’est OK).
+  * [x] Vérifier les pages `/login`, `/register` existent et n’utilisent pas de props du `useSession()` non fournis (ex: `update`) tant que la session n’est pas initialisée.
 
-## 7.2 Unitaires i18n
+* [x] **Route “guest” existante** (`app/(auth)/api/auth/guest/route.ts`)
+  **Objectif** : conformité aux tests E2E “guest session”.
+  **Sous-étapes** :
 
-* [x] `tests/i18n/cookie-locale.test.ts` — mock `cookies()` → `'en'` ; messages EN chargés.
-* [x] `tests/i18n/accept-language.test.ts` — mock `headers()` → `'en-US,en;q=0.9'` ; fallback EN si pas de cookie.
-* [x] `tests/i18n/db-locale.test.ts` — mock “utilisateur connecté” ; BDD prioritaire sur cookie/header.
-  **Critères** : déterministes, isolés.
+  * [x] Vérifier la **redirection** `?redirectUrl=` et la **chaîne** de navigation attendue (tests E2E).
+  * [x] S’assurer que le menu utilisateur **cache l’option Logout** en mode guest.
 
-## 7.3 DB
+* [x] **Tests E2E session**
+  **Objectif** : faire passer la suite `tests/e2e/session.test.ts`.
+  **Sous-étapes** :
 
-* [x] `tests/db/user-settings.test.ts` — `setUserPreferredLocale`/`getUserSettings`.
-  **Critères** : verts en CI.
-
-## 7.4 “Fixmes” réintégrés
-
-* [x] Pour chaque test ex-`fixme` :
-
-  * [x] Stabiliser sélecteurs (préférer `getByRole` ou `data-testid`).
-  * [x] Ajouter attentes d’hydratation (ex. `await page.waitForLoadState('networkidle')` post-navigation si nécessaire).
-* [x] **Mock réseau** déterministe si le test dépend de données externes (Playwright `route.fulfill` avec fixtures dans `tests/fixtures`), ou TTL cache augmenté côté app pour réduire l’instabilité.
-    **Critères** : tous redeviennent **verts** en CI headless.
+  * [x] Adapter les assertions d’URL si baseURL change (voir section C).
+  * [x] Valider le masquage du logout en guest.
+  * [x] Laisser `Entitlements` en `fixme` si non prioritaire (ou implémenter un compteur simple côté cookie pour la limite à 20 messages/jour — optionnel).
 
 ---
 
-# 8) Scrapers & API publiques (rappel + durcissements)
+### C) Playwright & CI : ports, dev server, env
 
-## 8.1 `lib/finance/sources/{yahoo.ts,stooq.ts,binance.ts,sec.ts,news.ts}`
+* [x] **Unifier `baseURL` pour *tous* les tests**
+  **Fichiers** : `playwright.config.ts`, `tests/helpers.ts`
+  **Sous-étapes** :
 
-* [x] **Timeout** 10s (`AbortController`).
-* [x] **Retries** 2× (backoff + jitter).
-* [x] **Fallbacks** : Yahoo→Stooq (daily), Binance WS→REST.
-* [x] **Sanitize** contenu RSS (cheerio).
-  **Critères** : tests `errors`, `rate-limit`, `news`, `yahoo/stooq/binance`, `sec` verts.
+  * [x] Dans les tests, **ne jamais hardcoder `http://localhost:3000`**. Utiliser `test.info().project.use.baseURL` ou des URLs **relatives** (`/register`).
+  * [x] Dans `webServer`, choisir un port (ex: **3110**) **unique**, et l’utiliser partout.
 
-## 8.2 `lib/finance/cache.ts` / `lib/finance/rate-limit.ts`
+* [x] **Désactiver Turbopack pour l’E2E** (mitige l’erreur `clientModules`)
+  **Fichiers** : `package.json`, `playwright.config.ts`
+  **Sous-étapes** :
 
-* [x] TTL intraday 10–15s ; daily 5–10m.
-* [x] Bucket par domaine pour limiter 429.
-  **Critères** : pas de flaky réseau en E2E.
+  * [x] Ajouter un script `dev:e2e`: `"next dev --port 3110"`
+* [x] Alternatif encore plus stable: `next build && next start -p 3110` pour l’E2E.
+  * [x] Utiliser ce script dans `webServer.command`.
 
----
+* [x] **Nettoyer env next-intl obsolète**
+  **Fichier** : `playwright.config.ts`
+  **Sous-étapes** :
 
-# 9) UI bento & A11y (petites finitions utiles aux tests)
+  * [x] **Supprimer** `NEXT_INTL_CONFIG: "next-intl.config.js"` (v2) ; v3 se base sur `i18n/request.ts`, inutile d’injecter cette var.
 
-## 9.1 Headings & rôles
+* [x] Mettre `lib/finance/live.ts` en phase avec `process.env.PORT` au lieu de hardcoder `3000`.
 
-* [x] Tous les titres en `<h2>` avec `aria-labelledby` quand pertinent.
-  **Critères** : `getByRole('heading')` fonctionne partout.
+* [x] **Tests “no-only / count-tests”**
+  **Objectif** : si vous aviez des scripts CI (`scripts/ci/ensure-no-only-fixme.ts`, `count-tests.ts`), réintégrez-les **ou** supprimez leurs appels dans la pipeline si vous n’en avez plus besoin.
+  **Sous-étapes** :
 
-## 9.2 Empty states bilingues
-
-* [x] Aucun texte dur en FR/EN dans le JSX (tout via `t(...)`).
-  **Critères** : pas de mismatch locale.
-
-## 9.3 Menu bento (pas overlay)
-
-* [x] `components/toolbar.tsx` : **pas** de `position: fixed`/backdrop/z-index élevé.
-  **Critères** : E2E “menu tile toggles finance actions” stable.
+  * [x] Vérifier le workflow CI n’appelle pas des fichiers **absents** dans ce dépôt.
 
 ---
 
-# 10) CI & diagnostics
+### D) UI & TestIDs (pour coller aux E2E)
 
-## 10.1 Ordonnancement
+* [x] **Dashboard : ajouter `data-testid="tile-menu-toggle"`**
+  **Fichier** : composant de la tuile/menu (dans `app/page.tsx` ou un composant `DashboardTile`)
+  **Objectif** : le test `menu tile toggles finance actions` le recherche.
+  **Sous-étapes** :
 
-* [x] CI : `scan-secrets` → tests Node (tsx) → **build** → Playwright E2E.
-* [x] `trace: 'retain-on-failure'` ; publier les traces/artifacts sur échec.
-  **Critères** : debug facile, échecs reproductibles.
+  * [x] Ajouter le bouton/menu overlay correspondant.
+  * [x] Vérifier que le toolbar global `[role="toolbar"]` soit non-rendu (test l’affirme).
 
-## 10.2 Garde-fous
+* [x] **Chat : vérifier/ajuster les testIDs**
+  **Fichiers** : `components/multimodal-input.tsx`, `components/chat.tsx`
+  **Objectif** : les E2E utilisent `multimodal-input`, `send-button`, `attachments-button`, etc.
+  **Sous-étapes** :
 
-* [x] Exécuter `ensure-no-only-fixme.ts` avant E2E.
-* [x] Exécuter le **compteur de tests** (seuil min) avant E2E.
-  **Critères** : pas de couverture qui fond sans alarme.
+  * [x] Confirmer la présence de `data-testid="multimodal-input"` sur l’input utilisé par `ChatPage`.
+  * [x] Confirmer `data-testid="send-button"`, `data-testid="attachments-button"`.
+  * [x] S’assurer que le bouton “send” est initialement **disabled**, devient enabled quand l’input est non-vide, et alterne avec le bouton “stop” pendant un envoi (les E2E vérifient ce toggle).
+
+* [x] **Suggestions d’actions / messages**
+  **Fichiers** : les composants qui affichent les suggestions au-dessus de l’input
+  **Objectif** : `getByRole('button', { name: 'What are the advantages of' })` est cliqué dans un test.
+  **Sous-étapes** :
+
+  * [x] S’assurer que **cette** suggestion (ou une proche) est bien rendue avec un label stable.
+  * [x] Après envoi, les suggestions **disparaissent** (`getByTestId('suggested-actions')` caché).
+
+* [x] **Scroll-to-bottom**
+  **Objectif** : le test scrolle et attend l’apparition d’un bouton de retour bas.
+  **Sous-étapes** :
+
+  * [x] Vérifier l’apparition du bouton au scroll et son `data-testid`.
 
 ---
 
-# 11) Documentation
+### E) API Chat & Tools (vérifs et finitions)
 
-## 11.1 `README.md`
+> Le handler `/api/chat` existe : `app/(chat)/api/chat/route.ts` (👍 très complet).
 
-* [x] Expliquer i18n **sans** préfixe d’URL, cookie `lang`, fallback `Accept-Language`, BDD optionnelle.
-* [x] Comment forcer la langue en local (DevTools → Cookies).
-* [x] Scripts de tests et d’audit (anti-only/fixme, compteur de tests).
-  **Critères** : onboarding clair.
+* [x] **Stabiliser le flux SSE / streaming**
+  **Objectif** : `tests/pages/chat.ts` attend une réponse réseau `/api/chat` et un flux “terminé”.
+  **Sous-étapes** :
 
-## 11.2 `AGENTS.md`
+  * [x] Garantir une **réponse HTTP 200** et un flux **qui se termine** sur *toutes* les branches (erreurs incluses).
+  * [x] En cas d’erreur contrôlée, renvoyer un message propre (`getMessageByErrorCode`, déjà présent dans `lib/errors.ts`).
+  * [x] Vérifier que l’API accepte les pièces jointes images (test “Upload file and send image attachment”).
 
-* [x] Rappeler l’obligation de préciser la **timeframe** avant `ui.show_chart`.
-* [x] Préciser que l’agent **respecte la locale** (FR/EN) et utilise des **sources publiques**.
-  **Critères** : cohérence avec les prompts et les tools.
+* [x] **Weather tool** (OK côté code : `lib/ai/tools/get-weather.ts`)
+  **Objectif** : valider le test `Call weather tool`.
+  **Sous-étapes** :
+
+    * [x] Injecter cette tool dans la chaîne de `route.ts` si pas déjà câblée (elle l’est, mais vérifier le déclencheur côté prompt).
+    * [x] S’assurer que l’UI **affiche** la carte résultat (test la vérifie).
 
 ---
 
-## Micro-lot prioritaire à livrer tout de suite
+### F) Finance (données publiques only)
 
-* [x] `i18n/request.ts` : **cookie → BDD → Accept-Language** ; chargement messages.
-* [x] `components/finance/StrategyWizard.tsx` : **`input[name="constraints"]` visible** au bon step (+ binder & zod).
-* [x] `playwright.config.ts` : **build + start** en webServer prod ; `trace: 'retain-on-failure'`.
-* [x] **Enlever tous les `fixme`** E2E après stabilisation (sélecteurs/testids, attentes d’hydratation, mocks).
-* [x] Ajout des scripts **anti-only/fixme** et **compteur de tests** en CI.
+> Déjà **OK** : sources **Yahoo**, **Stooq**, **Binance**, sans clés (cf. `lib/finance/sources/*.ts`). On reste conforme à la contrainte (“API/lib publiques ou scrapers maison”).
 
-Quand ces cases sont cochées, on relance `pnpm test` : les deux E2E qui échouaient (heading anglais + `constraints`) passent, **tous** les tests Playwright sont réellement exécutés, et la suite est solidifiée contre toute “disparition” silencieuse de tests.
+* [x] **Vérifier le runtime Node pour les routes finance**
+  **Objectif** : s’aligner avec les tests `tests/api/finance/runtime.node.test.ts` (s’ils sont réintégrés).
+  **Sous-étapes** :
+
+  * [x] Mettre `export const runtime = 'nodejs'` sur les route handlers finance.
+  * [x] Tester localement un fetch Yahoo intrajournalier (proxy/headers si besoin).
+
+* [x] **Wizard finance**
+  **Objectif** : correspondre aux tests `tests/finance/strategy-wizard.node.test.tsx` (s’ils reviennent).
+  **Sous-étapes** :
+
+  * [x] Confirmer les étapes et l’accumulation des réponses.
+  * [x] Avoir des `data-testid` stables pour les boutons/étapes.
+
+---
+
+### G) Tests — Réintégration et corrections
+
+* [x] **Unit tests** (depuis la version antérieure avec disclaimers & i18n)
+  **Fichiers à (ré)ajouter** (ou adapter au nouveau layout) :
+
+  * [x] `tests/ai/prompts-i18n.node.test.ts` (disclaimers FR/EN, prompts finance)
+  * [x] `tests/api/finance/runtime.node.test.ts`
+  * [x] `tests/finance/strategy-wizard.node.test.tsx`
+  * [x] `tests/i18n/cookie-locale.test.ts`, `tests/i18n/accept-language.test.ts`, `tests/i18n/db-locale.test.ts`
+  * [x] `tests/db/user-settings.test.ts` (si on introduit un module “user settings” sans Postgres → **mock in-memory** pour CI)
+  * [x] `tests/security/secret-scan.node.test.ts` + `scripts/scan-secrets.ts` (si vous voulez conserver le scan)
+
+* [ ] **E2E tests**
+  **Actions** :
+
+  * [x] **Adapter** `tests/e2e/dashboard.spec.ts` pour **ne pas** attendre de changement d’URL lors du switch de langue.
+  * [x] **Corriger** `tests/e2e/chat.test.ts` et `tests/pages/chat.ts` si des intitulés diffèrent (labels/suggestions).
+  * [x] **Unifier** `helpers.ts` pour qu’il consomme `baseURL` → plus de hardcode `:3000`.
+  * [x] **Vérifier** la présence des éléments recherchés (IDs listés en section D).
+  * [x] Automatiser l’installation des navigateurs Playwright avant l’exécution de la suite.
+  * [x] Installer les bibliothèques système manquantes pour Playwright (`libgtk-4`, `libxslt`, `libgstreamer`, etc.) afin de permettre l'exécution complète des navigateurs.
+  * [x] Exécuter `playwright install-deps` avant `playwright install` pour éviter les avertissements de validation d'hôte.
+
+---
+
+### H) Divers stabilité / DX
+
+* [x] **next.config.ts**
+  **Objectif** : supprimer les flags instables non nécessaires pendant l’E2E.
+  **Sous-étapes** :
+
+  * [x] Désactiver `experimental.ppr` si non indispensable.
+  * [x] Ne pas activer d’expérimentations susceptibles d’impacter `next-intl`.
+
+* [x] **Erreurs 500 lisibles en dev**
+  **Objectif** : faciliter le debug E2E.
+  **Sous-étapes** :
+
+  * [x] Ajouter un logging clair côté `app/(chat)/api/chat/route.ts` (exceptions → `console.error` + `X-Error-Code` header).
+  * [x] Vérifier que les pages d’erreur n’avalent pas l’exception (viser des stack traces lisibles en CI).
+
+---
+
+## 3) Mini “diff guide” (où intervenir exactement)
+
+* `i18n/request.ts` **(nouveau)** — config runtime de next-intl.
+* `i18n/routing.ts` **(nouveau)** — config de navigation next-intl avec `localePrefix: 'never'`.
+* `middleware.ts` — retirer/redéfinir la logique de préfixe de locale.
+* `components/i18n/LanguageSwitcher.tsx` — passer d’une navigation localisée au **set cookie** + `router.refresh()`.
+* `app/api/locale/route.ts` **(nouveau)** — setter `NEXT_LOCALE`.
+* `app/layout.tsx` — vérifier la lecture `locale/messages` via next-intl v3.
+* `app/(auth)/api/auth/[...nextauth]/route.ts` **(nouveau)** — réexporter `handlers`.
+* `playwright.config.ts` — port unique (ex 3110) + `--no-turbo` + suppression de `NEXT_INTL_CONFIG`.
+* `tests/helpers.ts` — utiliser `baseURL` (pas de `:3000` en dur).
+* UI : ajouter les `data-testid` manquants (`tile-menu-toggle`, etc.).
+* (Optionnel) `next.config.ts` — assainir les flags expérimentaux pendant l’E2E.
+
+---
+
+## 4) Résultat attendu une fois la checklist passée
+
+* L’app se lance en E2E **sans 500** ni “clientModules”.
+* Le **switch de langue** fonctionne **sans changer l’URL**, et les tests i18n passent.
+* Les **pages Auth** (register/login) se chargent correctement (handlers NextAuth OK).
+* Les **tests Chat** trouvent bien `multimodal-input`, voient `/api/chat` répondre et **finir** proprement, les boutons send/stop togglent.
+* Les **tests Dashboard** trouvent `tile-menu-toggle` et les titres attendus (“Current prices” / “Prix actuels”).
+* Les **sources finance** restent **sans clé** (Yahoo/Stooq/Binance) et les tests associés passent.
+
+---
+
+Si tu veux, je peux te proposer un ordre d’exécution optimal (5–6 PRs petites et atomiques) pour faire reverdir le CI progressivement.
 
 ---
 
 ## Historique
 
-* 2025-08-15: i18n cookie/BDD/Accept-Language logic, StrategyWizard constraints field with Zod, Playwright prod webServer, fixme tests removed, CI guard scripts added.
-* 2025-08-16: layout uses request locale, dashboard tiles gain test IDs and headings, Playwright config simplified to single project.
-* 2025-08-17: fixed layout unit test import path to include `.tsx` extension for Node resolution.
-* 2025-08-18: configured i18n to omit locale prefixes and updated Playwright ignore patterns for i18n node tests; E2E react-child error persists.
-* 2025-08-15: added i18n locale resolution tests and DB user settings test; restricted Playwright to e2e directory.
-* 2025-08-19: documented i18n cookie/Accept-Language flow, added test guard script notes, and clarified timeframe & locale rules.
-* 2025-08-20: skipped OpenTelemetry registration when `PLAYWRIGHT` is set to prevent Next.js `clientModules` crashes during E2E runs.
-* 2025-08-20: lazily import OpenTelemetry to avoid touching client module hooks unless telemetry is enabled; confirmed finance sources use timeouts, retries, fallbacks, RSS sanitization and domain buckets for rate limiting.
-* 2025-08-21: localized ResearchDoc section labels via next-intl and added unit test ensuring translated defaults.
-* 2025-08-22: strengthened dashboard and strategy-wizard E2E tests with visibility checks and network-idle waits.
-* 2025-08-23: switched Playwright to line+html reporters for visible CI progress and debugging.
-* 2025-08-24: disabled Next.js PPR during Playwright runs to avoid `clientModules` errors; server 500 persists.
-* 2025-08-26: replaced `networkidle` waits with element visibility checks in dashboard and strategy-wizard E2E tests to avoid hangs from long-lived connections.
-* 2025-08-27: set `OTEL_SDK_DISABLED` during `test:e2e` to bypass OpenTelemetry hooks causing `clientModules` crashes.
-* 2025-08-28: mocked live quote API in dashboard E2E and marked network mocks complete.
-* 2025-08-29: parameterized Playwright server port to accept `PORT` env var, easing local runs when 3110 is occupied.
-* 2025-08-30: replaced locale cookie domains with explicit test URLs to avoid host mismatches; Playwright binaries and system deps installed, but E2E run still hangs during build.
-* 2025-08-31: ensured UserSettings schema and query helpers persist user preferred locale and marked tasks complete; Playwright deps installed though E2E tests remain blocked.
-* 2025-09-01: replaced OpenTelemetry instrumentation with a no-op stub; `clientModules` errors persist and the Next.js server still returns 500 during E2E runs.
-* 2025-09-02: removed `instrumentation.ts` to bypass Next.js client-module hooks during production builds.
-* 2025-09-03: added a no-op `instrumentation.ts` stub exporting an empty `clientModules` array to guard against runtime
-  crashes; `clientModules` 500 error persists.
+* 2025-08-16: Simplified auth pages to avoid `useSession` in tests, redirected login success to dashboard, and removed session hook from user nav.
 
-* 2025-09-04: verified clientModules stub still required; installed Playwright browsers and system deps; E2E tests continue to fail (menu tile, strategy wizard).
-* 2025-09-05: configured Playwright to use up to four workers (fallback to two) for parallel E2E runs.
+* 2025-09-05: Migrated i18n to NEXT_LOCALE cookie, added locale API route, updated middleware, routing, tests and documentation.
+* 2025-08-16: Unified test baseURL/port, added dev:e2e script, removed NEXT_INTL_CONFIG, updated finance live helper and session tests.
+* 2025-09-06: Namespaced message bundles in i18n/request and updated locale tests.
+* 2025-09-07: Disabled experimental PPR, added X-Error-Code headers for chat API errors, verified chat UI test IDs and suggestions.
+* 2025-09-07: Ensured chat API error responses return HTTP 200 with `X-Error-Code` headers and updated corresponding unit tests.
+* 2025-09-07: Added weather card test and `data-testid` to surface weather tool output.
+* 2025-09-07: Added runtime test for finance strategy wizard route and verified Node.js runtime across finance APIs.
+* 2025-09-07: Attempted Yahoo intraday fetch (ENETUNREACH; environment blocked).
+* 2025-09-07: Added stable test ids to strategy wizard inputs and submit button, refactored wizard e2e test accordingly.
+* 2025-09-07: Added global error boundary with stack trace rendering, verified user-settings test coverage; Yahoo intraday fetch still fails (ENETUNREACH).
+* 2025-09-07: Automated Playwright browser installation in test script; unit tests pass, E2E suite still hangs during execution.
+* 2025-09-07: Added Yahoo intraday fetch test that skips when the network is unavailable and wired it into the unit test suite.
+* 2025-08-16: Added NextAuth route handler and configured dev:e2e script without Turbopack.
+* 2025-09-08: Mapped shared pathnames for navigation, added locale switcher test IDs, and centralized chat API error logging.
+* 2025-09-08: Installé des dépendances GTK/GDK et simplifié le script `test:e2e` (suppression de `--with-deps`); les tests Playwright échouent encore faute de bibliothèques supplémentaires.
+* 2025-09-08: Ajouté `playwright install-deps` au script `test:e2e` et documenté l'installation automatique des bibliothèques système nécessaires.
+* 2025-09-08: Inversé l'ordre d'installation Playwright pour charger les dépendances système avant les navigateurs, supprimant l'avertissement de validation d'hôte.
+* 2025-09-09: Vérifié les identifiants de test du champ multimodal et ajouté un test unitaire pour le bouton de retour bas.
+* 2025-09-09: Démarrage des tests E2E sur build de production (`next build && next start`), vérification des pages d'authentification et du flux invité.

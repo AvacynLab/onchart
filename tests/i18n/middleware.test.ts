@@ -11,14 +11,14 @@ test('négocie la langue et écrit le cookie', () => {
   });
   const response = middleware(request);
   assert.equal(response.headers.get('x-next-intl-locale'), 'en');
-  assert.equal(response.cookies.get('lang')?.value, 'en');
+  assert.equal(response.cookies.get('NEXT_LOCALE')?.value, 'en');
 });
 
 test('respecte le cookie existant', () => {
   const request = new NextRequest('https://example.com/', {
-    headers: { cookie: 'lang=fr' },
+    headers: { cookie: 'NEXT_LOCALE=fr' },
   });
   const response = middleware(request);
   assert.equal(response.headers.get('x-next-intl-locale'), 'fr');
-  assert.equal(response.cookies.get('lang'), undefined);
+  assert.equal(response.cookies.get('NEXT_LOCALE'), undefined);
 });

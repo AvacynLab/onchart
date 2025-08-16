@@ -18,7 +18,7 @@ test.beforeEach(async ({ page }) => {
     .addCookies([
       // Use a full URL so Playwright infers the correct cookie scope for the
       // test web server.
-      { name: 'lang', value: 'en', url: 'http://localhost:3110/' },
+      { name: 'NEXT_LOCALE', value: 'en', url: 'http://localhost:3110/' },
     ]);
 });
 
@@ -53,49 +53,49 @@ test('completes strategy wizard flow', async ({ page }) => {
   // Open the strategy wizard via the tile's action button.
   await page.getByTestId('strategy-create').click();
   // The first step's input should appear once the wizard is visible.
-  await expect(page.locator('input[name="horizon"]')).toBeVisible();
+  await expect(page.getByTestId('horizon-input')).toBeVisible();
 
   await test.step('fill horizon', async () => {
-    await page.locator('input[name="horizon"]').fill('1y');
-    await page.locator('form button[type="submit"]').click();
-    await expect(page.locator('input[name="risk"]')).toBeVisible();
+    await page.getByTestId('horizon-input').fill('1y');
+    await page.getByTestId('wizard-submit').click();
+    await expect(page.getByTestId('risk-input')).toBeVisible();
   });
 
   await test.step('fill risk', async () => {
-    await page.locator('input[name="risk"]').fill('medium');
-    await page.locator('form button[type="submit"]').click();
-    await expect(page.locator('input[name="universe"]')).toBeVisible();
+    await page.getByTestId('risk-input').fill('medium');
+    await page.getByTestId('wizard-submit').click();
+    await expect(page.getByTestId('universe-input')).toBeVisible();
   });
 
   await test.step('fill universe', async () => {
-    await page.locator('input[name="universe"]').fill('stocks');
-    await page.locator('form button[type="submit"]').click();
-    await expect(page.locator('input[name="fees"]')).toBeVisible();
+    await page.getByTestId('universe-input').fill('stocks');
+    await page.getByTestId('wizard-submit').click();
+    await expect(page.getByTestId('fees-input')).toBeVisible();
   });
 
   await test.step('fill fees', async () => {
-    await page.locator('input[name="fees"]').fill('0.1');
-    await page.locator('form button[type="submit"]').click();
-    await expect(page.locator('input[name="drawdown"]')).toBeVisible();
+    await page.getByTestId('fees-input').fill('0.1');
+    await page.getByTestId('wizard-submit').click();
+    await expect(page.getByTestId('drawdown-input')).toBeVisible();
   });
 
   await test.step('fill drawdown', async () => {
-    const drawdownInput = page.locator('input[name="drawdown"]');
+    const drawdownInput = page.getByTestId('drawdown-input');
     if (await drawdownInput.count()) {
       await drawdownInput.fill('10');
-      await page.locator('form button[type="submit"]').click();
+      await page.getByTestId('wizard-submit').click();
     }
     // Either constraints or finish step becomes visible next.
-    await expect(page.locator('input[name="constraints"]')).toBeVisible();
+    await expect(page.getByTestId('constraints-input')).toBeVisible();
   });
 
   await test.step('fill constraints', async () => {
-    const constraints = page.locator('input[name="constraints"]');
+    const constraints = page.getByTestId('constraints-input');
     // Wait explicitly for the constraints field to appear before interacting to
     // avoid flakiness when the wizard transitions between steps.
     await expect(constraints).toBeVisible();
     await constraints.fill('ESG');
-    await page.locator('form button[type="submit"]').click();
+    await page.getByTestId('wizard-submit').click();
   });
 
   // The mocked response should cause the new strategy to appear in the list.

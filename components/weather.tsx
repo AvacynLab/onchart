@@ -248,18 +248,20 @@ export function Weather({
     currentTimeIndex + hoursToShow,
   );
 
-  return (
-    <div
-      className={cx(
-        'flex flex-col gap-4 rounded-2xl p-4 skeleton-bg max-w-[500px]',
-        {
-          'bg-blue-400': isDay,
-        },
-        {
-          'bg-indigo-900': !isDay,
-        },
-      )}
-    >
+    return (
+      <div
+        className={cx(
+          'flex flex-col gap-4 rounded-2xl p-4 skeleton-bg max-w-[500px]',
+          {
+            'bg-blue-400': isDay,
+          },
+          {
+            'bg-indigo-900': !isDay,
+          },
+        )}
+        // Expose a stable hook for end-to-end tests verifying weather tool output
+        data-testid="weather-card"
+      >
       <div className="flex flex-row justify-between items-center">
         <div className="flex flex-row gap-2 items-center">
           <div

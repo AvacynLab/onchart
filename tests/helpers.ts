@@ -22,10 +22,13 @@ export async function createAuthenticatedContext({
   browser,
   name,
   chatModel = 'gpt-5',
+  baseURL,
 }: {
   browser: Browser;
   name: string;
   chatModel?: ChatModel['id'];
+  /** Base URL from Playwright configuration so helpers avoid hardcoded ports. */
+  baseURL: string;
 }): Promise<UserContext> {
   const directory = path.join(__dirname, '../playwright/.sessions');
 
@@ -35,13 +38,14 @@ export async function createAuthenticatedContext({
 
   const storageFile = path.join(directory, `${name}.json`);
 
-  const context = await browser.newContext();
+  const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
 
   const email = `test-${name}@playwright.com`;
   const password = generateId();
 
-  await page.goto('http://localhost:3000/register');
+  // Use relative navigation so the configured baseURL is respected.
+  await page.goto('/register');
   await page.getByPlaceholder('user@acme.com').click();
   await page.getByPlaceholder('user@acme.com').fill(email);
   await page.getByLabel('Password').click();
