@@ -1,23 +1,13 @@
 // Minimal instrumentation file to satisfy Next.js runtime expectations.
-// Next.js attempts to import a default export with a `clientModules` array and
-// optional hooks for OpenTelemetry or other instrumentation. In our case we do
-// not need any instrumentation, but the loader still expects these properties
-// to exist.  Exporting an empty array prevents `undefined.clientModules` access
-// during startup.
+// Next.js will load this module if present and look for a `clientModules` array
+// and optional hooks such as `register`.  We don't need any instrumentation, but
+// providing these named exports prevents `undefined.clientModules` errors during
+// startup.
 export const clientModules: string[] = [];
 
-// No-op register function.  Next.js will call this during boot if defined, so
-// we provide an empty async function to avoid side effects while keeping the
-// expected interface.
+// No-op register function.  Next.js may call this during boot if defined, so we
+// provide an empty async function to keep the expected interface while avoiding
+// side effects.
 export async function register(): Promise<void> {
   // Intentionally empty.
 }
-
-// Next.js loads the instrumentation module via a default import.  Without a
-// default export the module object would be `undefined`, leading to the
-// `clientModules` runtime error.  Exporting the required properties as the
-// default object ensures the server can safely access them.
-export default {
-  register,
-  clientModules,
-};
