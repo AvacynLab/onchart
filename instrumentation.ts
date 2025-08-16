@@ -20,6 +20,7 @@ export async function register(): Promise<void> {
   // intentionally empty
 }
 
-// Note: no default export is provided.  Next.js reads the named exports directly
-// and providing a default object can lead to the framework destructuring from an
-// unexpected layer, causing `undefined.clientModules` at runtime.
+// Next.js historically required a default export to access instrumentation hooks.
+// Exporting the hooks again through a default object ensures the property lookup
+// succeeds regardless of how the module is imported.
+export default { clientModules, register };
