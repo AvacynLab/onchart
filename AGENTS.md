@@ -303,3 +303,4 @@ Quand ces cases sont cochées, on relance `pnpm test` : les deux E2E qui échoua
   crashes; `clientModules` 500 error persists.
 
 * 2025-09-04: verified clientModules stub still required; installed Playwright browsers and system deps; E2E tests continue to fail (menu tile, strategy wizard).
+* 2025-09-05: configured Playwright to use up to four workers (fallback to two) for parallel E2E runs.

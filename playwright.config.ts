@@ -1,9 +1,16 @@
 import { defineConfig, devices } from '@playwright/test';
 import { config } from 'dotenv';
+import os from 'node:os';
 
 config({
   path: '.env.local',
 });
+
+// Determine an appropriate worker count: prefer four parallel workers when the
+// host machine provides sufficient CPU cores, but fall back to two to avoid
+// overcommitting more limited environments (e.g. CI runners with only two
+// vCPUs).
+const WORKERS = os.cpus().length >= 4 ? 4 : 2;
 
 // Use a fixed, rarely used port during tests to avoid conflicts with any
 // background dev servers that may already occupy port 3000. Both Playwright's
@@ -32,8 +39,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 2 : 8,
+  /* Run with up to four workers when available, otherwise use two. */
+  workers: WORKERS,
   // Emit progress to the terminal via the lightweight line reporter while
   // still generating an HTML report for deeper debugging when a test fails.
   // Using the array form allows multiple reporters to run in parallel.
