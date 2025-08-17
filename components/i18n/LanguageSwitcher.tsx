@@ -4,11 +4,10 @@ import { useLocale } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 import { locales } from '@/i18n/config';
-import { updatePreferredLocale } from './actions';
 
 /**
  * Switch between locales without relying on URL prefixes. Selecting a language
- * updates the `lang` cookie, persists the choice for authenticated users and
+ * updates the `NEXT_LOCALE` cookie, persists the choice for authenticated users and
  * refreshes the current route so translations update in place.
  */
 export default function LanguageSwitcher() {
@@ -24,9 +23,13 @@ export default function LanguageSwitcher() {
           type="button"
           disabled={pending}
           className={locale === l ? 'font-bold underline' : ''}
+          data-testid={`locale-${l}`}
           onClick={() =>
             startTransition(async () => {
-              await updatePreferredLocale(l);
+              // Persist the user's choice via the locale API without altering
+              // the current path. The subsequent refresh reloads translations
+              // server-side so client components update in place.
+              await fetch(`/api/locale?lang=${l}`, { method: 'POST' });
               router.refresh();
             })
           }

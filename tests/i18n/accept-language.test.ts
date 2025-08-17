@@ -9,6 +9,6 @@ test('falls back to Accept-Language', async () => {
   const { default: resolve } = await import(`../../i18n/request.ts?test=${Date.now()}`);
   const config = await resolve();
   assert.equal(config.locale, 'en');
-  assert.equal(config.messages.prices.title, 'Current prices');
+  assert.equal(config.messages.dashboard.prices.title, 'Current prices');
   restore();
 });

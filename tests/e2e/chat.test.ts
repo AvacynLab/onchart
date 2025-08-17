@@ -101,6 +101,7 @@ test.describe('Chat activity', () => {
   test('Call weather tool', async () => {
     await chatPage.sendUserMessage("What's the weather in sf?");
     await chatPage.isGenerationComplete();
+    await expect(chatPage.weatherCard).toBeVisible();
 
     const assistantMessage = await chatPage.getRecentAssistantMessage();
 

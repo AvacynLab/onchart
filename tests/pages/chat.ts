@@ -26,6 +26,10 @@ export class ChatPage {
     return this.page.getByTestId('scroll-to-bottom-button');
   }
 
+  public get weatherCard() {
+    return this.page.getByTestId('weather-card');
+  }
+
   async createNewChat() {
     await this.page.goto('/');
   }
@@ -57,8 +61,9 @@ export class ChatPage {
   }
 
   async hasChatIdInUrl() {
+    // Expect a UUID path segment irrespective of the configured base URL.
     await expect(this.page).toHaveURL(
-      /^http:\/\/localhost:3000\/chat\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+      /\/chat\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
     );
   }
 

@@ -24,6 +24,7 @@ export const test = baseTest.extend<{}, Fixtures>({
       const ada = await createAuthenticatedContext({
         browser,
         name: `ada-${workerInfo.workerIndex}-${getUnixTime(new Date())}`,
+        baseURL: workerInfo.project.use.baseURL as string,
       });
 
       await use(ada);
@@ -36,6 +37,7 @@ export const test = baseTest.extend<{}, Fixtures>({
       const babbage = await createAuthenticatedContext({
         browser,
         name: `babbage-${workerInfo.workerIndex}-${getUnixTime(new Date())}`,
+        baseURL: workerInfo.project.use.baseURL as string,
       });
 
       await use(babbage);
@@ -49,6 +51,7 @@ export const test = baseTest.extend<{}, Fixtures>({
         browser,
         name: `curie-${workerInfo.workerIndex}-${getUnixTime(new Date())}`,
         chatModel: 'gpt-5o',
+        baseURL: workerInfo.project.use.baseURL as string,
       });
 
       await use(curie);

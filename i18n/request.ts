@@ -8,9 +8,9 @@ import { locales, defaultLocale, type Locale } from './config';
  * Resolve the active locale for each incoming request using the following
  * priority order:
  * 1. Preferred locale stored in the database for a signed-in user.
- * 2. Explicit `lang` cookie set by the application.
+ * 2. Explicit `NEXT_LOCALE` cookie set by the application.
  * 3. `Accept-Language` HTTP header supplied by the client.
- * 4. Default locale (`fr`).
+ * 4. Default locale (`en`).
  *
  * All message namespaces are loaded for the resolved locale so server
  * components can access translations without additional lookups.
@@ -30,14 +30,14 @@ export default getRequestConfig(async () => {
     }
   }
 
-  // 2) Check the `lang` cookie explicitly set by the application if no
+  // 2) Check the `NEXT_LOCALE` cookie explicitly set by the application if no
   // database preference exists.
   if (!locale) {
     locale = headerList
       .get('cookie')
       ?.split(';')
       .map((c) => c.trim())
-      .find((c) => c.startsWith('lang='))
+      .find((c) => c.startsWith('NEXT_LOCALE='))
       ?.split('=')[1] as Locale | undefined;
   }
 
@@ -53,16 +53,31 @@ export default getRequestConfig(async () => {
     }
   }
 
-  // 4) Default to French when no other source yields a valid locale.
-  const activeLocale = locale ?? defaultLocale;
-
-  return {
-    locale: activeLocale,
-    messages: {
-      ...(await import(`../messages/${activeLocale}/common.json`)).default,
-      ...(await import(`../messages/${activeLocale}/dashboard.json`)).default,
-      ...(await import(`../messages/${activeLocale}/finance.json`)).default,
-      ...(await import(`../messages/${activeLocale}/chat.json`)).default,
-    },
-  };
+  // 4) Default to English when no other source yields a valid locale.
+  let activeLocale = locale ?? defaultLocale;
+  try {
+    return {
+      locale: activeLocale,
+      messages: {
+        common: (await import(`../messages/${activeLocale}/common.json`)).default,
+        dashboard: (await import(`../messages/${activeLocale}/dashboard.json`))
+          .default,
+        finance: (await import(`../messages/${activeLocale}/finance.json`))
+          .default,
+        chat: (await import(`../messages/${activeLocale}/chat.json`)).default,
+      },
+    };
+  } catch (error) {
+    // Fallback to English bundles if any message import fails.
+    activeLocale = 'en';
+    return {
+      locale: activeLocale,
+      messages: {
+        common: (await import(`../messages/en/common.json`)).default,
+        dashboard: (await import(`../messages/en/dashboard.json`)).default,
+        finance: (await import(`../messages/en/finance.json`)).default,
+        chat: (await import(`../messages/en/chat.json`)).default,
+      },
+    };
+  }
 });
