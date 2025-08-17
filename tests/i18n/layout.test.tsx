@@ -7,7 +7,7 @@ import { renderToString } from 'react-dom/server';
 
 /**
  * Mock environment modules so the app layout can render in isolation. The
- * layout reads the `NEXT_LOCALE` cookie or user settings from the database to
+ * layout reads the `lang` cookie or user settings from the database to
  * determine the active locale.
  */
 function mockEnv(cookieLang?: string, dbLocale?: string) {
@@ -17,7 +17,7 @@ function mockEnv(cookieLang?: string, dbLocale?: string) {
       return {
         headers: async () => ({
           get: (name: string) =>
-            name === 'cookie' && cookieLang ? `NEXT_LOCALE=${cookieLang}` : undefined,
+            name === 'cookie' && cookieLang ? `lang=${cookieLang}` : undefined,
         }),
       } as any;
     }
@@ -47,7 +47,7 @@ function mockEnv(cookieLang?: string, dbLocale?: string) {
   };
 }
 
-// The layout should honor the `NEXT_LOCALE` cookie when present.
+// The layout should honor the `lang` cookie when present.
 test('renders with cookie locale', async () => {
   const restore = mockEnv('en');
   const { default: Layout } = await import(`../../app/layout.tsx?test=${Date.now()}`);
@@ -57,12 +57,12 @@ test('renders with cookie locale', async () => {
   restore();
 });
 
-// When no cookie or preference exists, the default English locale is used.
+// When no cookie or preference exists, the default French locale is used.
 test('falls back to default locale', async () => {
   const restore = mockEnv();
   const { default: Layout } = await import(`../../app/layout.tsx?test=${Date.now()}`);
   const element = await Layout({ children: React.createElement('div') });
   const html = renderToString(element);
-  assert.match(html, /<html lang="en"/);
+  assert.match(html, /<html lang="fr"/);
   restore();
 });

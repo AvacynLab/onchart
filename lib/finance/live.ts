@@ -96,14 +96,11 @@ async function fetchQuoteWithRetry(
   const cached = getCache<QuoteResult>(cacheKey);
   if (cached) return cached;
 
-  // When executing on the server, derive the application's base URL either
-  // from the Vercel-provided hostname or the local `PORT` to avoid hardcoding
-  // a development port. Client-side requests use relative URLs instead.
   const baseUrl =
     typeof window === 'undefined'
       ? process.env.NEXT_PUBLIC_VERCEL_URL
         ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-        : `http://localhost:${process.env.PORT ?? 3000}`
+        : 'http://localhost:3000'
       : '';
 
   const res = await fetchWithRetry(

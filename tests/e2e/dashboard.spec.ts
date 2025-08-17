@@ -73,7 +73,7 @@ test('renders tiles and switches locales', async ({ page }) => {
       // Specify the full URL so Playwright automatically assigns the
       // cookie's domain and path, avoiding mismatches with the test
       // server host.
-      { name: 'NEXT_LOCALE', value: 'en', url: 'http://localhost:3110/' },
+      { name: 'lang', value: 'en', url: 'http://localhost:3110/' },
     ]);
   await page.goto('/');
   await expect(page).toHaveURL(/\/$/);

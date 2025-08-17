@@ -2,35 +2,27 @@
 
 import { useRouter } from 'next/navigation';
 import { useActionState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { login, type LoginActionState } from '../actions';
 import { SignInPage } from '@/components/ui/sign-in';
 import { toast } from '@/components/toast';
 
 export default function Page() {
   const router = useRouter();
-  const [state, formAction] = useActionState<LoginActionState, FormData>(
-    login,
-    {
-      status: 'idle',
-    },
-  );
+  const [state, formAction] = useActionState<LoginActionState, FormData>(login, { status: 'idle' });
+  const { update: updateSession } = useSession();
 
   // Display notifications and refresh session when login state changes
   useEffect(() => {
     if (state.status === 'failed') {
       toast({ type: 'error', description: 'Invalid credentials!' });
     } else if (state.status === 'invalid_data') {
-      toast({
-        type: 'error',
-        description: 'Failed validating your submission!',
-      });
+      toast({ type: 'error', description: 'Failed validating your submission!' });
     } else if (state.status === 'success') {
-      // Redirect to the dashboard after a successful sign in and refresh the
-      // router to reload server components with the authenticated session.
-      router.push('/');
+      updateSession();
       router.refresh();
     }
-  }, [state.status, router]);
+  }, [state.status, router, updateSession]);
 
   // Handle email/password sign in submission
   const handleSignIn = (event: React.FormEvent<HTMLFormElement>) => {

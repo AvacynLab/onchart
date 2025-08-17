@@ -1,11 +1,5 @@
 import { defineConfig } from '@playwright/test';
 
-// Align with the default Playwright configuration by using a dedicated port for
-// end-to-end tests. Selecting a rarely used port avoids clashes with any local
-// development servers that may already occupy 3000.
-const PORT = Number(process.env.PORT || 3110);
-const baseURL = `http://localhost:${PORT}`;
-
 /**
  * Lightweight Playwright configuration used for end-to-end suites. Unlike the
  * default config, this file explicitly starts the Next.js development server so
@@ -19,7 +13,7 @@ export default defineConfig({
     /**
      * Base URL so tests can navigate with relative paths such as `/api/auth/guest`.
      */
-    baseURL,
+    baseURL: 'http://localhost:3000',
     // Force French locale during tests to avoid middleware redirects to `/en`.
     extraHTTPHeaders: { 'Accept-Language': 'fr' },
   },
@@ -35,19 +29,22 @@ export default defineConfig({
    * Playwright to wait for a healthy instance.
    */
   webServer: {
-    // Run the production build for deterministic behavior during end-to-end tests.
-    // Use the `--port` flag directly to avoid passing an extra `--` argument that
-    // Next.js mistakenly interprets as a project directory.
-    command: `pnpm build && pnpm start --port ${PORT}`,
-    url: baseURL,
+    // Start the Next.js dev server via the usual package script so e2e tests
+    // run against the same environment developers use locally. The `env`
+    // option passes variables directly to the process, avoiding shell-specific
+    // syntax.
+    command: 'pnpm dev',
+    url: 'http://localhost:3000/ping',
     reuseExistingServer: !process.env.CI,
-    timeout: 180 * 1000,
+    timeout: 120 * 1000,
     env: {
       ...process.env,
       AUTH_SECRET: 'test',
       POSTGRES_URL: '',
       PLAYWRIGHT: '1',
-      PORT: String(PORT),
+      // Point the dev server to the same request-level i18n configuration so
+      // locale negotiation behaves consistently with the production setup.
+      NEXT_INTL_CONFIG: './i18n/request.ts',
     },
   },
 });
