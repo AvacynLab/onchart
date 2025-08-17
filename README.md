@@ -44,7 +44,7 @@
 ## Internationalisation
 
 L’interface est bilingue **FR/EN**. La langue active est déterminée par le cookie
-`NEXT_LOCALE` ou l’en‑tête `Accept-Language`. Les URLs restent inchangées (pas de
+`lang` ou l’en‑tête `Accept-Language`. Les URLs restent inchangées (pas de
 préfixes `/fr` ou `/en`).
 
 Un sélecteur de langue dans l’entête du dashboard met à jour ce cookie pour
@@ -53,7 +53,7 @@ basculer instantanément entre les locales.
 Pour tester une locale spécifique en local :
 
 1. Ouvrir les DevTools du navigateur → **Application** → **Cookies**.
-2. Ajouter ou modifier `NEXT_LOCALE` avec `en` ou `fr`.
+2. Ajouter ou modifier `lang` avec `en` ou `fr`.
 3. Recharger la page ; le serveur utilise d’abord ce cookie, puis
    `Accept-Language`, et enfin la préférence éventuelle enregistrée en base de
    données.
@@ -109,8 +109,6 @@ pnpm test:e2e
 - `node --test` exécute les tests unitaires (Node.js test runner).
 - `pnpm test` lance la suite end-to-end Playwright.
 - `pnpm test:e2e` permet de cibler uniquement les scénarios Playwright end-to-end.
-  Ce script installe au préalable les navigateurs et les bibliothèques système
-  nécessaires via `playwright install` et `playwright install-deps`.
 
 Deux scripts de garde-fous s’exécutent automatiquement avant les tests E2E :
 

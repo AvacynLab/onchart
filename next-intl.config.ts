@@ -4,10 +4,10 @@
  * Playwright to locate the locale settings without executing application code.
  */
 const intlConfig = {
-  locales: ['en', 'fr'],
-  defaultLocale: 'en',
-  // Serve both English and French from the same `/` routes. Locale negotiation
-  // happens via the `NEXT_LOCALE` cookie or `Accept-Language` headers rather than path
+  locales: ['fr', 'en'],
+  defaultLocale: 'fr',
+  // Serve both French and English from the same `/` routes. Locale negotiation
+  // happens via the `lang` cookie or `Accept-Language` headers rather than path
   // segments, so no locale prefixes are added to URLs.
   localePrefix: 'never',
 } as const;

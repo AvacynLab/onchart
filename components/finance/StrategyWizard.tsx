@@ -77,19 +77,14 @@ export default function StrategyWizard({ onComplete }: Props) {
         {current.label}
         <input
           name={current.name}
-          /* Stable test id ensures e2e tests can target each step reliably. */
-          data-testid={`${current.name}-input`}
+          data-testid={current.name === 'constraints' ? 'constraints-input' : undefined}
           type={current.type}
           ref={inputRef}
           defaultValue={answers[current.name] as string | number | undefined}
           className="border rounded px-2 py-1"
         />
       </label>
-      <button
-        type="submit"
-        data-testid="wizard-submit"
-        className="self-end underline text-xs"
-      >
+      <button type="submit" className="self-end underline text-xs">
         {step < fields.length - 1 ? t('next') : t('finish')}
       </button>
     </form>

@@ -121,25 +121,6 @@ export function buildFinanceToolMap(ft: ReturnType<typeof createFinanceTools>) {
   };
 }
 
-/**
- * Convert a `ChatSDKError` into a `Response` while attaching a diagnostic
- * `X-Error-Code` header. Centralizing this logic ensures that all API error
- * responses expose machine-readable codes for debugging without inspecting the
- * body. The API always returns a 200 status so clients can process errors
- * through the stream without triggering fetch-level failures.
- */
-function errorResponse(error: ChatSDKError) {
-  // Surface the full error details in logs so failures during streaming can be
-  // diagnosed from CI output. The response itself always returns 200 with a
-  // diagnostic header, allowing clients to handle errors without fetch-level
-  // failures.
-  console.error(error);
-  const base = error.toResponse();
-  const headers = new Headers(base.headers);
-  headers.set('X-Error-Code', `${error.type}:${error.surface}`);
-  return new Response(base.body, { status: 200, headers });
-}
-
 export async function POST(request: Request) {
   let requestBody: PostRequestBody;
 
@@ -147,7 +128,7 @@ export async function POST(request: Request) {
     const json = await request.json();
     requestBody = postRequestBodySchema.parse(json);
   } catch (_) {
-    return errorResponse(new ChatSDKError('bad_request:api'));
+    return new ChatSDKError('bad_request:api').toResponse();
   }
 
   try {
@@ -166,7 +147,7 @@ export async function POST(request: Request) {
     const session = await auth();
 
     if (!session?.user) {
-      return errorResponse(new ChatSDKError('unauthorized:chat'));
+      return new ChatSDKError('unauthorized:chat').toResponse();
     }
 
     const userType: UserType = session.user.type;
@@ -177,7 +158,7 @@ export async function POST(request: Request) {
     });
 
     if (messageCount > entitlementsByUserType[userType].maxMessagesPerDay) {
-      return errorResponse(new ChatSDKError('rate_limit:chat'));
+      return new ChatSDKError('rate_limit:chat').toResponse();
     }
 
     const chat = await getChatById({ id });
@@ -195,7 +176,7 @@ export async function POST(request: Request) {
       });
     } else {
       if (chat.userId !== session.user.id) {
-        return errorResponse(new ChatSDKError('forbidden:chat'));
+        return new ChatSDKError('forbidden:chat').toResponse();
       }
     }
 
@@ -313,9 +294,8 @@ export async function POST(request: Request) {
     }
   } catch (error) {
     if (error instanceof ChatSDKError) {
-      return errorResponse(error);
+      return error.toResponse();
     }
-    return errorResponse(new ChatSDKError('bad_request:chat'));
   }
 }
 
@@ -324,19 +304,19 @@ export async function DELETE(request: Request) {
   const id = searchParams.get('id');
 
   if (!id) {
-    return errorResponse(new ChatSDKError('bad_request:api'));
+    return new ChatSDKError('bad_request:api').toResponse();
   }
 
   const session = await auth();
 
   if (!session?.user) {
-    return errorResponse(new ChatSDKError('unauthorized:chat'));
+    return new ChatSDKError('unauthorized:chat').toResponse();
   }
 
   const chat = await getChatById({ id });
 
   if (chat.userId !== session.user.id) {
-    return errorResponse(new ChatSDKError('forbidden:chat'));
+    return new ChatSDKError('forbidden:chat').toResponse();
   }
 
   const deletedChat = await deleteChatById({ id });

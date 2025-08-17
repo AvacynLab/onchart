@@ -79,16 +79,22 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    // Build the application and launch a production server. Passing the port
-    // flag directly avoids pnpm forwarding quirks that previously produced an
-    // invalid `-p` directory argument.
-    command: `pnpm build && pnpm start --port ${PORT}`,
+    // Use the same `PORT` variable for both the Next.js `start` command and
+    // Playwright's readiness probe so the two remain in sync. This allows
+    // callers to override the port when 3110 is unavailable (e.g. another
+    // server is already running) while keeping 3110 as the default.
+    command: `pnpm build && pnpm start -p ${PORT}`,
     port: PORT,
-    // Building can take longer on CI, so keep a generous timeout.
+    // Building and starting the production server can take longer on CI, so the
+    // timeout is generous to avoid flakiness.
     timeout: 180 * 1000,
     reuseExistingServer: !process.env.CI,
     env: {
       ...process.env,
+      // Point the dev server started for Playwright tests to the same
+      // request-level i18n configuration so locale detection matches the
+      // production setup.
+      NEXT_INTL_CONFIG: './i18n/request.ts',
       AUTH_SECRET: 'test',
       POSTGRES_URL: '',
       PLAYWRIGHT: '1',

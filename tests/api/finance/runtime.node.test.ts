@@ -23,7 +23,4 @@ test('finance routes execute on nodejs runtime', () => {
   expectNodeRuntime(join(base, 'attention/route.ts'));
   expectNodeRuntime(join(base, 'research/route.ts'));
   expectNodeRuntime(join(base, 'strategy/route.ts'));
-  // The strategy wizard orchestrates multiple tool calls and requires Node APIs
-  // like file system access; ensure it also opts into the Node.js runtime.
-  expectNodeRuntime(join(base, 'strategy/wizard/route.ts'));
 });

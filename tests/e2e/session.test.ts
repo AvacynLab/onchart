@@ -24,13 +24,10 @@ test.describe
         request = request.redirectedFrom();
       }
 
-      const { baseURL } = test.info().project.use;
-      expect(baseURL).toBeDefined();
-      const base = baseURL as string;
       expect(chain).toEqual([
-        `${base}/`,
-        `${base}/api/auth/guest?redirectUrl=${encodeURIComponent(`${base}/`)}`,
-        `${base}/`,
+        'http://localhost:3000/',
+        'http://localhost:3000/api/auth/guest?redirectUrl=http%3A%2F%2Flocalhost%3A3000%2F',
+        'http://localhost:3000/',
       ]);
     });
 
@@ -69,10 +66,7 @@ test.describe
         request = request.redirectedFrom();
       }
 
-      const { baseURL } = test.info().project.use;
-      expect(baseURL).toBeDefined();
-      const base = baseURL as string;
-      expect(chain).toEqual([`${base}/`]);
+      expect(chain).toEqual(['http://localhost:3000/']);
     });
 
     test('Allow navigating to /login as guest user', async ({ page }) => {

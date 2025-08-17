@@ -24,7 +24,7 @@ export function mockRequestEnv({
       return {
         headers: async () => ({
           get: (name: string) => {
-            if (name === 'cookie' && cookie) return `NEXT_LOCALE=${cookie}`;
+            if (name === 'cookie' && cookie) return `lang=${cookie}`;
             if (name === 'accept-language') return accept;
             return undefined;
           },

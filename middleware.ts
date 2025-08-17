@@ -3,13 +3,13 @@ import { NextResponse } from 'next/server';
 import { locales, defaultLocale } from './i18n/config';
 
 /**
- * Middleware maison : lit le cookie `NEXT_LOCALE` ou l’en-tête `Accept-Language` pour
+ * Middleware maison : lit le cookie `lang` ou l’en-tête `Accept-Language` pour
  * déterminer la langue et la transmet au serveur via l’en-tête
  * `x-next-intl-locale`. Si aucun cookie n’est présent, il est écrit afin que la
  * préférence persiste. Aucune réécriture de chemin n’est effectuée.
  */
 export function middleware(request: NextRequest) {
-  const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value;
+  const cookieLocale = request.cookies.get('lang')?.value;
   const headerLocale = request.headers
     .get('accept-language')
     ?.split(',')[0]
@@ -29,7 +29,7 @@ export function middleware(request: NextRequest) {
   response.headers.set('x-next-intl-locale', locale);
   // Écrire le cookie si absent ou différent pour mémoriser la préférence.
   if (!cookieLocale || cookieLocale !== locale) {
-    response.cookies.set('NEXT_LOCALE', locale, { path: '/' });
+    response.cookies.set('lang', locale, { path: '/' });
   }
   return response;
 }
