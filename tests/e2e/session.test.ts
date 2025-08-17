@@ -24,10 +24,12 @@ test.describe
         request = request.redirectedFrom();
       }
 
-      const base = test.info().project.use.baseURL!;
+      const { baseURL } = test.info().project.use;
+      expect(baseURL).toBeDefined();
+      const base = baseURL as string;
       expect(chain).toEqual([
         `${base}/`,
-        `${base}/api/auth/guest?redirectUrl=${encodeURIComponent(base + '/')}`,
+        `${base}/api/auth/guest?redirectUrl=${encodeURIComponent(`${base}/`)}`,
         `${base}/`,
       ]);
     });
@@ -67,7 +69,9 @@ test.describe
         request = request.redirectedFrom();
       }
 
-      const base = test.info().project.use.baseURL!;
+      const { baseURL } = test.info().project.use;
+      expect(baseURL).toBeDefined();
+      const base = baseURL as string;
       expect(chain).toEqual([`${base}/`]);
     });
 
