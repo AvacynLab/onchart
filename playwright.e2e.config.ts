@@ -36,7 +36,9 @@ export default defineConfig({
    */
   webServer: {
     // Run the production build for deterministic behavior during end-to-end tests.
-    command: `pnpm build && pnpm start -- -p ${PORT}`,
+    // Use the `--port` flag directly to avoid passing an extra `--` argument that
+    // Next.js mistakenly interprets as a project directory.
+    command: `pnpm build && pnpm start --port ${PORT}`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 180 * 1000,

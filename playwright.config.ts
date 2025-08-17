@@ -79,10 +79,10 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    // Build the application and start a production server for maximum stability
-    // during tests. Running against the compiled output avoids development-only
-    // flakiness such as client module hot reloading issues.
-    command: `pnpm build && pnpm start -- -p ${PORT}`,
+    // Build the application and launch a production server. Passing the port
+    // flag directly avoids pnpm forwarding quirks that previously produced an
+    // invalid `-p` directory argument.
+    command: `pnpm build && pnpm start --port ${PORT}`,
     port: PORT,
     // Building can take longer on CI, so keep a generous timeout.
     timeout: 180 * 1000,
