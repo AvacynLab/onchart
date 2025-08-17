@@ -1,4 +1,4 @@
-import { cachedJsonFetch, INTRADAY_TTL_MS, DAILY_TTL_MS } from '../cache';
+import { cachedJsonFetch, TTL_INTRADAY_MS, TTL_DAILY_MS } from '../cache';
 import { rateLimit } from '../rate-limit';
 import { fetchWithRetry } from '../request';
 import { DataSourceError } from '../errors';
@@ -36,6 +36,12 @@ export interface QuoteResult {
   change: number;
   changePercent: number;
   marketState: string;
+  /**
+   * Optional identifier of the data provider that served the quote. This field
+   * is attached by the internal quote API to help trace which fallback was
+   * used (e.g. 'yahoo', 'binance', 'stooq').
+   */
+  source?: 'yahoo' | 'binance' | 'stooq';
 }
 
 /**
@@ -45,10 +51,13 @@ export async function fetchQuoteYahoo(symbol: string): Promise<QuoteResult> {
   const sym = normalizeSymbol(symbol);
   await rateLimit('yahoo');
   const url = `${YAHOO_BASE}/v7/finance/quote?symbols=${encodeURIComponent(sym)}`;
-  const data = await cachedJsonFetch<any>(url, INTRADAY_TTL_MS, fetch, {
+  const data = await cachedJsonFetch<any>(url, TTL_INTRADAY_MS, fetch, {
     headers: { 'User-Agent': 'Mozilla/5.0' },
   });
-  const quote = data.quoteResponse.result[0];
+  const quote = data.quoteResponse?.result?.[0];
+  if (!quote) {
+    throw new DataSourceError('Yahoo empty payload');
+  }
   return {
     symbol: quote.symbol,
     price: quote.regularMarketPrice,
@@ -93,7 +102,7 @@ export async function fetchOHLCYahoo(
   const { crumb, cookie } = await getSession();
   params.set('crumb', crumb);
   const url = `${YAHOO_BASE}/v8/finance/chart/${encodeURIComponent(sym)}?${params}`;
-  const ttl = /m$|h$/.test(interval) ? INTRADAY_TTL_MS : DAILY_TTL_MS;
+  const ttl = /m$|h$/.test(interval) ? TTL_INTRADAY_MS : TTL_DAILY_MS;
   try {
     const data = await cachedJsonFetch<any>(url, ttl, fetch, {
       headers: { 'User-Agent': 'Mozilla/5.0' },

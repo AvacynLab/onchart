@@ -10,6 +10,7 @@ import {
   emitUIEvent,
   type UIEvent,
 } from '../../lib/ui/events';
+import { toastFinanceError } from '@/components/toast';
 
 /**
  * FinancePanel renders a collapsible sidebar containing the chart and its
@@ -75,45 +76,59 @@ export default function FinancePanel({
   ) => {
     const params = new URLSearchParams({ symbol: sym, interval: tf });
     if (range) params.set('range', range);
-    const res = await fetcher(`/api/finance/ohlc?${params.toString()}`);
-    const json = await res.json();
-    chartRef.current?.setData(json.candles ?? []);
-    setChart(chartRef.current?.getChart());
-
-    // Fetch existing attention markers for this chat/symbol/timeframe.
-    const attParams = new URLSearchParams({
-      chatId,
-      symbol: sym,
-      timeframe: tf,
-    });
     try {
-      const resMarks = await fetcher(
-        `/api/finance/attention?${attParams.toString()}`,
-      );
-      const marks = await resMarks.json();
-      setTimeout(() => {
-        marks.forEach((m: any) =>
-          emitUIEvent({
-            type: 'add_annotation',
-            payload: { symbol: sym, timeframe: tf, id: m.id, ...m.payload },
-          }),
+      const res = await fetcher(`/api/finance/ohlc?${params.toString()}`);
+      if (!('ok' in res) || !res.ok) {
+        toastFinanceError(`Request failed: ${(res as any).status}`);
+        chartRef.current?.setData([]);
+        setChart(chartRef.current?.getChart());
+        return false;
+      }
+      const json = await res.json();
+      chartRef.current?.setData(json.candles ?? []);
+      setChart(chartRef.current?.getChart());
+      rememberSymbol(sym);
+
+      // Fetch existing attention markers for this chat/symbol/timeframe.
+      const attParams = new URLSearchParams({
+        chatId,
+        symbol: sym,
+        timeframe: tf,
+      });
+      try {
+        const resMarks = await fetcher(
+          `/api/finance/attention?${attParams.toString()}`,
         );
-      }, 0);
-    } catch {
-      /* ignore */
+        const marks = await resMarks.json();
+        setTimeout(() => {
+          marks.forEach((m: any) =>
+            emitUIEvent({
+              type: 'add_annotation',
+              payload: { symbol: sym, timeframe: tf, id: m.id, ...m.payload },
+            }),
+          );
+        }, 0);
+      } catch {
+        /* ignore */
+      }
+      return true;
+    } catch (err) {
+      toastFinanceError(err);
+      chartRef.current?.setData([]);
+      setChart(chartRef.current?.getChart());
+      return false;
     }
   };
 
   // Subscribe to server side requests.
   useEffect(() => {
-    return subscribe((event: UIEvent<any>) => {
+    return subscribe((event: UIEvent) => {
       if (event.type === 'show_chart') {
         const { symbol, timeframe, range } = event.payload;
         setSymbol(symbol);
         setTimeframe((timeframe as any) || '1d');
         setOpen(true);
         setRange(range);
-        rememberSymbol(symbol);
       }
     });
   }, [subscribe]);
@@ -138,7 +153,6 @@ export default function FinancePanel({
         onSelect={(s) => {
           setSymbol(s);
           setOpen(true);
-          rememberSymbol(s);
           loadData(s, timeframe);
         }}
       />

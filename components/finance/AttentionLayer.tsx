@@ -53,7 +53,7 @@ const AttentionLayer: React.FC<AttentionLayerProps> = ({
 
   // Subscribe to annotation add/remove events.
   useEffect(() => {
-    return subscribeUIEvents(async (event: UIEvent<any>) => {
+    return subscribeUIEvents(async (event: UIEvent) => {
       if (event.type === 'add_annotation' && event.payload.symbol === symbol) {
         const payload = event.payload as any;
         if (payload.id) {

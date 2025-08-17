@@ -8,6 +8,9 @@ const mockQuote = {
   change: 1,
   changePercent: 0.7,
   marketState: 'REG',
+  // The source field is surfaced by the internal quote API to help debugging
+  // of fallback logic. Tests can stub it to ensure the value is propagated.
+  source: 'yahoo' as const,
 };
 
 const mockCandles = [
@@ -56,6 +59,7 @@ test('get_quote returns quote and persists', async () => {
 
   const res = await tools.finance.get_quote.execute({ symbol: 'AAPL' });
   expect(res).toEqual(mockQuote);
+  expect(res.source).toBe('yahoo');
   expect(saved[0].type).toBe('quote');
 });
 

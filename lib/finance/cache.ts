@@ -12,47 +12,67 @@ interface CacheEntry<T> {
   expires: number;
 }
 
-const CAPACITY = 100; // maximum number of entries
-const store = new Map<string, CacheEntry<unknown>>();
+/** Interface that allows swapping the cache backend (e.g. Redis in prod). */
+export interface CacheDriver {
+  get<T>(key: string): T | undefined;
+  set<T>(key: string, value: T, ttlMs: number): void;
+  delete(key: string): void;
+}
+
+/** In-memory driver used for development and tests. */
+class InMemoryDriver implements CacheDriver {
+  private store = new Map<string, CacheEntry<unknown>>();
+  private readonly capacity = 100;
+
+  get<T>(key: string): T | undefined {
+    const entry = this.store.get(key) as CacheEntry<T> | undefined;
+    if (!entry) return undefined;
+    if (Date.now() > entry.expires) {
+      this.store.delete(key);
+      return undefined;
+    }
+    // refresh LRU order by reinserting
+    this.store.delete(key);
+    this.store.set(key, entry);
+    return entry.value;
+  }
+
+  set<T>(key: string, value: T, ttlMs: number): void {
+    if (this.store.size >= this.capacity) {
+      const oldestKey = this.store.keys().next().value as string | undefined;
+      if (oldestKey) this.store.delete(oldestKey);
+    }
+    this.store.set(key, { value, expires: Date.now() + ttlMs });
+  }
+
+  delete(key: string): void {
+    this.store.delete(key);
+  }
+}
+
+const driver: CacheDriver = new InMemoryDriver();
 
 /**
  * Default TTL for intraday data (~15s). Keeping this under 20s respects the
  * 10–15s refresh window noted in the project spec while avoiding excessive
  * hammering of free APIs.
  */
-export const INTRADAY_TTL_MS = 15_000;
-/**
- * Default TTL for daily data (~5min). Falls inside the recommended 5–10 minute
- * caching window for slower‑moving end of day information.
- */
-export const DAILY_TTL_MS = 300_000;
+export const TTL_INTRADAY_MS = 15_000;
+/** Daily data changes slowly; cache for one minute to smooth traffic. */
+export const TTL_DAILY_MS = 60_000;
 
 /**
  * Retrieve a value from cache if it exists and has not expired.
  */
 export function getCache<T>(key: string): T | undefined {
-  const entry = store.get(key) as CacheEntry<T> | undefined;
-  if (!entry) return undefined;
-  if (Date.now() > entry.expires) {
-    store.delete(key);
-    return undefined;
-  }
-  // refresh LRU order by reinserting
-  store.delete(key);
-  store.set(key, entry);
-  return entry.value;
+  return driver.get<T>(key);
 }
 
 /**
  * Store a value in cache with a time to live in milliseconds.
  */
 export function setCache<T>(key: string, value: T, ttlMs: number): void {
-  if (store.size >= CAPACITY) {
-    // delete oldest entry
-    const oldestKey = store.keys().next().value as string | undefined;
-    if (oldestKey) store.delete(oldestKey);
-  }
-  store.set(key, { value, expires: Date.now() + ttlMs });
+  driver.set(key, value, ttlMs);
 }
 
 /**
@@ -60,7 +80,7 @@ export function setCache<T>(key: string, value: T, ttlMs: number): void {
  * WebSocket prices) require bypassing stale cached data.
  */
 export function invalidateCache(key: string): void {
-  store.delete(key);
+  driver.delete(key);
 }
 
 /**

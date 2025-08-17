@@ -1,6 +1,8 @@
 import type { QuoteResult } from './sources/yahoo';
-import { getCache, setCache, INTRADAY_TTL_MS } from './cache';
+import { getCache, setCache, TTL_INTRADAY_MS } from './cache';
 import { fetchWithRetry } from './request';
+import { DataSourceError } from './errors';
+import { headers } from 'next/headers.js';
 
 /** Determine if the given symbol should be treated as a crypto pair. */
 export function isCryptoSymbol(symbol: string): boolean {
@@ -81,35 +83,74 @@ export function subscribeBinanceTicker(
  * them. If a request takes longer than the timeout it is considered failed and
  * retried up to the specified number of attempts.
  *
- * The default timeout is aligned with the 10s guidance for public data
- * sources, balancing responsiveness with avoiding unnecessary retries.
- */
+ * The default timeout is kept short (2.5s) since the internal quote API
+ * performs its own fallbacks. Slow responses are retried with exponential
+ * backoff up to three total attempts.
+*/
 async function fetchQuoteWithRetry(
   symbol: string,
   {
-    timeoutMs = 10_000,
+    timeoutMs = 2_500,
     retries = 2,
-    ttlMs = INTRADAY_TTL_MS,
-  }: { timeoutMs?: number; retries?: number; ttlMs?: number } = {},
+    ttlMs = TTL_INTRADAY_MS,
+    fetcher = fetch,
+    getHeaders = headers,
+  }: {
+    timeoutMs?: number;
+    retries?: number;
+    ttlMs?: number;
+    fetcher?: typeof fetch;
+    getHeaders?: () => Headers | Promise<Headers>;
+  } = {},
 ): Promise<QuoteResult> {
   const cacheKey = `live:${symbol}`;
   const cached = getCache<QuoteResult>(cacheKey);
   if (cached) return cached;
 
-  const baseUrl =
-    typeof window === 'undefined'
-      ? process.env.NEXT_PUBLIC_VERCEL_URL
-        ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-        : 'http://localhost:3000'
-      : '';
+  // Build an absolute base URL when running on the server. In containers or
+  // SSR environments the host information is surfaced via the forwarded
+  // headers. If absent (e.g. local tests) fall back to the Vercel URL in
+  // production or localhost in development.
+  const h = typeof window === 'undefined' ? await getHeaders() : null;
+  const baseUrl = typeof window === 'undefined'
+    ? (() => {
+        const proto = h?.get('x-forwarded-proto');
+        const host = h?.get('x-forwarded-host');
+        if (proto && host) return `${proto}://${host}`;
+        if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_VERCEL_URL) {
+          return `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`;
+        }
+        return 'http://localhost:3000';
+      })()
+    : '';
 
-  const res = await fetchWithRetry(
-    `${baseUrl}/api/finance/quote?symbol=${encodeURIComponent(symbol)}`,
-    { timeoutMs, retries, init: { cache: 'no-store' } },
-  );
-  const quote = (await res.json()) as QuoteResult;
-  setCache(cacheKey, quote, ttlMs);
-  return quote;
+  const url = `${baseUrl}/api/finance/quote?symbol=${encodeURIComponent(symbol)}`;
+
+  // Perform manual retries for transient 5xx errors from the internal API.
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetchWithRetry(url, {
+        timeoutMs,
+        retries: 0,
+        fetcher,
+        init: { cache: 'no-store' },
+      });
+      const quote = (await res.json()) as QuoteResult;
+      setCache(cacheKey, quote, ttlMs);
+      return quote;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const retryable = /Request failed: (502|503|504)/.test(msg);
+      if (err instanceof DataSourceError && retryable && attempt < retries) {
+        const baseDelay = 200 * 2 ** attempt;
+        const jitter = Math.random() * 200;
+        await new Promise((r) => setTimeout(r, baseDelay + jitter));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new DataSourceError('failed to fetch quote', { url, attempt: retries, elapsedMs: 0 });
 }
 
 /**
@@ -118,8 +159,17 @@ async function fetchQuoteWithRetry(
  * The helper currently performs simple polling of the internal quote API but
  * can later be extended to multiplex WebSocket streams for crypto pairs.
 */
-export async function fetchLiveQuotes(symbols: string[]): Promise<QuoteResult[]> {
-  return Promise.all(symbols.map((s) => fetchQuoteWithRetry(s)));
+export async function fetchLiveQuotes(
+  symbols: string[],
+  opts?: {
+    timeoutMs?: number;
+    retries?: number;
+    ttlMs?: number;
+    fetcher?: typeof fetch;
+    getHeaders?: () => Headers;
+  },
+): Promise<QuoteResult[]> {
+  return Promise.all(symbols.map((s) => fetchQuoteWithRetry(s, opts)));
 }
 
 export type { QuoteResult };

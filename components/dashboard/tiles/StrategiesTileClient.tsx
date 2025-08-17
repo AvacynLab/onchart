@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useId } from 'react';
-import { useTranslations, useLocale } from 'next-intl';
+import { useLocale } from 'next-intl';
+import { useTranslations } from '@/i18n/useTranslations';
 import BentoCard from '../BentoCard';
 import StrategyWizard, {
   type WizardAnswers,

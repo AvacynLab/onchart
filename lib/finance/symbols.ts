@@ -18,7 +18,48 @@ export interface NormalizedSymbol {
   assetClass: AssetClass;
 }
 
+// Stablecoins recognised when detecting crypto pairs. Extend as needed.
 const STABLECOINS = ['USDT', 'USDC', 'BUSD'];
+
+/**
+ * Quick sanity check to reject obviously unsupported symbols before hitting
+ * external data providers. Allows basic letters, numbers and common
+ * delimiters used by Yahoo/crypto pairs.
+ */
+export function isSupportedSymbol(raw: string): boolean {
+  return /^[A-Za-z0-9^:=\/.-]{1,20}$/.test(raw.trim());
+}
+
+/** Determine if a raw symbol string refers to a crypto pair. */
+export function isCryptoSymbol(raw: string): boolean {
+  const input = raw.trim().toUpperCase();
+  if (input.includes(':CRYPTO:')) return true;
+  if (/^[A-Z]+-USD$/.test(input)) return true;
+  return STABLECOINS.some((stable) =>
+    input.endsWith(stable) && input.length > stable.length,
+  );
+}
+
+/**
+ * Convert a symbol to the Binance trading pair format.
+ * `BTC-USD` -> `BTCUSDT`, `BTCUSDT` -> `BTCUSDT`.
+ */
+export function toBinancePair(raw: string): string {
+  const s = raw.trim().toUpperCase();
+  if (s.endsWith('USDT')) return s;
+  if (s.endsWith('-USD')) return `${s.slice(0, -4)}USDT`;
+  if (s.endsWith('USD')) return `${s}T`;
+  return s;
+}
+
+/**
+ * Convert a symbol to the Stooq ticker format. Default to US market.
+ */
+export function toStooqTicker(raw: string): string {
+  const s = raw.trim().toUpperCase();
+  if (s.includes('.')) return s;
+  return `${s}.US`;
+}
 
 /**
  * Normalise a user supplied symbol string and attempt to detect its asset class.
@@ -46,7 +87,7 @@ export function normalizeSymbol(raw: string): NormalizedSymbol {
       return {
         symbol: pair,
         yahoo: `${base}-${quote.replace('USDT', 'USD')}`,
-        binance: pair,
+        binance: toBinancePair(pair),
         assetClass: 'crypto',
       };
     }
@@ -54,6 +95,18 @@ export function normalizeSymbol(raw: string): NormalizedSymbol {
       symbol: pair,
       yahoo: `${base}${quote}=X`,
       assetClass: 'fx',
+    };
+  }
+
+  // Crypto pairs using a hyphen (e.g. BTC-USD).
+  if (/^[A-Z]+-USD$/.test(input)) {
+    const base = input.slice(0, -4);
+    const pair = `${base}USD`;
+    return {
+      symbol: pair,
+      yahoo: `${base}-USD`,
+      binance: toBinancePair(pair),
+      assetClass: 'crypto',
     };
   }
 

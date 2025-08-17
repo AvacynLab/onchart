@@ -1,8 +1,13 @@
 import { fetchOHLCYahoo } from '@/lib/finance/sources/yahoo';
 import { fetchDailyStooq } from '@/lib/finance/sources/stooq';
 import { fetchKlinesBinance } from '@/lib/finance/sources/binance';
-import { normalizeSymbol } from '@/lib/finance/symbols';
-import { getCache, setCache } from '@/lib/finance/cache';
+import { normalizeSymbol, isSupportedSymbol } from '@/lib/finance/symbols';
+import {
+  getCache,
+  setCache,
+  TTL_INTRADAY_MS,
+  TTL_DAILY_MS,
+} from '@/lib/finance/cache';
 import type { Candle } from '@/lib/finance/backtest';
 
 /** Ensure execution on Node.js to avoid edge restrictions. */
@@ -31,6 +36,16 @@ export async function GET(req: Request): Promise<Response> {
     );
   }
 
+  // Drop obviously invalid symbols early to prevent unnecessary upstream calls.
+  if (!isSupportedSymbol(symbolParam)) {
+    return new Response(JSON.stringify({ error: 'unsupported symbol' }), {
+      status: 400,
+    });
+  }
+
+  // Normalise user-provided symbols so downstream fetchers receive consistent
+  // identifiers for Yahoo, Binance and Stooq. Cache key includes all query
+  // parameters to avoid collisions between different intervals/ranges.
   const normalized = normalizeSymbol(symbolParam);
   const cacheKey = `ohlc:${normalized.yahoo}:${interval}:${range || ''}:${start || ''}:${end || ''}`;
   const cached = getCache<any>(cacheKey);
@@ -45,27 +60,43 @@ export async function GET(req: Request): Promise<Response> {
       end: end ? Number(end) : undefined,
     });
     const result = { symbol: normalized.symbol, candles };
-    const ttl = interval.endsWith('d') ? 300_000 : 15_000; // 5m for daily, 15s intraday
+    const ttl = interval.endsWith('d') ? TTL_DAILY_MS : TTL_INTRADAY_MS;
     setCache(cacheKey, result, ttl);
     return Response.json(result);
   } catch (err) {
-    // Attempt fallback providers depending on asset class
+    // Attempt fallback providers depending on asset class and interval.
     try {
-      // Candle array returned by the fallback providers.
       let candles: Candle[];
-      // Default cache TTL set to 5 minutes; shorter for intraday data.
-      let ttl = 300_000;
+      let ttl = TTL_INTRADAY_MS;
+
       if (normalized.assetClass === 'crypto' && normalized.binance) {
-        candles = await fetchKlinesBinance(normalized.binance, interval, 500);
-        ttl = 15_000;
-      } else {
+        // Binance provides intraday and daily candles for crypto pairs.
+        const klines = await fetchKlinesBinance(
+          normalized.binance,
+          interval,
+          500,
+        );
+        candles = klines.map((k) => ({
+          time: k.openTime,
+          open: k.open,
+          high: k.high,
+          low: k.low,
+          close: k.close,
+        }));
+        ttl = interval === '1d' ? TTL_DAILY_MS : TTL_INTRADAY_MS;
+      } else if (interval === '1d') {
+        // Stooq exposes only daily candles for equities/indices/ETFs.
         candles = await fetchDailyStooq(normalized.symbol);
-        ttl = 300_000;
+        ttl = TTL_DAILY_MS;
+      } else {
+        throw new Error('no fallback');
       }
+
       const result = { symbol: normalized.symbol, candles };
       setCache(cacheKey, result, ttl);
       return Response.json(result);
     } catch (fallbackErr) {
+      // All sources failed; bubble up a 502 so logs reflect network reality.
       return new Response(JSON.stringify({ error: 'failed to fetch ohlc' }), {
         status: 502,
       });

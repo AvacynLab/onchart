@@ -9,6 +9,6 @@ test('uses cookie locale', async () => {
   const config = await resolve();
   assert.equal(config.locale, 'en');
   // Ensure message bundles for the active locale are loaded.
-  assert.equal(config.messages.prices.title, 'Current prices');
+  assert.equal(config.messages.dashboard.prices.title, 'Current prices');
   restore();
 });

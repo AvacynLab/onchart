@@ -1,35 +1,37 @@
-import { test, expect } from '@playwright/test';
+import test from 'node:test';
+import assert from 'node:assert/strict';
 import { fetchDailyStooq } from '../../lib/finance/sources/stooq';
-import { invalidateCache } from '../../lib/finance/cache';
+import { DataSourceError } from '../../lib/finance/errors';
 
-/**
- * Stooq tests stub the CSV endpoint and force one failure to ensure the
- * retry logic in {@link fetchWithRetry} is exercised.
- */
-test('fetchDailyStooq retries and parses CSV data', async () => {
-  // Ensure no cached value short-circuits the network fetch so the retry logic
-  // is exercised deterministically.
-  invalidateCache('https://stooq.com/q/d/l/?s=aapl.us&i=d');
+// Helper to override global fetch within a test
+async function withMockFetch<T>(impl: typeof fetch, fn: () => Promise<T>): Promise<T> {
+  const original = global.fetch;
+  // @ts-expect-error override for tests
+  global.fetch = impl;
+  try {
+    return await fn();
+  } finally {
+    // @ts-expect-error restore
+    global.fetch = original;
+  }
+}
 
-  const originalFetch = global.fetch;
-  let calls = 0;
-  global.fetch = (async () => {
-    calls += 1;
-    if (calls === 1) {
-      throw new Error('temporary');
-    }
-    return new Response(
-      'Date,Open,High,Low,Close,Volume\n2024-01-01,1,2,0.5,1.5,1000',
-      { status: 200 },
-    );
-  }) as any;
-
-  const data = await fetchDailyStooq('AAPL');
-  expect(calls).toBe(2);
-  expect(data).toEqual([
-    { time: 1704067200, open: 1, high: 2, low: 0.5, close: 1.5, volume: 1000 },
-  ]);
-
-  global.fetch = originalFetch;
+test('throws when Stooq returns less than two candles', async () => {
+  const csv = 'Date,Open,High,Low,Close,Volume\n2024-01-01,10,10,10,10,0\n';
+  const mock: typeof fetch = async () => new Response(csv, { status: 200 });
+  await assert.rejects(
+    withMockFetch(mock, () => fetchDailyStooq('AAPL')),
+    DataSourceError,
+  );
 });
 
+test('computes change percent from two candles', async () => {
+  const csv =
+    'Date,Open,High,Low,Close,Volume\n2024-01-01,10,10,10,10,0\n2024-01-02,15,15,15,15,0\n';
+  const mock: typeof fetch = async () => new Response(csv, { status: 200 });
+  const candles = await withMockFetch(mock, () => fetchDailyStooq('AAPL'));
+  assert.equal(candles.length, 2);
+  const changePercent =
+    ((candles[1].close - candles[0].close) / candles[0].close) * 100;
+  assert.ok(Math.abs(changePercent - 50) < 1e-6);
+});

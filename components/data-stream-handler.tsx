@@ -18,6 +18,15 @@ export function DataStreamHandler() {
     lastProcessedIndex.current = dataStream.length - 1;
 
     newDeltas.forEach((delta) => {
+      // Some experimental SSE messages may tag a part as "artifact" but omit a
+      // `documentId`. Cast to `any` before the comparison so TypeScript does not
+      // complain about the narrower union type.
+      if (
+        (delta as any).type === 'artifact' &&
+        !(delta as any).data?.documentId
+      ) {
+        return;
+      }
       const artifactDefinition = artifactDefinitions.find(
         (artifactDefinition) => artifactDefinition.kind === artifact.kind,
       );

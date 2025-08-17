@@ -240,6 +240,7 @@ const ChartPanel = forwardRef<ChartPanelRef, ChartPanelProps>(
       addStudy,
       addAnnotation,
       focusArea(start, end) {
+        if (start >= end) return;
         // Cast the numeric range to the generic `Time` type expected by
         // `setVisibleRange` so callers can supply plain epoch seconds without
         // importing chart-specific types.
@@ -255,7 +256,7 @@ const ChartPanel = forwardRef<ChartPanelRef, ChartPanelProps>(
 
     // Subscribe to events coming from server side tools.
     useEffect(() => {
-      return subscribeUIEvents((event: UIEvent<any>) => {
+      return subscribeUIEvents((event: UIEvent) => {
         if (event.type === 'add_annotation' && event.payload.symbol === symbol) {
           addAnnotation(event.payload);
         } else if (
@@ -269,10 +270,20 @@ const ChartPanel = forwardRef<ChartPanelRef, ChartPanelProps>(
           event.payload.symbol === symbol
         ) {
           const { start, end } = event.payload;
-          chartRef.current?.timeScale().setVisibleRange({ from: start, to: end });
+          if (start < end)
+            chartRef.current
+              ?.timeScale()
+              // Cast plain numbers to the `Time` type expected by
+              // lightweight-charts.
+              .setVisibleRange({ from: start as any, to: end as any });
+        } else if (
+          event.type === 'add_overlay' &&
+          event.payload.symbol === symbol
+        ) {
+          addOverlay(event.payload);
         }
       });
-    }, [symbol, addAnnotation]);
+    }, [symbol, addAnnotation, addOverlay]);
 
     // Apply any overlays, studies or annotations provided as props when they
     // change. Using a shallow effect keeps the implementation simple for

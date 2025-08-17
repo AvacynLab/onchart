@@ -5,6 +5,10 @@
     "symbol": "Symbole",
     "price": "Prix",
     "change": "Var. %",
+    "open": "Ouvert",
+    "closed": "Fermé",
+    "retry": "Réessayer",
+    "offline": "Données indisponibles",
     "state": {
       "label": "État",
       "open": "Ouvert",

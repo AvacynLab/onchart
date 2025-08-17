@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from '@/i18n/useTranslations';
 
 export interface BacktestMetrics {
   cagr: number;

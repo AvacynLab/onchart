@@ -38,18 +38,36 @@ export async function fetchWithRetry(
   let lastError: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
     let timer: NodeJS.Timeout | undefined;
+    const start = Date.now();
     try {
       const controller = new AbortController();
       timer = setTimeout(() => controller.abort(), timeoutMs);
-      const res = await fetcher(url, { ...init, signal: controller.signal });
+      const headers = new Headers(init.headers);
+      if (!headers.has('User-Agent')) {
+        headers.set('User-Agent', 'onchart-dev/alpha');
+      }
+      const res = await fetcher(url, {
+        ...init,
+        headers,
+        signal: controller.signal,
+      });
       if (!res.ok) {
-        throw new DataSourceError(
+        lastError = new DataSourceError(
           `Request failed: ${res.status} ${res.statusText}`,
+          { url, attempt, elapsedMs: Date.now() - start },
         );
+        throw lastError;
       }
       return res;
     } catch (err) {
-      lastError = err;
+      lastError =
+        err instanceof DataSourceError
+          ? err
+          : new DataSourceError((err as Error).message, {
+              url,
+              attempt,
+              elapsedMs: Date.now() - start,
+            });
       if (attempt < retries) {
         // Exponential backoff with jitter. The jitter (random 0..backoffMs)
         // prevents clients from retrying in lockstep which could otherwise
@@ -64,6 +82,6 @@ export async function fetchWithRetry(
   }
   throw lastError instanceof Error
     ? lastError
-    : new DataSourceError('Request failed');
+    : new DataSourceError('Request failed', { url, attempt: retries, elapsedMs: 0 });
 }
 

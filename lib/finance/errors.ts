@@ -17,9 +17,17 @@ export class FinanceError extends Error {
  * Thrown when a remote data source (API or scraper) responds
  * with a non-OK status code or cannot be reached.
  */
+export interface DataSourceInfo {
+  url: string;
+  attempt: number;
+  elapsedMs: number;
+}
+
 export class DataSourceError extends FinanceError {
-  constructor(message: string) {
+  info?: DataSourceInfo;
+  constructor(message: string, info?: DataSourceInfo) {
     super(message);
+    this.info = info;
   }
 }
 

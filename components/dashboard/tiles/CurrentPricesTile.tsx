@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useEffect, useState, useId } from 'react';
-import { useTranslations, useLocale } from 'next-intl';
+import { useLocale } from 'next-intl';
+import { useTranslations } from '@/i18n/useTranslations';
+import clsx from 'clsx';
 import BentoCard from '../BentoCard';
 import {
   fetchLiveQuotes,
@@ -32,6 +34,16 @@ export function PricesClient({
   // `aria-labelledby` for better screen-reader announcements.
   const titleId = useId();
   const [quotes, setQuotes] = useState(initialQuotes);
+
+  // If the server rendered no quotes (e.g., network failure), attempt a fetch
+  // on mount so the tile can self-heal once connectivity returns.
+  useEffect(() => {
+    if (initialQuotes.length === 0) {
+      fetchLiveQuotes(DEFAULT_SYMBOLS)
+        .then(setQuotes)
+        .catch((err) => console.error('initial quote fetch failed', err));
+    }
+  }, [initialQuotes]);
 
   useEffect(() => {
     const symbols = initialQuotes.map((q) => q.symbol);
@@ -75,7 +87,23 @@ export function PricesClient({
       titleTestId="tile-prices-title"
     >
       {quotes.length === 0 ? (
-        <PricesTileEmpty message={t('empty')} />
+        <div className="flex flex-col items-center gap-2">
+          <PricesTileEmpty message={t('offline')} />
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                setQuotes(await fetchLiveQuotes(DEFAULT_SYMBOLS));
+              } catch (err) {
+                console.error('retry quote fetch failed', err);
+              }
+            }}
+            className="text-sm underline"
+            data-testid="prices-retry"
+          >
+            {t('retry')}
+          </button>
+        </div>
       ) : (
         <table className="w-full text-sm" aria-labelledby={titleId}>
           <thead>
@@ -87,25 +115,37 @@ export function PricesClient({
             </tr>
           </thead>
           <tbody>
-            {quotes.map((q) => (
+            {quotes.filter(Boolean).map((q) => (
               <tr key={q.symbol}>
                 <td>{q.symbol}</td>
                 <td className="text-right">{numberFmt.format(q.price)}</td>
+                {/*
+                 * Use higher-contrast green/red tones for price movements and
+                 * provide darker-mode variants so the values remain legible on
+                 * both themes.
+                 */}
                 <td
-                  className={
-                    q.changePercent >= 0
-                      ? 'text-green-600 text-right'
-                      : 'text-red-600 text-right'
-                  }
+                  className={clsx('text-right', {
+                    'text-green-600 dark:text-green-400':
+                      typeof q.changePercent === 'number' && q.changePercent >= 0,
+                    'text-red-600 dark:text-red-400':
+                      typeof q.changePercent === 'number' && q.changePercent < 0,
+                  })}
                 >
-                  {numberFmt.format(q.changePercent)}%
+                  {typeof q.changePercent === 'number'
+                    ? `${numberFmt.format(q.changePercent)}%`
+                    : '—'}
                 </td>
                 <td className="text-right">
+                  {/*
+                   * Badge colours are also theme-aware so the market state is
+                   * distinguishable in both light and dark modes.
+                   */}
                   <span
                     className={
                       q.marketState === 'REG'
-                        ? 'bg-green-100 text-green-800 px-2 py-0.5 rounded'
-                        : 'bg-gray-100 text-gray-800 px-2 py-0.5 rounded'
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 px-2 py-0.5 rounded'
+                        : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 px-2 py-0.5 rounded'
                     }
                   >
                     {q.marketState === 'REG'

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from '@/i18n/useTranslations';
 import { subscribeUIEvents, type UIEvent } from '@/lib/ui/events';
 
 /**
@@ -20,7 +20,7 @@ export default function FinanceHint({
   const t = useTranslations('chat');
 
   useEffect(() => {
-    return subscribe((event: UIEvent<any>) => {
+    return subscribe((event: UIEvent) => {
       if (event.type === 'show_chart') {
         setVisible(false);
       }
