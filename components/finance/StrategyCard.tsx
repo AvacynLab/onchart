@@ -3,7 +3,8 @@
 import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { enUS, fr } from 'date-fns/locale';
-import { useTranslations, useLocale } from 'next-intl';
+import { useLocale } from 'next-intl';
+import { useTranslations } from '@/i18n/useTranslations';
 import type { Strategy } from '@/lib/db/schema';
 
 /**

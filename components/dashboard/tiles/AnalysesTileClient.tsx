@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useTranslations, useLocale } from 'next-intl';
+import { useLocale } from 'next-intl';
+import { useTranslations } from '@/i18n/useTranslations';
 import type { AnalysisSummary } from './AnalysesTile';
 import AnalysisList from './AnalysisList';
 

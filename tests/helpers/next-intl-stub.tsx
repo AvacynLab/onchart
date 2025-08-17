@@ -3,8 +3,9 @@ import Module from 'module';
 
 // Minimal stub for `next-intl` to allow rendering translation hooks in unit tests
 // without loading the full library. It stores provided messages in a React
-// context and returns them through `useTranslations`. Missing keys fallback to
-// returning the key itself.
+// context and returns them through `useTranslations`. Missing keys fall back to
+// returning the key wrapped in brackets so gaps in translations remain visible
+// during tests.
 const IntlContext = createContext<Record<string, any>>({});
 
 const originalLoad = (Module as any)._load;
@@ -23,7 +24,10 @@ const originalLoad = (Module as any)._load;
         const messages = useContext(IntlContext);
         return (key: string) => {
           const path = ns ? `${ns}.${key}` : key;
-          return path.split('.').reduce((obj: any, part) => obj?.[part], messages) ?? key;
+          return (
+            path.split('.').reduce((obj: any, part) => obj?.[part], messages) ??
+            `[${key}]`
+          );
         };
       },
       useLocale: () => 'en',

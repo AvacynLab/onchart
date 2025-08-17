@@ -56,13 +56,19 @@ export default getRequestConfig(async () => {
   // 4) Default to French when no other source yields a valid locale.
   const activeLocale = locale ?? defaultLocale;
 
+  // Load each namespace separately so translations can be accessed via
+  // `useTranslations('<namespace>.<key>')` rather than flattening all keys at
+  // the root. This mirrors the structure used in tests and avoids
+  // `MISSING_MESSAGE` errors when requesting scoped translations.
   return {
     locale: activeLocale,
     messages: {
-      ...(await import(`../messages/${activeLocale}/common.json`)).default,
-      ...(await import(`../messages/${activeLocale}/dashboard.json`)).default,
-      ...(await import(`../messages/${activeLocale}/finance.json`)).default,
-      ...(await import(`../messages/${activeLocale}/chat.json`)).default,
+      common: (await import(`../messages/${activeLocale}/common.json`)).default,
+      dashboard: (await import(
+        `../messages/${activeLocale}/dashboard.json`,
+      )).default,
+      finance: (await import(`../messages/${activeLocale}/finance.json`)).default,
+      chat: (await import(`../messages/${activeLocale}/chat.json`)).default,
     },
   };
 });

@@ -70,7 +70,7 @@ You can deploy your own version of the Next.js AI Chatbot to Vercel with one cli
 
 ## Running locally
 
-You will need to use the environment variables [defined in `.env.example`](.env.example) to run Next.js AI Chatbot. It's recommended you use [Vercel Environment Variables](https://vercel.com/docs/projects/environment-variables) for this, but a `.env` file is all that is necessary.
+Copy [`.env.local.example`](.env.local.example) to `.env.local` and fill in the required variables before starting the app. It's recommended you use [Vercel Environment Variables](https://vercel.com/docs/projects/environment-variables) for this, but a local `.env` file is all that is necessary.
 
 > Note: You should not commit your `.env` file or it will expose secrets that will allow others to control access to your various AI and authentication provider accounts.
 
@@ -85,6 +85,8 @@ pnpm dev
 
 Your app template should now be running on [localhost:3000](http://localhost:3000).
 
+See [Quote fallbacks and caching](#quote-fallbacks-and-caching) for details on how price data is resolved and cached.
+
 ## Environment variables
 
 This template works with a minimal set of non-sensitive variables, so you can run
@@ -97,6 +99,10 @@ NEXTAUTH_SECRET=change-me
 
 All market data comes from public sources (Yahoo, Stooq, Binance, SEC/EDGAR,
 RSS). No proprietary credentials are needed.
+
+## Quote fallbacks and caching
+
+The quote API first queries Yahoo Finance. If Yahoo returns an error, crypto symbols fall back to Binance while equities use Stooq. Results are cached per symbol using `TTL_INTRADAY_MS` (15 s) for intraday data and `TTL_DAILY_MS` (60 s) for daily candles. These constants live in [`lib/finance/cache.ts`](lib/finance/cache.ts).
 
 ## Tests
 

@@ -5,6 +5,10 @@
     "symbol": "Symbol",
     "price": "Price",
     "change": "Chg. %",
+    "open": "Open",
+    "closed": "Closed",
+    "retry": "Retry",
+    "offline": "Data unavailable",
     "state": {
       "label": "State",
       "open": "Open",

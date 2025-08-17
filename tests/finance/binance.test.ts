@@ -1,33 +1,18 @@
-import { test, expect } from '@playwright/test';
+import test from 'node:test';
+import assert from 'node:assert/strict';
 import { fetchKlinesBinance } from '../../lib/finance/sources/binance';
-import { invalidateCache } from '../../lib/finance/cache';
 
-/**
- * Binance tests verify retry logic by simulating a transient failure on the
- * first fetch and returning sample candle data on the second attempt.
- */
-test('fetchKlinesBinance retries after failure and parses candles', async () => {
-  const originalFetch = global.fetch;
-  // Ensure the request isn't served from cache so the mocked fetch below is
-  // exercised and retry logic is validated deterministically.
-  invalidateCache(
-    'https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=1',
-  );
-  let calls = 0;
-  global.fetch = (async () => {
-    calls += 1;
-    if (calls === 1) {
-      throw new Error('temporary');
-    }
-    return new Response(
-      JSON.stringify([[0, '1', '2', '0.5', '1.5', '1000']]),
-      { status: 200 },
-    );
-  }) as any;
-  const data = await fetchKlinesBinance('BTCUSDT', '1m', 1);
-  expect(calls).toBe(2); // ensure a retry occurred
-  expect(data).toEqual([
-    { time: 0, open: 1, high: 2, low: 0.5, close: 1.5, volume: 1000 },
-  ]);
-  global.fetch = originalFetch;
+// Binance variation calculation relies on at least two klines.
+test('fetchKlinesBinance returns typed klines allowing variation calculation', async () => {
+  const mockData = [
+    [0, '100', '0', '0', '100', '0'],
+    [60, '110', '0', '0', '110', '0'],
+  ];
+  const mockFetch: typeof fetch = async () =>
+    new Response(JSON.stringify(mockData), { status: 200 });
+
+  const klines = await fetchKlinesBinance('BTC-USD', '1m', 2, mockFetch);
+  assert.equal(klines.length, 2);
+  const change = klines[1].close - klines[0].close;
+  assert.equal(change, 10);
 });

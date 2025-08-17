@@ -20,7 +20,7 @@ export interface ResearchDocProps {
   sections: ResearchSection[];
 }
 
-import { useTranslations } from 'next-intl';
+import { useTranslations } from '@/i18n/useTranslations';
 
 // Ordered list of canonical section identifiers expected by the finance agent.
 // The default labels are resolved at runtime via i18n so that empty sections

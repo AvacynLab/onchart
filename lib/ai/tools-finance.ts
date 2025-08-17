@@ -1,6 +1,8 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { fetchQuoteYahoo, fetchOHLCYahoo } from '../finance/sources/yahoo';
+import { fetchOHLCYahoo } from '../finance/sources/yahoo';
+import type { QuoteResult } from '../finance/sources/yahoo';
+import { fetchLiveQuotes } from '../finance/live';
 import { searchYahoo } from '../finance/search';
 import {
   fetchCompanyFacts,
@@ -51,7 +53,13 @@ type PersistFn = (record: {
 }) => Promise<void>;
 
 interface FinanceDeps {
-  fetchQuote?: typeof fetchQuoteYahoo;
+  /**
+   * Fetch a quote for the given symbol. The default implementation delegates to
+   * the internal `/api/finance/quote` route so fallbacks and caching are
+   * applied transparently. It returns the provider `source` alongside pricing
+   * data for easier debugging of tool decisions.
+   */
+  fetchQuote?: (symbol: string) => Promise<QuoteResult>;
   fetchOHLC?: typeof fetchOHLCYahoo;
   search?: typeof searchYahoo;
   searchCIK?: typeof searchCompanyCIK;
@@ -125,7 +133,8 @@ export function createFinanceTools(
   // Default to French if no locale is provided
   const locale = ctx.locale ?? 'fr';
   const {
-    fetchQuote = fetchQuoteYahoo,
+    fetchQuote = async (symbol: string) =>
+      (await fetchLiveQuotes([symbol]))[0],
     fetchOHLC = fetchOHLCYahoo,
     search = searchYahoo,
     searchCIK = searchCompanyCIK,
@@ -175,6 +184,10 @@ export function createFinanceTools(
   const finance = {
     /**
      * Retrieve the latest market quote for a symbol.
+     *
+     * The returned object includes a `source` field indicating which market
+     * data provider ultimately served the quote. This helps with debugging
+     * fallback behaviour and is not shown directly to end users.
      */
     get_quote: tool({
       description: 'Fetch the latest quote for a financial symbol',
@@ -378,10 +391,11 @@ export function createFinanceTools(
           symbol: z.string(),
           timeframe: z.string(),
           at: z.number(),
+          price: z.number(),
           type: z.string(),
           text: z.string(),
         }),
-        execute: async ({ symbol, timeframe, at, type, text }) => {
+        execute: async ({ symbol, timeframe, at, price, type, text }) => {
           if (!saveAttention) {
             const mod = await import('../db/queries');
             saveAttention = mod.saveAttentionMarker;
@@ -391,11 +405,11 @@ export function createFinanceTools(
             chatId: ctx.chatId,
             symbol,
             timeframe,
-            payload: { at, type, text },
+            payload: { at, price, type, text },
           });
-          const payload = { id, symbol, timeframe, at, type, text };
+          const payload = { id, symbol, timeframe, at, price, type, text };
           emitUIEvent({ type: 'add_annotation', payload });
-          await persistAnalysis('add_annotation', { symbol, timeframe, at, type }, { id });
+          await persistAnalysis('add_annotation', { symbol, timeframe, at, price, type }, { id });
           return { id };
         },
       }),

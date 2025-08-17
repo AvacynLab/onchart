@@ -1,7 +1,7 @@
 import React from 'react';
 import { LineChartIcon, SummarizeIcon } from '../icons';
 import type { ArtifactToolbarItem } from '../create-artifact';
-import { useTranslations } from 'next-intl';
+import { useTranslations } from '@/i18n/useTranslations';
 
 /**
  * Build finance-related quick action items using the provided translator.

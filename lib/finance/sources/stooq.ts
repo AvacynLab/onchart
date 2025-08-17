@@ -1,7 +1,9 @@
 import { parse } from 'papaparse';
-import { getCache, setCache, DAILY_TTL_MS } from '../cache';
+import { getCache, setCache, TTL_DAILY_MS } from '../cache';
 import { rateLimit } from '../rate-limit';
 import { fetchWithRetry } from '../request';
+import { toStooqTicker } from '../symbols';
+import { DataSourceError } from '../errors';
 
 export interface Candle {
   time: number; // unix timestamp
@@ -12,18 +14,12 @@ export interface Candle {
   volume: number;
 }
 
-function normalizeSymbol(symbol: string): string {
-  let s = symbol.trim().toLowerCase();
-  if (!s.includes('.')) s += '.us';
-  return s;
-}
-
 /**
  * Fetch daily OHLC data from Stooq. Used as a fallback when Yahoo fails.
  * Stooq provides CSV files with historical data.
  */
 export async function fetchDailyStooq(symbol: string): Promise<Candle[]> {
-  const sym = normalizeSymbol(symbol);
+  const sym = toStooqTicker(symbol).toLowerCase();
   await rateLimit('stooq');
   const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(sym)}&i=d`;
   const cached = getCache<Candle[]>(url);
@@ -39,6 +35,9 @@ export async function fetchDailyStooq(symbol: string): Promise<Candle[]> {
     close: Number(row.Close),
     volume: Number(row.Volume) || 0,
   }));
-  setCache(url, candles, DAILY_TTL_MS);
+  if (candles.length < 2) {
+    throw new DataSourceError('Stooq returned less than 2 candles');
+  }
+  setCache(url, candles, TTL_DAILY_MS);
   return candles;
 }
