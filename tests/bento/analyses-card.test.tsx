@@ -10,7 +10,7 @@ import { NextIntlClientProvider } from 'next-intl';
 test('renders analyses and strategies tabs', async (t) => {
   // Dynamically import the component so the test can be skipped if optional
   // dependencies like lightweight-charts are unavailable in the environment.
-  let AnalysesCard;
+  let AnalysesCard: React.ComponentType;
   try {
     // Provide a minimal router implementation for components using useRouter.
     mock.module('next/navigation', {

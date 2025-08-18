@@ -9,10 +9,10 @@ import dynamic from 'next/dynamic';
 import type { Artifact } from '@/components/artifact/ArtifactViewer';
 import { createChatDraft } from '@/lib/chat/create-chat';
 
-// Lazily import the artifact viewer using `eval` to avoid static analysis
-// pulling in `lightweight-charts` during server-side rendering and tests.
+// Lazily load the artifact viewer on the client only so heavyweight charting
+// libraries are excluded from the server bundle.
 const ArtifactViewer = dynamic(
-  () => eval('import')('@/components/artifact/ArtifactViewer'),
+  () => import('@/components/artifact/ArtifactViewer'),
   { ssr: false },
 ) as React.ComponentType<{ artifact: Artifact }>;
 

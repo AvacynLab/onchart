@@ -170,7 +170,7 @@ export function ChartGrid({ panes, asset, timeframe, sync }: ChartGridProps) {
     <div className={`min-h-0 ${gridClass}`}>
       {Array.from({ length: panes }).map((_, i) => (
         <div
-          key={i}
+          key={PANE_KEYS[i]}
           ref={(el) => {
             if (el) containerRefs.current[i] = el;
           }}

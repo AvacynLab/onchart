@@ -21,7 +21,12 @@ export type Artifact = WorkflowArtifact | ChartArtifact;
 export interface WorkflowArtifact {
   type: 'workflow';
   title: string;
-  steps: Array<{ content: string }>;
+  /**
+   * Ordered steps forming the workflow. Each step may include a stable `id`
+   * so list rendering can avoid using the array index as key. If absent, the
+   * step content is assumed unique and used as a fallback key.
+   */
+  steps: Array<{ id?: string; content: string }>;
 }
 
 /**
@@ -51,8 +56,10 @@ export function ArtifactViewer({ artifact }: { artifact: Artifact }) {
       <div>
         <h2 className="font-semibold mb-2">{artifact.title}</h2>
         <ol className="list-decimal pl-4">
-          {artifact.steps.map((s, idx) => (
-            <li key={idx} className="mb-1">
+          {artifact.steps.map((s) => (
+            // Use the step `id` when available; otherwise fall back to the
+            // content which is expected to be unique within the workflow.
+            <li key={s.id ?? s.content} className="mb-1">
               {s.content}
             </li>
           ))}

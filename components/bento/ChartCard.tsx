@@ -2,7 +2,7 @@
 
 import { useAsset, type Timeframe } from '@/lib/asset/AssetContext';
 import { useTranslations } from 'next-intl';
-import ChartGrid from './ChartGrid';
+import { ChartGrid } from './ChartGrid';
 
 const TIMEFRAMES: Timeframe[] = ['1m', '5m', '1h', '4h', '1d'];
 const SPLITS: (1 | 2 | 4)[] = [1, 2, 4];
@@ -29,6 +29,7 @@ export function ChartCard() {
             {TIMEFRAMES.map((tf) => (
               <button
                 key={tf}
+                type="button"
                 onClick={() => setTimeframe(tf)}
                 className={`px-2 py-1 rounded border text-xs ${
                   asset.timeframe === tf ? 'bg-black text-white' : ''
@@ -43,6 +44,7 @@ export function ChartCard() {
             {SPLITS.map((p) => (
               <button
                 key={p}
+                type="button"
                 onClick={() => setPanes(p)}
                 className={`px-2 py-1 rounded border text-xs ${
                   asset.panes === p ? 'bg-black text-white' : ''
@@ -54,6 +56,7 @@ export function ChartCard() {
           </div>
           {/* sync toggle */}
           <button
+            type="button"
             aria-label={t('sync')}
             onClick={toggleSync}
             className={`px-2 py-1 rounded border text-xs ${

@@ -8,7 +8,7 @@ import { NextIntlClientProvider } from 'next-intl';
 
 // Ensure NewsCard renders the summarise button using translations.
 test('renders news card with localized summarise button', async (t) => {
-  let NewsCard;
+  let NewsCard: React.ComponentType;
   try {
     ({ NewsCard } = await import('../../components/bento/NewsCard'));
   } catch {
