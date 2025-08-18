@@ -13,8 +13,8 @@ test('renders news items', () => {
   const items: NewsItem[] = [
     {
       title: 'Titre',
-      link: 'https://example.com',
-      pubDate: new Date().toISOString(),
+      url: 'https://example.com',
+      publishedAt: new Date().toISOString(),
       summary: '<b>Important</b> update',
     },
   ];

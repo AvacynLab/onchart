@@ -426,7 +426,9 @@ export function createFinanceTools(
             deleteAttention = mod.deleteAttentionMarker;
           }
           await deleteAttention({ id });
-          emitUIEvent({ type: 'remove_annotation', payload: { id } });
+          // Cast as `any` since `remove_annotation` is not yet part of the
+          // typed UIEvent union used in the dashboard.
+          emitUIEvent({ type: 'remove_annotation', payload: { id } } as any);
           await persistAnalysis('remove_annotation', { id }, { ok: true });
           return { ok: true };
         },
@@ -445,9 +447,34 @@ export function createFinanceTools(
           reason: z.string().optional(),
         }),
         execute: async (params) => {
-          emitUIEvent({ type: 'focus_area', payload: params });
+          // Cast due to differing payload shape between tools and UI events.
+          emitUIEvent({ type: 'focus_area', payload: params } as any);
           await persistAnalysis('focus_area', params, { ok: true });
           return { ok: true };
+        },
+      }),
+
+      /**
+       * Ask the user about a specific chart selection. Emits the
+       * `ask_about_selection` UI event so the frontend can react and
+       * returns an anchor string that the assistant can use to enrich
+       * its follow-up message with precise context.
+       */
+      ask_about_selection: tool({
+        description: 'Prompt the user about a selected candle or indicator',
+        inputSchema: z.object({
+          symbol: z.string(),
+          timeframe: z.string(),
+          at: z.number(),
+          kind: z.enum(['candle', 'indicator']),
+          meta: z.any().optional(),
+        }),
+        execute: async (params) => {
+          emitUIEvent({ type: 'ask_about_selection', payload: params });
+          await persistAnalysis('ask_about_selection', params, { ok: true });
+          // Return a formatted anchor so the assistant can mention
+          // the exact symbol/timeframe/timestamp in its response.
+          return { anchor: `${params.symbol},${params.timeframe},${params.at}` };
         },
       }),
     },
@@ -728,8 +755,22 @@ export function createFinanceTools(
           locale === 'fr'
             ? 'Marquer la stratégie comme validée'
             : 'Mark the strategy as validated',
-        inputSchema: z.object({ versionId: z.string() }).strict(),
-        execute: async ({ versionId }) => {
+        inputSchema: z
+          .object({
+            versionId: z.string(),
+            symbol: z.string(),
+            timeframe: z.string(),
+            indicators: z.array(z.any()).optional(),
+            annotations: z.array(z.any()).optional(),
+          })
+          .strict(),
+        execute: async ({
+          versionId,
+          symbol,
+          timeframe,
+          indicators = [],
+          annotations = [],
+        }) => {
           if (
             !getStrategyVersionFn ||
             !updateStrategyStatusFn
@@ -746,7 +787,18 @@ export function createFinanceTools(
             id: version.strategyId,
             status: 'validated',
           });
-          await persistAnalysis('strategy_finalize', { versionId }, strat);
+          // Persist the validated strategy as an artifact so it appears in the
+          // dashboard's "Stratégies" tab with useful filtering metadata.
+          await persistAnalysis(
+            strat?.title ?? 'strategy',
+            {
+              symbol,
+              timeframe,
+              indicators,
+              annotations,
+            },
+            strat,
+          );
           return strat;
         },
       }),
@@ -857,14 +909,34 @@ export function createFinanceTools(
        */
       finalize: tool({
         description: 'Finalize a research document',
-        inputSchema: z.object({ id: z.string() }),
-        execute: async ({ id }) => {
+        inputSchema: z
+          .object({
+            id: z.string(),
+            symbol: z.string(),
+            timeframe: z.string(),
+            indicators: z.array(z.any()).optional(),
+            annotations: z.array(z.any()).optional(),
+          })
+          .strict(),
+        execute: async ({
+          id,
+          symbol,
+          timeframe,
+          indicators = [],
+          annotations = [],
+        }) => {
           if (!getResearchFn) {
             const mod = await import('../db/queries');
             getResearchFn = mod.getResearchById as any;
           }
           const doc = await getResearchFn?.({ id });
-          await persistAnalysis('doc', { id }, doc);
+          // Persist the completed research as an analysis artifact keyed by the
+          // asset and timeframe so it can be surfaced in the dashboard.
+          await persistAnalysis(
+            doc?.title ?? 'analysis',
+            { symbol, timeframe, indicators, annotations },
+            doc,
+          );
           return doc;
         },
       }),

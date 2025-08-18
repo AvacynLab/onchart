@@ -10,6 +10,7 @@ import {
   gte,
   inArray,
   lt,
+  sql,
   type SQL,
 } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -745,6 +746,76 @@ export async function listResearchByChatId({
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to list research by chat id',
+    );
+  }
+}
+
+// Query analysis and strategy documents for a given asset.
+export async function queryDocuments({
+  asset,
+  timeframe,
+  kind = 'analysis',
+  limit = 20,
+  offset = 0,
+}: {
+  asset: string;
+  timeframe?: string;
+  kind?: 'analysis' | 'strategy';
+  limit?: number;
+  offset?: number;
+}) {
+  try {
+    if (kind === 'strategy') {
+      const where = sql`${strategy.universe}::text ILIKE ${'%' + asset + '%'}`;
+      const [totalRow] = await db
+        .select({ value: count() })
+        .from(strategy)
+        .where(where);
+      const items = await db
+        .select({
+          id: strategy.id,
+          title: strategy.title,
+          kind: sql<'strategy'>`'strategy'`.as('kind'),
+          createdAt: strategy.updatedAt,
+        })
+        .from(strategy)
+        .where(where)
+        .orderBy(desc(strategy.updatedAt))
+        .limit(limit)
+        .offset(offset);
+      return { items, total: Number(totalRow?.value ?? 0) };
+    }
+
+    const conditions: SQL[] = [
+      sql`${analysis.input} ->> 'symbol' = ${asset}`,
+    ];
+    if (timeframe) {
+      conditions.push(
+        sql`${analysis.input} ->> 'timeframe' = ${timeframe}`,
+      );
+    }
+    const where = and(...conditions);
+    const [totalRow] = await db
+      .select({ value: count() })
+      .from(analysis)
+      .where(where);
+    const items = await db
+      .select({
+        id: analysis.id,
+        title: analysis.type,
+        kind: sql<'analysis'>`'analysis'`.as('kind'),
+        createdAt: analysis.createdAt,
+      })
+      .from(analysis)
+      .where(where)
+      .orderBy(desc(analysis.createdAt))
+      .limit(limit)
+      .offset(offset);
+    return { items, total: Number(totalRow?.value ?? 0) };
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to query documents',
     );
   }
 }

@@ -57,9 +57,9 @@ const driver: CacheDriver = new InMemoryDriver();
  * 10–15s refresh window noted in the project spec while avoiding excessive
  * hammering of free APIs.
  */
-export const TTL_INTRADAY_MS = 15_000;
+export const INTRADAY_TTL_MS = 15_000;
 /** Daily data changes slowly; cache for one minute to smooth traffic. */
-export const TTL_DAILY_MS = 60_000;
+export const DAILY_TTL_MS = 60_000;
 
 /**
  * Retrieve a value from cache if it exists and has not expired.

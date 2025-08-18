@@ -9,9 +9,16 @@ import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { convertToUIMessages } from '@/lib/utils';
 import FinancePanel from '@/components/finance/FinancePanel';
 import FinanceHint from '@/components/finance/FinanceHint';
+import { parseAnchor, buildInitialInput } from '@/lib/chat/anchor';
 
-export default async function Page(props: { params: Promise<{ id: string }> }) {
+export default async function Page(props: {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ anchor?: string }>;
+}) {
   const params = await props.params;
+  const search = (await props.searchParams) ?? {};
+  const anchor = parseAnchor(search.anchor);
+  const initialInput = anchor ? buildInitialInput(anchor) : undefined;
   const { id } = params;
   const chat = await getChatById({ id });
 
@@ -55,6 +62,8 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
           isReadonly={session?.user?.id !== chat.userId}
           session={session}
           autoResume={true}
+          initialInput={initialInput}
+          anchor={anchor ?? undefined}
         />
         <DataStreamHandler />
         <FinancePanel chatId={chat.id} userId={session.user.id} />
@@ -73,6 +82,8 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
         isReadonly={session?.user?.id !== chat.userId}
         session={session}
         autoResume={true}
+        initialInput={initialInput}
+        anchor={anchor ?? undefined}
       />
       <DataStreamHandler />
       <FinancePanel chatId={chat.id} userId={session.user.id} />

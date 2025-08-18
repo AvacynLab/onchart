@@ -68,18 +68,18 @@ export function NewsList({
       {items.map((item) => {
         const hostname = (() => {
           try {
-            return new URL(item.link).hostname.replace(/^www\./, '');
+            return new URL(item.url).hostname.replace(/^www\./, '');
           } catch {
             return '';
           }
         })();
 
-        const relativeDate = formatRelative(new Date(item.pubDate), locale);
+        const relativeDate = formatRelative(new Date(item.publishedAt), locale);
 
         return (
-          <li key={item.link} className="text-sm">
+          <li key={item.url} className="text-sm">
             <a
-              href={item.link}
+              href={item.url}
               target="_blank"
               rel="noopener noreferrer"
               className="font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"

@@ -5,8 +5,8 @@ import { normalizeSymbol, isSupportedSymbol } from '@/lib/finance/symbols';
 import {
   getCache,
   setCache,
-  TTL_INTRADAY_MS,
-  TTL_DAILY_MS,
+  INTRADAY_TTL_MS,
+  DAILY_TTL_MS,
 } from '@/lib/finance/cache';
 import type { Candle } from '@/lib/finance/backtest';
 
@@ -60,14 +60,14 @@ export async function GET(req: Request): Promise<Response> {
       end: end ? Number(end) : undefined,
     });
     const result = { symbol: normalized.symbol, candles };
-    const ttl = interval.endsWith('d') ? TTL_DAILY_MS : TTL_INTRADAY_MS;
+    const ttl = interval.endsWith('d') ? DAILY_TTL_MS : INTRADAY_TTL_MS;
     setCache(cacheKey, result, ttl);
     return Response.json(result);
   } catch (err) {
     // Attempt fallback providers depending on asset class and interval.
     try {
       let candles: Candle[];
-      let ttl = TTL_INTRADAY_MS;
+      let ttl = INTRADAY_TTL_MS;
 
       if (normalized.assetClass === 'crypto' && normalized.binance) {
         // Binance provides intraday and daily candles for crypto pairs.
@@ -83,11 +83,11 @@ export async function GET(req: Request): Promise<Response> {
           low: k.low,
           close: k.close,
         }));
-        ttl = interval === '1d' ? TTL_DAILY_MS : TTL_INTRADAY_MS;
+        ttl = interval === '1d' ? DAILY_TTL_MS : INTRADAY_TTL_MS;
       } else if (interval === '1d') {
         // Stooq exposes only daily candles for equities/indices/ETFs.
         candles = await fetchDailyStooq(normalized.symbol);
-        ttl = TTL_DAILY_MS;
+        ttl = DAILY_TTL_MS;
       } else {
         throw new Error('no fallback');
       }

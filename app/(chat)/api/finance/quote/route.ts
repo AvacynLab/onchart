@@ -2,7 +2,7 @@ import { fetchQuoteYahoo } from '@/lib/finance/sources/yahoo';
 import { fetchKlinesBinance } from '@/lib/finance/sources/binance';
 import { fetchDailyStooq } from '@/lib/finance/sources/stooq';
 import { normalizeSymbol, isSupportedSymbol } from '@/lib/finance/symbols';
-import { getCache, setCache, TTL_INTRADAY_MS, TTL_DAILY_MS } from '@/lib/finance/cache';
+import { getCache, setCache, INTRADAY_TTL_MS, DAILY_TTL_MS } from '@/lib/finance/cache';
 
 /** Ensure server-side execution to avoid edge limitations */
 export const runtime = 'nodejs';
@@ -42,7 +42,7 @@ export async function GET(req: Request): Promise<Response> {
   try {
     const quote = await fetchQuoteYahoo(normalized.yahoo);
     const payload = { ...quote, source: 'yahoo' as const };
-    setCache(cacheKey, payload, TTL_INTRADAY_MS);
+    setCache(cacheKey, payload, INTRADAY_TTL_MS);
     if (process.env.NODE_ENV !== 'production') {
       console.info('[quote]', normalized.symbol, 'yahoo', 200);
     }
@@ -66,7 +66,7 @@ export async function GET(req: Request): Promise<Response> {
           marketState: 'REG',
           source: 'binance' as const,
         };
-        setCache(cacheKey, quote, TTL_INTRADAY_MS);
+        setCache(cacheKey, quote, INTRADAY_TTL_MS);
         if (process.env.NODE_ENV !== 'production') {
           console.info('[quote]', normalized.symbol, 'binance', 200);
         }
@@ -88,7 +88,7 @@ export async function GET(req: Request): Promise<Response> {
         marketState: 'CLOSED',
         source: 'stooq' as const,
       };
-      setCache(cacheKey, quote, TTL_DAILY_MS);
+      setCache(cacheKey, quote, DAILY_TTL_MS);
       if (process.env.NODE_ENV !== 'production') {
         console.info('[quote]', normalized.symbol, 'stooq', 200);
       }

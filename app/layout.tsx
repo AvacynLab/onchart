@@ -27,6 +27,8 @@ const geistMono = localFont({
 import './globals.css';
 import { SessionProvider } from 'next-auth/react';
 import { ToolbarProvider } from '@/components/toolbar-store';
+import { AssetProvider } from '@/lib/asset/AssetContext';
+import { Sidebar } from '@/components/sidebar/Sidebar';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://chat.vercel.ai'),
@@ -76,6 +78,7 @@ export default async function RootLayout({
   // for both server and client components.
   const locale = await getLocale();
   const messages = await getMessages();
+  const content = <AssetProvider>{children}</AssetProvider>;
   return (
     <html
       lang={locale}
@@ -93,7 +96,7 @@ export default async function RootLayout({
           }}
         />
       </head>
-      <body className="antialiased">
+      <body className="h-dvh overflow-hidden antialiased">
         <NextIntlClientProvider locale={locale} messages={messages}>
           <ThemeProvider
             attribute="class"
@@ -104,15 +107,47 @@ export default async function RootLayout({
             <Toaster position="top-center" />
             {process.env.PLAYWRIGHT ? (
               // In Playwright test runs we avoid mounting the SessionProvider
-              // entirely. NextAuth's client-side session retrieval can trigger
-              // React "suspended thenable" errors when no auth providers are
-              // configured for the environment. Skipping the provider keeps
-              // the component tree simple and allows pages to render without
-              // authentication context.
-              <ToolbarProvider>{children}</ToolbarProvider>
+              // entirely. Skipping the provider keeps the component tree simple
+              // and allows pages to render without authentication context.
+              <ToolbarProvider>
+                <Sidebar />
+                {/*
+                 * Two-column grid layout where the sidebar pushes the main
+                 * content. The sidebar width is controlled via the CSS
+                 * variable `--sidebar-w` so it can smoothly transition between
+                 * closed (0px) and open states.
+                 */}
+                <div
+                  className="grid h-full transition-[grid-template-columns] duration-300"
+                  style={{ gridTemplateColumns: 'var(--sidebar-w, 0px) 1fr' }}
+                >
+                  <aside
+                    id="sidebar"
+                    className="h-full overflow-y-auto border-r"
+                  />
+                  <main id="main" className="h-full overflow-hidden">
+                    {content}
+                  </main>
+                  </div>
+              </ToolbarProvider>
             ) : (
               <SessionProvider>
-                <ToolbarProvider>{children}</ToolbarProvider>
+                <ToolbarProvider>
+                  <Sidebar />
+                  {/* Same grid layout as above for authenticated users */}
+                  <div
+                    className="grid h-full transition-[grid-template-columns] duration-300"
+                    style={{ gridTemplateColumns: 'var(--sidebar-w, 0px) 1fr' }}
+                  >
+                    <aside
+                      id="sidebar"
+                      className="h-full overflow-y-auto border-r"
+                    />
+                    <main id="main" className="h-full overflow-hidden">
+                      {content}
+                    </main>
+                  </div>
+                </ToolbarProvider>
               </SessionProvider>
             )}
           </ThemeProvider>

@@ -1,6 +1,30 @@
-// Lightweight event bus using the standard `EventTarget` interface. This avoids
-// bundling Node's `events` module which Next.js cannot handle in the browser
-// bundle.
+// Lightweight event bus implemented via the browser's `EventTarget`. This
+// avoids bundling Node's `events` module and keeps the implementation tiny.
+
+/**
+ * Generic factory creating a typed event bus. Each bus exposes two methods:
+ * `emit` for dispatching events and `on` for subscribing to them. The generic
+ * parameter `E` represents the discriminated union describing all allowed
+ * events.
+ */
+export function createEventBus<E>() {
+  const dispatcher = new EventTarget();
+  return {
+    /** Notify all subscribers of a new event. */
+    emit(event: E) {
+      dispatcher.dispatchEvent(new CustomEvent('ui', { detail: event }));
+    },
+    /**
+     * Subscribe to events from the bus. Returns an unsubscribe function so
+     * callers can easily remove their listener when it is no longer needed.
+     */
+    on(handler: (event: E) => void) {
+      const listener = (e: Event) => handler((e as CustomEvent<E>).detail);
+      dispatcher.addEventListener('ui', listener);
+      return () => dispatcher.removeEventListener('ui', listener);
+    },
+  } as const;
+}
 
 /**
  * Shape of all events exchanged between server and client components.
@@ -13,59 +37,44 @@ export type UIEvent =
   | {
       /** Request the finance panel to display a symbol chart. */
       type: 'show_chart';
-      payload: { symbol: string; timeframe?: string; range?: string };
+      payload: { symbol: string; timeframe: string };
     }
   | {
-      /** Add an overlay line series to the active chart. */
+      /** Add an overlay to a specific chart pane. */
       type: 'add_overlay';
-      payload: { symbol: string; id: string; data: any[]; color?: string };
-    }
-  | {
-      /** Add a study line series to the active chart. */
-      type: 'add_study';
-      payload: { symbol: string; id: string; data: any[]; color?: string };
-    }
-  | {
-      /** Add an annotation marker to the chart. */
-      type: 'add_annotation';
-      payload: {
-        symbol: string;
-        timeframe: string;
-        id: string;
-        at: number;
-        price: number;
-        text?: string;
-        type?: string;
-      };
-    }
-  | {
-      /** Remove a previously added annotation marker. */
-      type: 'remove_annotation';
-      payload: { id: string };
+      payload: { pane: number; kind: 'sma' | 'ema' | 'rsi'; params: any };
     }
   | {
       /** Focus the chart on a specific time range. */
       type: 'focus_area';
-      payload: { symbol: string; start: number; end: number };
+      payload: { from: number; to: number };
     }
   | {
-      /** Broadcast crosshair movement for external reactions. */
-      type: 'crosshair_move';
-      payload: { symbol: string; time: number };
+      /** Add an annotation marker to the chart. */
+      type: 'add_annotation';
+      payload: { at: number; text: string };
+    }
+  | {
+      /** Ask the agent about a user selection on the chart. */
+      type: 'ask_about_selection';
+      payload: {
+        symbol: string;
+        timeframe: string;
+        at: number;
+        kind: 'candle' | 'indicator';
+        meta?: any;
+      };
     };
 
-// Shared dispatcher so all imports communicate over the same channel.
-const dispatcher = new EventTarget();
+/**
+ * Singleton UI event bus used across the application. Import this `ui` object
+ * to emit or listen for UI events in a fully type-safe way.
+ */
+export const ui = createEventBus<UIEvent>();
 
-/** Emit a UI event to all subscribers. */
-export function emitUIEvent(event: UIEvent) {
-  dispatcher.dispatchEvent(new CustomEvent('ui', { detail: event }));
-}
-
-/** Subscribe to UI events and return an unsubscribe handler. */
-export function subscribeUIEvents(handler: (event: UIEvent) => void) {
-  const listener = (e: Event) => handler((e as CustomEvent<UIEvent>).detail);
-  dispatcher.addEventListener('ui', listener);
-  return () => dispatcher.removeEventListener('ui', listener);
-}
+// Backwards compatibility helpers. Some legacy components still import
+// `emitUIEvent` and `subscribeUIEvents`; export thin wrappers so they continue
+// to operate while the codebase is gradually migrated to the new API.
+export const emitUIEvent = ui.emit;
+export const subscribeUIEvents = ui.on;
 
