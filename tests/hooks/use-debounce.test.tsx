@@ -14,8 +14,6 @@ test('useDebounce returns latest value after delay', async () => {
   globalThis.window = dom.window as any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   globalThis.document = dom.window.document as any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  globalThis.navigator = dom.window.navigator as any;
 
   const seen: string[] = [];
   function Comp() {
