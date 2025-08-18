@@ -124,7 +124,9 @@ export default function FinancePanel({
   useEffect(() => {
     return subscribe((event: UIEvent) => {
       if (event.type === 'show_chart') {
-        const { symbol, timeframe, range } = event.payload;
+        // Cast to `any` to support legacy callers that may include a `range`
+        // field until the event payload is fully typed.
+        const { symbol, timeframe, range } = event.payload as any;
         setSymbol(symbol);
         setTimeframe((timeframe as any) || '1d');
         setOpen(true);

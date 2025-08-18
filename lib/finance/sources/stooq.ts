@@ -1,5 +1,5 @@
 import { parse } from 'papaparse';
-import { getCache, setCache, TTL_DAILY_MS } from '../cache';
+import { getCache, setCache, DAILY_TTL_MS } from '../cache';
 import { rateLimit } from '../rate-limit';
 import { fetchWithRetry } from '../request';
 import { toStooqTicker } from '../symbols';
@@ -38,6 +38,6 @@ export async function fetchDailyStooq(symbol: string): Promise<Candle[]> {
   if (candles.length < 2) {
     throw new DataSourceError('Stooq returned less than 2 candles');
   }
-  setCache(url, candles, TTL_DAILY_MS);
+  setCache(url, candles, DAILY_TTL_MS);
   return candles;
 }

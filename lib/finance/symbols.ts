@@ -43,12 +43,36 @@ export function isCryptoSymbol(raw: string): boolean {
 /**
  * Convert a symbol to the Binance trading pair format.
  * `BTC-USD` -> `BTCUSDT`, `BTCUSDT` -> `BTCUSDT`.
+ *
+ * The helper normalises the wide variety of user facing inputs into the
+ * stable Binance pair format. It deliberately handles three common shapes:
+ *
+ * - `BASE-USD` where the dash is used as a separator.
+ * - `BASEUSD` where the quote currency is appended directly.
+ * - Already normalised pairs such as `BASEUSDT`, `BASEBUSD`, `BASEUSDC`.
+ *
+ * Other quote currencies are returned as-is so the caller can decide how to
+ * handle exotic pairs. The goal is to avoid brittle string concatenations
+ * (e.g. appending `'T'`) which fail for inputs like `ETHBUSD`.
  */
 export function toBinancePair(raw: string): string {
   const s = raw.trim().toUpperCase();
-  if (s.endsWith('USDT')) return s;
-  if (s.endsWith('-USD')) return `${s.slice(0, -4)}USDT`;
-  if (s.endsWith('USD')) return `${s}T`;
+
+  // Hyphen separated pairs like `BTC-USD` or `ETH-BUSD`.
+  if (s.includes('-')) {
+    const [base, quote] = s.split('-');
+    return `${base}${quote === 'USD' ? 'USDT' : quote}`;
+  }
+
+  // Already normalised stablecoin pairs are passed through untouched.
+  if (/USDT|USDC|BUSD$/.test(s)) return s;
+
+  // Bare pairs like `BTCUSD` should map USD to USDT.
+  if (s.endsWith('USD')) {
+    return `${s.slice(0, -3)}USDT`;
+  }
+
+  // Fallback: assume input is already a valid Binance pair.
   return s;
 }
 

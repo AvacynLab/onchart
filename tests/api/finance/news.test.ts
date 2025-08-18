@@ -16,7 +16,12 @@ test('aggregates news items from RSS feeds', async () => {
 
   expect(res.status).toBe(200);
   expect(Array.isArray(body)).toBe(true);
-  expect(body[0]).toMatchObject({ title: 'Foo', link: 'http://a' });
+  expect(body[0]).toMatchObject({
+    title: 'Foo',
+    url: 'http://a',
+    source: 'yahoo',
+  });
+  expect(new Date(body[0].publishedAt).getTime()).toBeGreaterThan(0);
 
   global.fetch = originalFetch;
 });

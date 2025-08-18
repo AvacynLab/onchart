@@ -41,6 +41,14 @@
   - Simple and secure authentication
 - Dashboard bento layout with live prices, latest news, strategy and analysis tiles
 
+## Bento dashboard & agents
+
+The home page renders a responsive bento dashboard that keeps the current
+asset in sync across charts, news and prior analyses. A docked chat input
+lets you question a financial agent; its responses can persist as rich
+artefacts (workflow steps or annotated charts) tagged with the symbol and
+timeframe so they resurface in the dashboard.
+
 ## Internationalisation
 
 L’interface est bilingue **FR/EN**. La langue active est déterminée par le cookie
@@ -93,8 +101,9 @@ This template works with a minimal set of non-sensitive variables, so you can ru
 it without any private API keys. Typical entries include:
 
 ```bash
-DATABASE_URL=postgres://localhost:5432/mydb
 NEXTAUTH_SECRET=change-me
+POSTGRES_URL=postgres://localhost:5432/onchart
+NEXT_PUBLIC_VERCEL_URL=localhost:3000
 ```
 
 All market data comes from public sources (Yahoo, Stooq, Binance, SEC/EDGAR,
@@ -102,7 +111,7 @@ RSS). No proprietary credentials are needed.
 
 ## Quote fallbacks and caching
 
-The quote API first queries Yahoo Finance. If Yahoo returns an error, crypto symbols fall back to Binance while equities use Stooq. Results are cached per symbol using `TTL_INTRADAY_MS` (15 s) for intraday data and `TTL_DAILY_MS` (60 s) for daily candles. These constants live in [`lib/finance/cache.ts`](lib/finance/cache.ts).
+The quote API first queries Yahoo Finance. If Yahoo returns an error, crypto symbols fall back to Binance while equities use Stooq. Results are cached per symbol using `INTRADAY_TTL_MS` (15 s) for intraday data and `DAILY_TTL_MS` (60 s) for daily candles. These constants live in [`lib/finance/cache.ts`](lib/finance/cache.ts).
 
 ## Tests
 
@@ -115,6 +124,15 @@ pnpm test:e2e
 - `node --test` exécute les tests unitaires (Node.js test runner).
 - `pnpm test` lance la suite end-to-end Playwright.
 - `pnpm test:e2e` permet de cibler uniquement les scénarios Playwright end-to-end.
+
+Si vous lancez Playwright pour la première fois, installez d'abord les navigateurs
+et dépendances :
+
+```bash
+pnpm exec playwright install
+# Linux uniquement :
+pnpm exec playwright install-deps
+```
 
 Deux scripts de garde-fous s’exécutent automatiquement avant les tests E2E :
 

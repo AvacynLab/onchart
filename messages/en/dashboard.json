@@ -44,5 +44,13 @@
     "open": "Open",
     "close": "Close",
     "hidden": "Menu hidden"
+  },
+  "bento": {
+    "news": "News",
+    "analyses": "Analyses",
+    "strategies": "Strategies",
+    "split": "Split",
+    "sync": "Sync",
+    "summarize": "Summarize to artefact"
   }
 }

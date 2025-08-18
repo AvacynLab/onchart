@@ -26,6 +26,7 @@ import { getWeather } from '@/lib/ai/tools/get-weather';
 import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
+import { DataSourceError } from '@/lib/finance/errors';
 import { postRequestBodySchema, type PostRequestBody } from './schema';
 import { geolocation } from '@vercel/functions';
 import {
@@ -131,6 +132,34 @@ export async function POST(request: Request) {
     return new ChatSDKError('bad_request:api').toResponse();
   }
 
+  // Locale is required both in the main body and the error handler.
+  const locale =
+    (request.headers.get('x-next-intl-locale') as 'fr' | 'en') || 'fr';
+
+  // Helper to stream a single assistant message as an SSE response. Using a
+  // stream keeps the response format consistent with the chat endpoint.
+  function streamAssistantMessage(message: string) {
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          const encoder = new TextEncoder();
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({
+                type: 'message',
+                role: 'assistant',
+                content: message,
+              })}\n\n`,
+            ),
+          );
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
+        },
+      }),
+      { headers: { 'Content-Type': 'text/event-stream' } },
+    );
+  }
+
   try {
     const {
       id,
@@ -157,8 +186,12 @@ export async function POST(request: Request) {
       differenceInHours: 24,
     });
 
-    if (messageCount > entitlementsByUserType[userType].maxMessagesPerDay) {
-      return new ChatSDKError('rate_limit:chat').toResponse();
+    if (userType === 'guest' && messageCount > entitlementsByUserType[userType].maxMessagesPerDay) {
+      const quotaMsg =
+        locale === 'fr'
+          ? 'Quota invité atteint. Veuillez vous connecter pour continuer.'
+          : 'Guest message quota reached. Please sign in to continue.';
+      return streamAssistantMessage(quotaMsg);
     }
 
     const chat = await getChatById({ id });
@@ -209,8 +242,6 @@ export async function POST(request: Request) {
     await createStreamId({ streamId, chatId: id });
 
     // Build finance toolset with context-specific persistence and namespacing.
-    const locale =
-      (request.headers.get('x-next-intl-locale') as 'fr' | 'en') || 'fr';
     const ft = createFinanceTools({
       userId: session.user.id,
       chatId: id,
@@ -296,6 +327,15 @@ export async function POST(request: Request) {
     if (error instanceof ChatSDKError) {
       return error.toResponse();
     }
+    if (error instanceof DataSourceError) {
+      const sourceMsg =
+        locale === 'fr'
+          ? 'La source de données est indisponible. Veuillez réessayer plus tard.'
+          : 'Data source unavailable. Please try again later.';
+      return streamAssistantMessage(sourceMsg);
+    }
+    console.error(error);
+    return new ChatSDKError('offline:chat').toResponse();
   }
 }
 

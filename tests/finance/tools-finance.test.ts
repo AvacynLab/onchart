@@ -37,8 +37,8 @@ const mockFilings = [
 const mockNews = [
   {
     title: 't',
-    link: 'l',
-    pubDate: new Date('2023-01-01'),
+    url: 'l',
+    publishedAt: new Date('2023-01-01'),
     summary: 's',
   },
 ];
@@ -176,6 +176,27 @@ test('ui.add_annotation persists marker and emits event', async () => {
   });
 });
 
+test('ui.ask_about_selection emits event and returns anchor', async () => {
+  const events: any[] = [];
+  const tools = createFinanceTools(
+    { userId: 'u', chatId: 'c' },
+    { persist: noop },
+  );
+  const unsub = subscribeUIEvents((e) => events.push(e));
+  const res = await tools.ui.ask_about_selection.execute({
+    symbol: 'AAPL',
+    timeframe: '1D',
+    at: 123,
+    kind: 'candle',
+  });
+  unsub();
+  expect(events[0]).toEqual({
+    type: 'ask_about_selection',
+    payload: { symbol: 'AAPL', timeframe: '1D', at: 123, kind: 'candle' },
+  });
+  expect(res.anchor).toBe('AAPL,1D,123');
+});
+
 test('research.create and add_section manipulate documents', async () => {
   let doc: any = {
     id: 'r1',
@@ -210,4 +231,81 @@ test('research.create and add_section manipulate documents', async () => {
     section: { content: 'c1' },
   });
   expect(updated.sections.length).toBe(1);
+});
+
+// Finalizing a research document should persist an analysis artifact with
+// asset context so the dashboard can later filter it.
+test('research.finalize persists analysis artifact with metadata', async () => {
+  const doc = {
+    id: 'r1',
+    userId: 'u',
+    chatId: 'c',
+    kind: 'general',
+    title: 'My Analysis',
+    sections: [],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+  const saved: any[] = [];
+  const tools = createFinanceTools(
+    { userId: 'u', chatId: 'c' },
+    {
+      getResearchById: async () => doc,
+      persist: async (r) => saved.push(r),
+    },
+  );
+  const res = await tools.research.finalize.execute({
+    id: 'r1',
+    symbol: 'AAPL',
+    timeframe: '1D',
+    indicators: ['sma'],
+    annotations: [],
+  });
+  expect(res.title).toBe('My Analysis');
+  expect(saved[0]).toMatchObject({
+    type: 'My Analysis',
+    input: {
+      symbol: 'AAPL',
+      timeframe: '1D',
+      indicators: ['sma'],
+      annotations: [],
+    },
+  });
+});
+
+// Validating a strategy should log an artifact decorated with the chosen
+// asset, timeframe and any indicators so users can revisit it.
+test('strategy.finalize records metadata', async () => {
+  const saved: any[] = [];
+  const tools = createFinanceTools(
+    { userId: 'u', chatId: 'c' },
+    {
+      getStrategyVersion: async () => ({ id: 'v1', strategyId: 's1' }),
+      updateStrategyStatus: async () => ({
+        id: 's1',
+        title: 'Strat',
+        universe: {},
+        constraints: {},
+        status: 'validated',
+      }),
+      persist: async (r) => saved.push(r),
+    },
+  );
+  const res = await tools.strategy.finalize.execute({
+    versionId: 'v1',
+    symbol: 'AAPL',
+    timeframe: '1D',
+    indicators: ['ema'],
+    annotations: [],
+  });
+  expect(res.status).toBe('validated');
+  expect(saved[0]).toMatchObject({
+    type: 'Strat',
+    input: {
+      symbol: 'AAPL',
+      timeframe: '1D',
+      indicators: ['ema'],
+      annotations: [],
+    },
+  });
 });

@@ -1,7 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GET } from '../../../app/(chat)/api/finance/ohlc/route';
-import { invalidateCache } from '../../../lib/finance/cache';
+import {
+  invalidateCache,
+  getCache,
+  INTRADAY_TTL_MS,
+  DAILY_TTL_MS,
+} from '../../../lib/finance/cache';
 import { normalizeSymbol } from '../../../lib/finance/symbols';
 
 function cacheKey(symbol: string, interval: string): string {
@@ -135,4 +140,83 @@ test('second call hits cache without extra fetch', async () => {
 test('rejects unsupported symbols with 400', async () => {
   const res = await GET(createRequest('DROP TABLE', '1d'));
   assert.equal(res.status, 400);
+});
+
+// Verify that intraday intervals cache for the short intraday TTL.
+test('uses intraday TTL for sub-daily intervals', async () => {
+  const key = cacheKey('BTC-USD', '1m');
+  invalidateCache(key);
+  let yahooCalls = 0;
+  const mockFetch: typeof fetch = async (url: any) => {
+    const u = String(url);
+    if (u.includes('yahoo')) {
+      yahooCalls++;
+      return new Response('', { status: 502 });
+    }
+    if (u.includes('binance')) {
+      const data = [
+        [0, '100', '0', '0', '100', '0'],
+        [60, '110', '0', '0', '110', '0'],
+      ];
+      return new Response(JSON.stringify(data), { status: 200 });
+    }
+    throw new Error(`unexpected url ${u}`);
+  };
+  const originalFetch = global.fetch;
+  const originalNow = Date.now;
+  let now = originalNow();
+  // @ts-expect-error override
+  global.fetch = mockFetch;
+  Date.now = () => now;
+  try {
+    await GET(createRequest('BTC-USD', '1m'));
+    now += INTRADAY_TTL_MS - 1;
+    assert.ok(getCache(key));
+    now += 2;
+    assert.equal(getCache(key), undefined);
+  } finally {
+    // @ts-expect-error restore
+    global.fetch = originalFetch;
+    Date.now = originalNow;
+    invalidateCache(key);
+  }
+  assert.equal(yahooCalls, 3); // retries included
+});
+
+// Verify that daily intervals cache for the longer daily TTL.
+test('uses daily TTL for 1d interval fallbacks', async () => {
+  const key = cacheKey('AAPL', '1d');
+  invalidateCache(key);
+  let yahooCalls = 0;
+  const mockFetch: typeof fetch = async (url: any) => {
+    const u = String(url);
+    if (u.includes('yahoo')) {
+      yahooCalls++;
+      return new Response('', { status: 502 });
+    }
+    if (u.includes('stooq')) {
+      const csv = 'Date,Open,High,Low,Close,Volume\n2024-01-01,10,10,10,10,0\n2024-01-02,11,11,11,11,0\n';
+      return new Response(csv, { status: 200 });
+    }
+    throw new Error(`unexpected url ${u}`);
+  };
+  const originalFetch = global.fetch;
+  const originalNow = Date.now;
+  let now = originalNow();
+  // @ts-expect-error override
+  global.fetch = mockFetch;
+  Date.now = () => now;
+  try {
+    await GET(createRequest('AAPL', '1d'));
+    now += DAILY_TTL_MS - 1;
+    assert.ok(getCache(key));
+    now += 2;
+    assert.equal(getCache(key), undefined);
+  } finally {
+    // @ts-expect-error restore
+    global.fetch = originalFetch;
+    Date.now = originalNow;
+    invalidateCache(key);
+  }
+  assert.equal(yahooCalls, 3); // retries included
 });

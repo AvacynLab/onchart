@@ -1,5 +1,5 @@
 import type { QuoteResult } from './sources/yahoo';
-import { getCache, setCache, TTL_INTRADAY_MS } from './cache';
+import { getCache, setCache, INTRADAY_TTL_MS } from './cache';
 import { fetchWithRetry } from './request';
 import { DataSourceError } from './errors';
 import { headers } from 'next/headers.js';
@@ -92,7 +92,7 @@ async function fetchQuoteWithRetry(
   {
     timeoutMs = 2_500,
     retries = 2,
-    ttlMs = TTL_INTRADAY_MS,
+    ttlMs = INTRADAY_TTL_MS,
     fetcher = fetch,
     getHeaders = headers,
   }: {

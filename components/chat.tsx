@@ -22,6 +22,8 @@ import { useAutoResume } from '@/hooks/use-auto-resume';
 import { ChatSDKError } from '@/lib/errors';
 import type { Attachment, ChatMessage } from '@/lib/types';
 import { useDataStream } from './data-stream-provider';
+import type { AnchorContext } from '@/lib/chat/anchor';
+import { formatAnchor } from '@/lib/chat/anchor';
 
 export function Chat({
   id,
@@ -31,6 +33,8 @@ export function Chat({
   isReadonly,
   session,
   autoResume,
+  initialInput = '',
+  anchor,
 }: {
   id: string;
   initialMessages: ChatMessage[];
@@ -39,6 +43,10 @@ export function Chat({
   isReadonly: boolean;
   session: Session;
   autoResume: boolean;
+  /** Pre-filled value for the chat input. */
+  initialInput?: string;
+  /** Optional anchor describing the context of the question. */
+  anchor?: AnchorContext;
 }) {
   const { visibilityType } = useChatVisibility({
     chatId: id,
@@ -48,7 +56,8 @@ export function Chat({
   const { mutate } = useSWRConfig();
   const { setDataStream } = useDataStream();
 
-  const [input, setInput] = useState<string>('');
+  // Initialize the input with the provided value or an empty string.
+  const [input, setInput] = useState<string>(initialInput);
 
   const {
     messages,
@@ -150,19 +159,28 @@ export function Chat({
 
         <form className="flex mx-auto px-4 bg-background pb-4 md:pb-6 gap-2 w-full md:max-w-3xl">
           {!isReadonly && (
-            <MultimodalInput
-              chatId={id}
-              input={input}
-              setInput={setInput}
-              status={status}
-              stop={stop}
-              attachments={attachments}
-              setAttachments={setAttachments}
-              messages={messages}
-              setMessages={setMessages}
-              sendMessage={sendMessage}
-              selectedVisibilityType={visibilityType}
-            />
+            <div className="flex flex-col w-full gap-2">
+              {anchor && (
+                <div className="self-start" data-testid="anchor-chip">
+                  <span className="text-xs px-2 py-1 rounded bg-muted">
+                    {formatAnchor(anchor)}
+                  </span>
+                </div>
+              )}
+              <MultimodalInput
+                chatId={id}
+                input={input}
+                setInput={setInput}
+                status={status}
+                stop={stop}
+                attachments={attachments}
+                setAttachments={setAttachments}
+                messages={messages}
+                setMessages={setMessages}
+                sendMessage={sendMessage}
+                selectedVisibilityType={visibilityType}
+              />
+            </div>
           )}
         </form>
       </div>

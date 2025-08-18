@@ -8,9 +8,13 @@ import FinancePanel from '@/components/finance/FinancePanel';
 import FinanceHint from '@/components/finance/FinanceHint';
 import { auth } from '../(auth)/auth';
 import { redirect } from 'next/navigation';
+import { parseAnchor, buildInitialInput } from '@/lib/chat/anchor';
 
-export default async function Page() {
+export default async function Page(props: { searchParams?: Promise<{ anchor?: string }> }) {
   const session = await auth();
+  const search = (await props.searchParams) ?? {};
+  const anchor = parseAnchor(search.anchor);
+  const initialInput = anchor ? buildInitialInput(anchor) : undefined;
 
   if (!session) {
     redirect('/api/auth/guest');
@@ -33,6 +37,8 @@ export default async function Page() {
           isReadonly={false}
           session={session}
           autoResume={false}
+          initialInput={initialInput}
+          anchor={anchor ?? undefined}
         />
         <DataStreamHandler />
         <FinancePanel chatId={id} userId={session.user.id} />
@@ -52,6 +58,8 @@ export default async function Page() {
         isReadonly={false}
         session={session}
         autoResume={false}
+        initialInput={initialInput}
+        anchor={anchor ?? undefined}
       />
       <DataStreamHandler />
       <FinancePanel chatId={id} userId={session.user.id} />
