@@ -79,11 +79,10 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    // Start the prebuilt app with PLAYWRIGHT=True so Next.js runs without PPR
-    // during tests. The build itself is performed ahead of time via the
-    // `pretest:e2e` script to keep the Playwright launch step fast and to make
-    // the build artefact available for reuse across retries.
-    command: `PLAYWRIGHT=True pnpm start -p ${PORT}`,
+    // Rebuild with PLAYWRIGHT=True immediately before starting to guarantee
+    // the server uses a PPR-off artefact even if previous builds exist.
+    command:
+      `rm -rf .next && PLAYWRIGHT=True pnpm build && PLAYWRIGHT=True pnpm start -p ${PORT}`,
     port: PORT,
     // Always launch a fresh server to guarantee the prebuilt output is used
     // and that no lingering process holds onto the test port.

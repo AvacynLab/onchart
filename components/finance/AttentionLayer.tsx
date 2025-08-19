@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import type { IChartApi, ISeriesApi } from 'lightweight-charts';
 import { subscribeUIEvents, type UIEvent } from '../../lib/ui/events';
 
@@ -51,17 +51,27 @@ const AttentionLayer: React.FC<AttentionLayerProps> = ({
 }) => {
   const [markers, setMarkers] = useState<AttentionAnnotation[]>([]);
   const [, forceUpdate] = useState(0);
+  // Store pending annotation payloads so rapid hovers do not spam the API.
+  const pending = useRef<any | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Subscribe to annotation add/remove events.
   useEffect(() => {
-    return subscribeUIEvents(async (event: UIEvent) => {
+    const unsubscribe = subscribeUIEvents(async (event: UIEvent) => {
       if (event.type === 'add_annotation' && event.payload.symbol === symbol) {
         const payload = event.payload as any;
         if (payload.id) {
-          // Marker already persisted; just render it.
+          // Marker already persisted; just render it immediately.
           setMarkers((prev) => [...prev, payload]);
-        } else {
-          // Persist via API then render with returned id.
+          return;
+        }
+        // Debounce persistence to avoid spamming the API when tools emit
+        // multiple hover events in quick succession.
+        pending.current = payload;
+        if (saveTimer.current) clearTimeout(saveTimer.current);
+        saveTimer.current = setTimeout(async () => {
+          const data = pending.current;
+          pending.current = null;
           try {
             const res = await fetcher('/api/finance/attention', {
               method: 'POST',
@@ -70,20 +80,24 @@ const AttentionLayer: React.FC<AttentionLayerProps> = ({
                 userId,
                 chatId,
                 symbol,
-                timeframe: payload.timeframe,
-                payload: { at: payload.at, type: payload.type, text: payload.text },
+                timeframe: data.timeframe,
+                payload: { at: data.at, type: data.type, text: data.text },
               }),
             });
             const { id } = await res.json();
-            setMarkers((prev) => [...prev, { ...payload, id }]);
+            setMarkers((prev) => [...prev, { ...data, id }]);
           } catch {
             /* ignore persistence errors */
           }
-        }
+        }, 250);
       } else if (event.type === 'remove_annotation') {
         setMarkers((prev) => prev.filter((m) => m.id !== event.payload.id));
       }
     });
+    return () => {
+      unsubscribe();
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
   }, [symbol, chatId, userId, fetcher]);
 
   // Re-render markers when the visible range changes so coordinates update.

@@ -59,6 +59,8 @@ test.beforeEach(async ({ page }) => {
 
 test('sidebar toggling pushes grid and chat dock moves with content', async ({ page }) => {
   await page.goto('/');
+  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
+  await expect(page.getByTestId('bento-grid')).toBeVisible();
   const content = page.locator('#bento-content');
   const input = page.locator('form input[placeholder="Ask a question"]');
   await expect(content).toBeVisible();
@@ -73,14 +75,16 @@ test('sidebar toggling pushes grid and chat dock moves with content', async ({ p
   const boxAfter = await content.boundingBox();
   const inputAfter = await input.boundingBox();
 
-  expect(boxAfter!.x).toBeGreaterThan((boxBefore!.x + 250));
-  const deltaContent = boxAfter!.x - boxBefore!.x;
-  const deltaInput = inputAfter!.x - inputBefore!.x;
+  expect(boxAfter?.x).toBeGreaterThan((boxBefore?.x + 250));
+  const deltaContent = boxAfter?.x - boxBefore?.x;
+  const deltaInput = inputAfter?.x - inputBefore?.x;
   expect(Math.abs(deltaContent - deltaInput)).toBeLessThan(5);
 });
 
 test('split and timeframe controls update charts', async ({ page }) => {
   await page.goto('/');
+  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
+  await expect(page.getByTestId('bento-grid')).toBeVisible();
   const panes = page.locator('[data-testid="chart-pane"]');
   await expect(panes).toHaveCount(1);
 
@@ -98,6 +102,8 @@ test('split and timeframe controls update charts', async ({ page }) => {
 
 test('sending a message fades out bento and navigates to chat', async ({ page }) => {
   await page.goto('/');
+  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
+  await expect(page.getByTestId('bento-grid')).toBeVisible();
   const input = page.locator('form input[placeholder="Ask a question"]');
   await input.fill('Why is grass green?');
   await input.press('Enter');

@@ -17,7 +17,8 @@ test.beforeEach(async ({ page }) => {
  */
 test('renders French heading without missing messages', async ({ page }) => {
   await page.context().addCookies([
-    { name: 'lang', value: 'fr', url: 'http://localhost:3110/' },
+    // Use a domain-based cookie so the test remains agnostic to the server port.
+    { name: 'lang', value: 'fr', domain: 'localhost', path: '/' },
   ]);
 
   // Provide stub quotes so the tile hydrates immediately.
@@ -36,6 +37,8 @@ test('renders French heading without missing messages', async ({ page }) => {
   );
 
   await page.goto('/');
+  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
+  await expect(page.getByTestId('bento-grid')).toBeVisible();
   await expect(
     page.getByRole('heading', { name: (frDashboard as any).prices.title }),
   ).toBeVisible();
@@ -48,7 +51,8 @@ test('renders French heading without missing messages', async ({ page }) => {
  */
 test('shows prices with fallback providers', async ({ page }) => {
   await page.context().addCookies([
-    { name: 'lang', value: 'fr', url: 'http://localhost:3110/' },
+    // Scope cookie to localhost without specifying a port.
+    { name: 'lang', value: 'fr', domain: 'localhost', path: '/' },
   ]);
 
   await page.route('**/api/finance/quote*', (route) => {
@@ -92,6 +96,8 @@ test('shows prices with fallback providers', async ({ page }) => {
   });
 
   await page.goto('/');
+  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
+  await expect(page.getByTestId('bento-grid')).toBeVisible();
   // Ensure each symbol row is rendered with the stubbed prices.
   await expect(page.getByText('AAPL')).toBeVisible();
   await expect(page.getByText('MSFT')).toBeVisible();
@@ -105,7 +111,8 @@ test('shows prices with fallback providers', async ({ page }) => {
  */
 test('renders offline state and recovers on retry', async ({ page }) => {
   await page.context().addCookies([
-    { name: 'lang', value: 'fr', url: 'http://localhost:3110/' },
+    // Avoid pinning the cookie to a specific port to keep tests portable.
+    { name: 'lang', value: 'fr', domain: 'localhost', path: '/' },
   ]);
 
   let fail = true;
@@ -146,6 +153,8 @@ test('renders offline state and recovers on retry', async ({ page }) => {
   });
 
   await page.goto('/');
+  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
+  await expect(page.getByTestId('bento-grid')).toBeVisible();
   await expect(
     page.getByText((frDashboard as any).prices.offline),
   ).toBeVisible();

@@ -1,6 +1,6 @@
 // Client component because it relies on interactivity hooks.
 'use client';
-import React from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 /**
@@ -51,10 +51,8 @@ export default function ChartToolbar({
   const t = useTranslations('finance.chart');
   // Mirror the externally controlled indicator list so we can compute the next
   // state using a Set and avoid duplicate entries when users toggle quickly.
-  const [activeIndicators, setActiveIndicators] = React.useState<string[]>(
-    indicators,
-  );
-  React.useEffect(() => {
+  const [activeIndicators, setActiveIndicators] = useState<string[]>(indicators);
+  useEffect(() => {
     setActiveIndicators(indicators);
   }, [indicators]);
 

@@ -87,6 +87,8 @@ test.beforeEach(async ({ page }) => {
 
 test('chart artifact click opens chat with anchored input', async ({ page }) => {
   await page.goto('/');
+  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
+  await expect(page.getByTestId('bento-grid')).toBeVisible();
   // Open the artifact from the analyses list.
   await page
     .getByTestId('analyses-card')

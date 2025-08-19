@@ -211,8 +211,20 @@ const ChartPanel = forwardRef<ChartPanelRef, ChartPanelProps>(
           }
         });
         ro.observe(containerRef.current);
+
+        const onResize = () => {
+          if (containerRef.current && chartRef.current) {
+            chartRef.current.applyOptions({
+              width: containerRef.current.clientWidth,
+              height: containerRef.current.clientHeight,
+            });
+          }
+        };
+        window.addEventListener('resize', onResize);
+
         cleanupRef.current = () => {
           ro.disconnect();
+          window.removeEventListener('resize', onResize);
           mq.removeEventListener?.('change', mqListener);
           chartRef.current?.unsubscribeCrosshairMove(crosshairHandler);
           chartRef.current?.remove();

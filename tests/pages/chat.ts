@@ -28,6 +28,10 @@ export class ChatPage {
 
   async createNewChat() {
     await this.page.goto('/');
+    await this.page
+      .getByTestId('multimodal-input')
+      .waitFor({ state: 'visible' });
+    await expect(this.page.getByTestId('bento-grid')).toBeVisible();
   }
 
   public getCurrentURL(): string {
@@ -35,6 +39,9 @@ export class ChatPage {
   }
 
   async sendUserMessage(message: string) {
+    await this.page
+      .getByTestId('multimodal-input')
+      .waitFor({ state: 'visible' });
     await this.multimodalInput.click();
     await this.multimodalInput.fill(message);
     await this.sendButton.click();
@@ -57,9 +64,7 @@ export class ChatPage {
   }
 
   async hasChatIdInUrl() {
-    await expect(this.page).toHaveURL(
-      /^http:\/\/localhost:3000\/chat\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-    );
+    await expect(this.page).toHaveURL(/\/chat\/[0-9a-f-]{36}$/);
   }
 
   async sendUserMessageFromSuggestion() {

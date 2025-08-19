@@ -1,7 +1,4 @@
 import { test, expect } from '../fixtures';
-import enDashboard from '../../messages/en/dashboard.json' assert {
-  type: 'json',
-};
 
 // Ensure external font requests are stubbed so the test does not depend on
 // Google services or network access.
@@ -16,9 +13,9 @@ test.beforeEach(async ({ page }) => {
   await page
     .context()
     .addCookies([
-      // Use a full URL so Playwright infers the correct cookie scope for the
-      // test web server.
-      { name: 'lang', value: 'en', url: 'http://localhost:3110/' },
+      // Scope the cookie to localhost without pinning a port so the test
+      // remains agnostic to the configured web server port.
+      { name: 'lang', value: 'en', domain: 'localhost', path: '/' },
     ]);
 });
 

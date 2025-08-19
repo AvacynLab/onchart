@@ -8,11 +8,15 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
 // Disable Partial Pre-rendering during Playwright runs to avoid
 // `clientModules` hydration errors in the production build used for tests.
-const isPlaywright = Boolean(process.env.PLAYWRIGHT);
+// Normalize the env flag and also respect CI to guard against regressions.
+const isPlaywright =
+  String(process.env.PLAYWRIGHT || '').toLowerCase() === 'true';
+const isCI = !!process.env.CI;
 
 const nextConfig: NextConfig = {
   experimental: {
-    ppr: !isPlaywright,
+    // PPR off pour E2E/CI (évite clientModules undefined sur Next 15 canary)
+    ppr: !(isPlaywright || isCI),
     // Individual segments may override this via `export const experimental_ppr`.
     // Leave those off while E2E tests remain incompatible with PPR.
     // Providing an empty `turbo` object ensures the next-intl plugin injects
