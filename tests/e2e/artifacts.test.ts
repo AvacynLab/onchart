@@ -13,8 +13,8 @@ test.describe('Artifacts activity', () => {
     await chatPage.createNewChat();
   });
 
-  test('Create a text artifact', async () => {    await chatPage.createNewChat();
-
+  // Generating an artifact should display it inline and acknowledge creation.
+  test('Create a text artifact', async () => {
     await chatPage.sendUserMessage(
       'Help me write an essay about Silicon Valley',
     );
@@ -30,8 +30,8 @@ test.describe('Artifacts activity', () => {
     await chatPage.hasChatIdInUrl();
   });
 
-  test('Toggle artifact visibility', async () => {    await chatPage.createNewChat();
-
+  // Closing the artifact hides it without affecting the chat flow.
+  test('Toggle artifact visibility', async () => {
     await chatPage.sendUserMessage(
       'Help me write an essay about Silicon Valley',
     );
@@ -48,8 +48,8 @@ test.describe('Artifacts activity', () => {
     await chatPage.isElementNotVisible('artifact');
   });
 
-  test('Send follow up message after generation', async () => {    await chatPage.createNewChat();
-
+  // Users can continue the conversation after an artifact has been generated.
+  test('Send follow up message after generation', async () => {
     await chatPage.sendUserMessage(
       'Help me write an essay about Silicon Valley',
     );

@@ -70,7 +70,8 @@ export function AnalysesCard() {
       <ul className="flex-1 space-y-2 text-sm">
         {data?.items?.length
           ? data.items.map((d) => (
-              <li key={d.id}>
+              // Each analysis entry exposes a stable test id
+              <li key={d.id} data-testid="analysis-item">
                 <button
                   type="button"
                   className="underline"

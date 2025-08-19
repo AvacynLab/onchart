@@ -1,481 +1,424 @@
-Voici la liste exhaustive et **cochable**, orientée “agent IA”, pour amener la base Vercel AI Chatbot vers le **dashboard bento** + agents financiers. C’est **fichier par fichier**, avec sous-étapes, objectifs clairs et petits snippets dès que ça devient un peu piégeux.
+Parfait — je reprends l’état **actuel** du repo, les logs de tests, et la vision produit (bento + agents + artefacts) pour te livrer une TODO exhaustive, **fichier par fichier**, avec sous-étapes, objectifs attendus et snippets quand c’est piégeux.
 
 ---
 
-## app/layout.tsx
-
-* [x] Remplacer le layout par une grille **sidebar qui pousse le contenu**
-
-  * [x] Définir la variable CSS `--sidebar-w` (fermée `0px`, ouverte p.ex. `300px`).
-  * [x] Grille 2 colonnes: `grid-template-columns: var(--sidebar-w, 0px) 1fr`.
-  * [x] Transitions douces (columns/width) pour l’animation d’ouverture.
-  * **Objectif :** l’ouverture de la sidebar **recompose** le bento sans overlay.
-
-  ```tsx
-  export default function RootLayout({ children }: { children: React.ReactNode }) {
-    return (
-      <html lang="fr">
-        <body className="h-dvh overflow-hidden">
-          <div className="grid h-full" style={{ gridTemplateColumns: 'var(--sidebar-w, 0px) 1fr' }}>
-            <aside id="sidebar" className="h-full overflow-y-auto border-r" />
-            <main id="main" className="h-full overflow-hidden">{children}</main>
-          </div>
-        </body>
-      </html>
-    );
-  }
-  ```
-
----
-
-## components/sidebar/Sidebar.tsx
-
-* [x] Monter la sidebar dans `#sidebar`.
-* [x] Ajouter un **bouton** (dans le header du bento) pour ouvrir/fermer :
-
-  * [x] `document.documentElement.style.setProperty('--sidebar-w', '300px' | '0px')`.
-  * **Objectif :** pas d’overlay; la grille s’adapte.
-
----
-
-## app/page.tsx
-
-* [x] Conserver l’accueil de la boilerplate, mais **rendre le bento**.
-* [x] Préfetch tolérant (quotes/news) dans un `try/catch`.
-* **Objectif :** éviter tout crash SSR si les data tombent.
-
-  ```tsx
-  import { Bento } from '@/components/bento/Bento';
-  export default async function HomePage() { return <Bento />; }
-  ```
-
----
-
-## components/bento/Bento.tsx
-
-* [x] Construire la **grille bento**: header, contenu, input docké.
-
-  * [x] Ligne 1: `BentoHeader` (menu + titre asset + timeframes).
-  * [x] Ligne 2: sous-grille 2 colonnes: **ChartCard** (1fr) | **colonne droite** (NewsCard au-dessus + AnalysesCard en dessous).
-  * [x] Ligne 3: **ChatDock** sticky en bas, centré.
-  * **Objectif :** correspondre au plan (images fournies) et rester fluide quand la sidebar change de largeur.
-
-  ```tsx
-  export function Bento() {
-    return (
-      <div className="h-full grid grid-rows-[auto_1fr_auto] gap-3 p-3">
-        <BentoHeader />
-        <div id="bento-content" className="grid grid-cols-[1fr_340px] gap-3 min-h-0">
-          <ChartCard />
-          <div className="grid grid-rows-[1fr_auto] gap-3 min-h-0">
-            <NewsCard />
-            <AnalysesCard />
-          </div>
-        </div>
-        <ChatDock />
-      </div>
-    );
-  }
-  ```
-
----
-
-## components/bento/BentoHeader.tsx
-
-* [x] Bouton sidebar (ouvre/ferme).
-* [x] Titre asset (symbol + nom).
-* [x] Boutons **timeframe** compacts (1m / 5m / 1h / 4h / 1d) reliés au contexte d’asset.
-* **Objectif :** contrôle global de l’asset courant.
-
----
-
-## lib/asset/AssetContext.tsx
-
-* [x] Créer un **contexte d’asset** partagé.
-
-  * [x] State: `{ symbol, name, timeframe, panes, sync }`.
-  * [x] Persist localStorage (`lastAsset`, `lastTF`).
-  * [x] Exposer `setAsset`, `setTimeframe`, `setPanes`, `toggleSync`.
-  * **Objectif :** une seule source de vérité pour l’asset/TF/vue multiple.
-
-  ```tsx
-  type AssetState = { symbol: string; name?: string; timeframe: '1m'|'5m'|'1h'|'4h'|'1d'; panes: 1|2|4; sync: boolean };
-  const Ctx = createContext<...>(/* ... */);
-  ```
-
----
-
-## components/bento/ChatDock.tsx
-
-* [x] Reprendre l’input chat du boilerplate et le **détacher** en dock bas (sticky).
-* [x] Au **submit** :
-
-  * [x] Créer/récupérer un `chatId` via l’API.
-  * [x] Ajout temporaire de la classe `fading-out` sur `#bento-content` (CSS `opacity-0 transition`).
-  * [x] `router.push('/chat/{chatId}')` et (optionnel) envoyer le message en “draft” avant navigation.
-  * **Objectif :** l’envoi **fait disparaître** les cards puis emmène l’utilisateur dans le chat pour la réponse.
-
-  ```tsx
-  'use client';
-  import { useRouter } from 'next/navigation';
-  export function ChatDock() {
-    const router = useRouter();
-    async function onSend(text: string) {
-      const chatId = await ensureChatId();
-      document.getElementById('bento-content')?.classList.add('opacity-0');
-      await sendDraft(chatId, text); // optionnel
-      router.push(`/chat/${chatId}`);
-    }
-    return <DockedInput onSubmit={onSend} />;
-  }
-  ```
-
----
-
-## components/bento/ChartCard.tsx + components/bento/ChartGrid.tsx
-
-* [x] **ChartCard**
-
-  * [x] Header: titre asset, boutons TF, **sélecteur de split** (1/2/4) et bouton **synchro**.
-  * [x] Body: `ChartGrid` gère 1/2/4 charts.
-* [x] **ChartGrid**
-
-  * [x] Instancier `lightweight-charts` par pane.
-  * [x] Fetch `/api/finance/ohlc?symbol=…&interval=…`.
-  * [x] Synchro scroll/zoom quand `sync` est actif.
-  * [x] Gérer les overlays via bus d’événements.
-  * [x] Gérer les annotations via bus d’événements.
-  * **Objectif :** mini-TradingView minimal, fluide.
-
-  ```tsx
-  export function ChartGrid({ panes, asset, timeframe }: Props) {
-    const refs = useRef<HTMLDivElement[]>([]);
-    useEffect(() => {
-      // créer/détruire les charts selon "panes"
-      // brancher OHLC + synchro
-    }, [panes, asset.symbol, timeframe]);
-    return (
-      <div className={panes===1?'grid grid-cols-1': panes===2?'grid grid-cols-1 grid-rows-2':'grid grid-cols-2 grid-rows-2'} >
-        {[...Array(panes)].map((_,i)=><div key={i} ref={el=>refs.current[i]=el!} className="min-h-0"/>) }
-      </div>
-    );
-  }
-  ```
-
----
-
-## components/bento/NewsCard.tsx
-
-* [x] Se synchroniser sur `useAsset()`.
-* [x] Fetch `/api/finance/news?symbol=…` (cache 60s).
-* [x] Liste scrollable; bouton “Résumer dans l’artefact”.
-* [x] Implémenter l’action : POST `/api/finance/news/summary` pour créer un artefact d’analyse.
-* **Objectif :** toujours montrer des news de l’asset courant.
-
----
-
-## components/bento/AnalysesCard.tsx
-
-* [x] Deux onglets: **Analyses** | **Stratégies**.
-* [x] Charger via `/api/document/query?asset=SYMB&kind=analysis|strategy`.
-* [x] Clic: ouvrir l’**artefact** (drawer ou page) ; CTA “Continuer avec l’agent”.
-* **Objectif :** retrouver facilement ce que l’agent (ou l’utilisateur) a déjà produit.
-
----
-
-## lib/ui/events.ts (typage strict du bus)
-
-* [x] Remplacer les strings libres par un **discriminant typé**.
-* [x] Ajouter l’événement **`ask_about_selection`** pour les interactions sur bougies/indicateurs.
-* **Objectif :** sécurité de types côté tools et UI; pas de `any` caché.
-
-  ```ts
-  export type UIEvent =
-    | { type:'show_chart'; payload:{ symbol:string; timeframe:string } }
-    | { type:'add_overlay'; payload:{ pane:number; kind:'sma'|'ema'|'rsi'; params:any } }
-    | { type:'focus_area'; payload:{ from:number; to:number } }
-    | { type:'add_annotation'; payload:{ at:number; text:string } }
-    | { type:'ask_about_selection'; payload:{ symbol:string; timeframe:string; at:number; kind:'candle'|'indicator'; meta?:any } };
-
-  export const ui = createEventBus<UIEvent>();
-  ```
-
----
-
-## components/artifact/ArtifactViewer.tsx
-
-* [x] Support **workflow** (étapes numérotées) et **chart inline**.
-* [x] Dans les artefacts “chart” : activer les **interactions** (clic bougie → `ask_about_selection`).
-* [x] “Ouvrir dans le chat” préremplit l’input avec le **contexte** (asset/TF/temps).
-* **Objectif :** artefacts riches, interactifs, utiles comme livrables.
-
----
-
-## lib/ai/tools-artifact.ts (nouveaux tools)
-
-* [x] `artifact.workflow.create({ title, steps })` et `artifact.workflow.appendStep({ id, content })`.
-* [x] `artifact.chart.annotate({ symbol, timeframe, overlays, annotations })` → émet aussi `ui.add_annotation`.
-* **Objectif :** permettre à l’agent de **matérialiser** son raisonnement et ses graphiques dans un artefact.
-
----
-
-## app/(chat)/api/document/query/route.ts
-
-* [x] Endpoint pour lister les documents par `asset`, `timeframe?`, `kind?`, `limit/offset`.
-* [x] Retour minimal: `{ id, title, kind, createdAt }`.
-* **Objectif :** alimenter la **AnalysesCard** proprement.
-
-  ```ts
-  export async function GET(req: Request) {
-    const { searchParams } = new URL(req.url);
-    // lire asset/kind/...
-    // requête Drizzle
-    return Response.json({ items, total });
-  }
-  ```
-
----
-
-## app/(chat)/api/finance/news/route.ts
-
-* [x] Agréger les flux (Yahoo/RSS spécifiques) avec TTL 60s.
-* [x] Normaliser `{ title, url, source, publishedAt }[]`.
-* **Objectif :** NewsCard stable, même si une source tombe.
-
----
-
-## app/(chat)/api/finance/quote/route.ts (correctif 502)
-
-* [x] **Ajouter le fallback Stooq** pour equities (daily).
-* [x] Crypto: fallback Binance (2 klines 1m) si Yahoo échoue.
-* [x] Cache: 15s intraday, 60s daily; **option DEV** ajouter `source` dans la réponse.
-* **Objectif :** `/api/finance/quote` répond 200 pour AAPL/MSFT/BTC-USD malgré Yahoo 5xx.
-
-  ```ts
-  // imports fetchDailyStooq + fetchKlinesBinance
-  try {
-    const quote = await fetchQuoteYahoo(symbol);
-    // ...
-  } catch {
-    if (isCrypto(symbol)) { /* Binance 1m x2 -> REG */ }
-    try { /* Stooq daily -> CLOSED */ } catch {}
-    return new Response(JSON.stringify({ error:'failed to fetch quote' }), { status:502 });
-  }
-  ```
-
----
-
-## app/(chat)/api/finance/ohlc/route.ts
-
-* [x] Utiliser `INTRADAY_TTL_MS` / `DAILY_TTL_MS` de `lib/finance/cache.ts` (ne plus hardcoder).
-* [x] Fallbacks identiques à quote (Yahoo → Binance/Stooq).
-* **Objectif :** cohérence TTL et robustesse.
-
----
-
-## lib/finance/live.ts
-
-* [x] **Base URL SSR** robuste derrière proxy/Codespaces :
-
-  * [x] Lire `headers()` pour `x-forwarded-host` et `x-forwarded-proto`.
-  * [x] Fallback `NEXT_PUBLIC_VERCEL_URL` puis `http://localhost:3000`.
-* **Objectif :** terminer les 502 “proxy”.
-
-  ```ts
-  import { headers } from 'next/headers';
-  const h = typeof window==='undefined' ? headers() : null;
-  const host = h?.get('x-forwarded-host'); const proto = h?.get('x-forwarded-proto') ?? 'http';
-  const baseUrl = typeof window==='undefined'
-    ? host ? `${proto}://${host}` 
-      : process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` 
-      : 'http://localhost:3000'
-    : '';
-  ```
-
----
-
-## lib/finance/sources/binance.ts
-
-* [x] Exposer `toBinancePair('BTC-USD') -> 'BTCUSDT'` proprement (pas `+ 'T'`).
-* [x] `fetchKlinesBinance(pair, '1m', 2)` retourne un type stable `{ openTime, close, high, low }[]`.
-* **Objectif :** calcul de variation fiable.
-
----
-
-## lib/finance/sources/stooq.ts
-
-* [x] Garantir **au moins 2 bougies**; sinon jeter (équity fallback sinon impossible).
-* [x] Prévoir mapping de tickers si besoin (`toStooqTicker`).
-* **Objectif :** fallback daily solide.
-
----
-
-## lib/finance/symbols.ts
-
-* [x] `normalizeSymbol` retourne `{ symbol, yahoo, binance, assetClass }`.
-* [x] `isCryptoSymbol`, `toBinancePair`, `toStooqTicker` centralisés.
-* **Objectif :** logique de mapping **unique** pour tout le code.
-
----
-
-## lib/finance/cache.ts
-
-* [x] Exporter `INTRADAY_TTL_MS=15_000`, `DAILY_TTL_MS=60_000`.
-* [x] Vérifier usages dans `quote/ohlc`.
-* **Objectif :** TTL cohérents partout.
-
----
-
-## i18n/request.ts (corriger le MISSING_MESSAGE)
-
-* [x] Charger par **namespace** (`messages: { common, dashboard, finance, chat }`) au lieu de spread racine.
-* **Objectif :** permettre `useTranslations('dashboard.prices')` & co.
-
-  ```ts
-  export default getRequestConfig(async () => {
-    const activeLocale = /* détection cookie/lang */;
-    return {
-      locale: activeLocale,
-      messages: {
-        common:    (await import(`../messages/${activeLocale}/common.json`)).default,
-        dashboard: (await import(`../messages/${activeLocale}/dashboard.json`)).default,
-        finance:   (await import(`../messages/${activeLocale}/finance.json`)).default,
-        chat:      (await import(`../messages/${activeLocale}/chat.json`)).default,
+# Blocage prioritaire E2E : erreur `clientModules` (PPR)
+
+* [x] **app/(chat)/layout.tsx** — Neutraliser PPR côté segment “chat”.
+
+  * **Problème** : `export const experimental_ppr = true;` force PPR pour ce segment et **outrepasse** la désactivation globale définie dans `next.config.ts` pour Playwright. D’où `TypeError: Cannot read properties of undefined (reading 'clientModules')` en prod build.
+  * **Action** : retirer l’export ou le fixer à `false`.
+  * **Objectif** : rendre le build de test stable sans PPR.
+  * **Snippet** :
+
+    ```tsx
+    // app/(chat)/layout.tsx
+    // ❌ Supprimer cette ligne
+    // export const experimental_ppr = true;
+
+    // ✅ ou bien forcer off tant que les E2E sont instables avec PPR
+    export const experimental_ppr = false;
+    ```
+
+* [x] **playwright.config.ts** — Démarrer l’app pré-construite avec l’ENV Playwright.
+
+  * **Problème** : auparavant, `webServer.command` reconstruisait l’app avant chaque test.
+  * **Action** : démarrer uniquement la build générée en amont (`pretest:e2e`), en passant `PLAYWRIGHT=True` à `next start`.
+  * **Objectif** : réutiliser le build PPR-off et réduire le temps de lancement.
+  * **Snippet** :
+
+    ```ts
+    // playwright.config.ts
+    webServer: {
+      command: 'PLAYWRIGHT=True pnpm start -p 3110',
+      port: 3110,
+      reuseExistingServer: false,
+      env: { PLAYWRIGHT: 'True', OTEL_SDK_DISABLED: '1' },
+      timeout: 300_000,
+    },
+    ```
+
+* [x] **package.json** — Rendre l’intention explicite côté script CI.
+
+  * **Action** : installer Chromium et construire l’app avec `PLAYWRIGHT=True` avant d’exécuter les tests.
+  * **Snippet** :
+
+    ```json
+    {
+      "scripts": {
+        "pretest:e2e": "pnpm exec playwright install --with-deps chromium && rm -rf .next && PLAYWRIGHT=True pnpm build",
+        "test:e2e": "OTEL_SDK_DISABLED=1 PLAYWRIGHT=True pnpm exec playwright test"
       }
-    };
-  });
-  ```
+    }
+    ```
+
+* [x] **next.config.ts** — Laisser la garde-fou, mais documenter le piège du segment PPR.
+
+  * **Action** : commentaire clair pour éviter toute régression future (quelqu’un remettrait `experimental_ppr = true` dans un segment).
+  * **Objectif** : pas de retour du bug “clientModules”.
 
 ---
 
-## i18n/messages/fr/dashboard.json et en/dashboard.json
+# Page d’accueil (bento) : chat dock + transitions + redirection
 
-* [x] Ajouter/compléter :
+* [x] **app/page.tsx** — Ajouter l’input **fixe** centrée en bas (dock), visible sur `/`.
 
-  * [x] `"prices.title"`, `"open"`, `"closed"`, `"offline"`, `"retry"`.
-  * [x] `"bento.news"`, `"bento.analyses"`, `"bento.split"`, `"bento.sync"`.
-* **Objectif :** plus aucun `MISSING_MESSAGE` + labels pour les nouvelles UI.
+  * **Problème** : les tests E2E cherchent `data-testid="multimodal-input"` sur `/`, or l’input n’y est pas montée → timeouts.
+  * **Action** : réutiliser `components/multimodal-input.tsx` en dock, centré bas, non déplaçable.
+  * **Objectif** : respecter l’UX voulue et débloquer les tests `chat.*` qui attendent l’input sur `/`.
+  * **Snippet** :
 
----
+    ```tsx
+    // app/page.tsx (extrait JSX à la fin du <main>)
+    import MultimodalInput from '@/components/multimodal-input';
+    import { useRouter } from 'next/navigation';
+    import { useState } from 'react';
 
-## app/(chat)/page.tsx ou /chat/[id]/page.tsx
+    export default function HomePage() {
+      const router = useRouter();
+      const [fading, setFading] = useState(false);
 
-* [x] Supporter `?anchor=` (symbol, timeframe, timestamp) pour préremplir l’input chat.
-* [x] Afficher un **chip** de contexte au dessus de l’input.
-* **Objectif :** poser des questions “sur une bougie précise” depuis le bento/artefact.
+      async function createAndGo(message: string, attachments?: File[]) {
+        setFading(true); // -> déclenche l’opacité des tuiles
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: [{ role: 'user', content: message }] }),
+        });
+        const { id } = await res.json();
+        router.push(`/chat/${id}`);
+      }
 
----
+      return (
+        <>
+          {/* ...BentoGrid ici... */}
+          <div
+            className={
+              'pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center pb-6'
+            }
+          >
+            <div className="pointer-events-auto w-full max-w-3xl px-4">
+              <MultimodalInput
+                data-testid="multimodal-input"
+                onSubmit={async (msg, atts) => {
+                  await createAndGo(msg, atts);
+                }}
+                // facultatif : « mini » mode visuel
+                size="compact"
+              />
+            </div>
+          </div>
 
-## lib/ai/tools-finance.ts
+          {/* Classe CSS pour fade-out des tuiles */}
+          <style jsx global>{`
+            .bento-grid {
+              transition: opacity 200ms ease;
+              opacity: ${fading ? 0 : 1};
+            }
+          `}</style>
+        </>
+      );
+    }
+    ```
 
-* [x] Quand un tool **sélectionne** une bougie/zone, émettre `ui.ask_about_selection` **et** enrichir le message assistant du contexte (symbol/tf/ts).
-* [x] Quand le tool **produit** une stratégie/étude: créer un **artefact** `analysis`/`strategy` avec metadata `{ asset_symbol, timeframe, indicators, annotations }`.
-* **Objectif :** fermer la boucle agent → artefact → consultation dans la card.
+* [x] **components/bento/ChatDock.tsx** — Réutiliser `MultimodalInput` pour permettre les pièces jointes dès l’accueil et garder un comportement aligné avec la page de chat.
 
----
+* [x] **components/dashboard/BentoGrid.tsx** — Envelopper la grille avec une classe stable.
 
-## app/(chat)/api/chat/route.ts
-
-* [x] Envelopper `DataSourceError` en message assistant propre (pas de stack à l’utilisateur).
-* [x] Contrôle simple du **quota invité** avec message i18n.
-* **Objectif :** UX nette même si une source externe tombe.
-
----
-
-## styles (globals.css / tailwind)
-
-* [x] Classe `.fading-out { opacity:0; transition: opacity .2s; }`.
-* [x] Cards avec `min-h-0` dans les conteneurs scrollables (évite les overflows).
-* [x] Contraste des couleurs (variations vert/rouge) conforme à l’accessibilité.
-* **Objectif :** pas d’artefacts visuels.
-
----
-
-## Tests unitaires
-
-* [x] `symbols.test.ts` : `normalizeSymbol`, `isCryptoSymbol`, `toBinancePair`, `toStooqTicker`.
-* [x] `stooq.test.ts` : 1 bougie ⇒ erreur ; ≥2 ⇒ variation correcte.
-* [x] `events.test.ts` : `UIEvent` discriminé, pas d’émission invalide.
-* [x] `i18n-loader.test.ts` : `messages.dashboard.prices.title` présent après **loader réel** (pas mocké).
-* [x] `asset-context.test.tsx` : état par défaut du contexte asset exposé.
-
----
-
-## Tests d’intégration (API)
-
-* [x] `quote.fallback.test.ts` :
-
-  * [x] Mock Yahoo 502 → **BTC-USD** via Binance = 200.
-  * [x] Mock Yahoo 502 → **AAPL** via Stooq = 200.
-  * [x] Tous échouent → 502.
-* [x] `ohlc.fallback.test.ts` : même logique + TTL intraday/daily.
-* [x] `news.route.test.ts` : renvoie news normalisées; fallback si source 1 tombe.
-* [x] `document.query.test.ts` : filtre par `asset`, `kind`, pagination.
-
----
-
-## Tests E2E (Playwright)
-
-* [x] `home-bento.spec.ts` :
-
-  * [x] Sidebar open/close **pousse** la grille; input chat reste fixe.
-  * [x] Split 1→2→4 fonctionne; synchro TF ok.
-  * [x] Envoi message → cards disparaissent → navigation vers chat → la réponse arrive.
-* [x] `artifact-interact.spec.ts` :
-
-  * [x] Ouvrir artefact “chart” → clic bougie → input chat prérempli avec ancre → réponse contextualisée.
+  * **Action** : ajouter `className="bento-grid"` à la racine pour que le fade-out ci-dessus fonctionne.
+  * **Objectif** : l’envoi d’un message fait disparaître les éléments et on atterrit sur `/chat/:id`.
 
 ---
 
-## Docs & config
+# Carte “Cours” + split 1/2/4 + timeframe + titre à gauche
 
-* [x] **README** : expliquer bento, agents, artefacts enrichis, fallbacks data et TTL.
-* [x] **.env.local** : variables clés (NEXTAUTH_SECRET, POSTGRES_URL, NEXT_PUBLIC_VERCEL_URL si besoin).
-* **Objectif :** onboarding sans surprises.
+* [x] **components/finance/ChartGrid.tsx**, **ChartToolbar.tsx**, **ChartPanel.tsx**
+
+
+
+  * **État** : ces composants existent et gèrent timeframe, type de série et indicateurs. Split 2/4 est prévu (`ChartGrid`).
+  * **Actions** :
+
+    * [x] Injecter `ChartGrid` dans une **card** dédiée du bento, avec un header contenant :
+
+      * le **titre** (symbole) en haut à gauche,
+      * les **boutons timeframe** (via `ChartToolbar`) en compact, à côté.
+    * [x] Passer la **source OHLC** via `/app/(chat)/api/finance/ohlc/route.ts` (déjà présent) et gérer le symbole sélectionné (voir section “État de sélection”).
+    * [x] Vérifier le **rendu responsive** dans la card (constraints `minHeight`, `ResizeObserver`).
+  * **Objectif** : “mini tradingview” minimal et propre dans la tuile.
+
+* [x] **AttentionLayer.tsx** (overlay d’attention/annotation)
+
+  * **Action** : confirmer la propagation d’événements (click/hover) vers l’agent via `/api/finance/attention`.
+  * **Objectif** : permettre à l’utilisateur d’interroger l’agent **sur une bougie précise** (voir aussi artefacts).
 
 ---
 
-## Petites gardes-fous perfs
+# Carte “News” synchronisée avec l’asset affiché
 
-* [x] Debounce 200–300ms sur les changements rapides de TF/asset pour éviter le spam réseau.
-* [x] Nettoyage des listeners charts à l’unmount; `requestAnimationFrame` pour updates fréquentes.
-* [x] Limiter `panes` à 4 et la densité d’annotations.
+* [x] **components/dashboard/tiles/NewsTile.tsx**
+
+  * **État** : route `/api/finance/news` opérationnelle.
+  * **Actions** :
+
+    * [x] Recevoir un `symbol` prop et re-fetcher les news lorsqu’il change.
+    * [x] Afficher un bouton “résumer” (localisé) si l’agent doit produire un condensé (tests existants).
+  * **Snippet** :
+
+    ```tsx
+    // components/dashboard/tiles/NewsTile.tsx (extrait)
+    export default function NewsTile({ symbol }: { symbol: string }) {
+      const [items, setItems] = useState<NewsItem[]>([]);
+      useEffect(() => {
+        let cancelled = false;
+        (async () => {
+          const res = await fetch(`/api/finance/news?symbol=${encodeURIComponent(symbol)}`);
+          if (!cancelled && res.ok) setItems(await res.json());
+        })();
+        return () => { cancelled = true; };
+      }, [symbol]);
+      // ...render list
+    }
+    ```
 
 ---
 
-### Rappels de correctifs prioritaires bloquants
+# Carte “Analyses & Stratégies” (consultation et renvoi vers artefacts)
 
-* [x] **i18n/request.ts** : namespacer les messages (sinon `MISSING_MESSAGE`).
-* [x] **/api/finance/quote** : fallback **Stooq** equities (sinon 502).
-* [x] **lib/finance/live.ts** : baseUrl SSR via `x-forwarded-*` (sinon 502 derrière proxy).
+* [x] **components/dashboard/tiles/AnalysesTile.tsx** + **AnalysesTileClient.tsx**
 
-Ces trois éléments débloquent l’affichage de la home, la stabilité des quotes et la navigation en environnements proxifiés. Ensuite, implémente le bento (Bento.tsx, ChartCard, ChatDock) et branche les cards News/Analyses, puis enrichis l’artefact et les tools pour boucler le workflow agent → artefact → interaction.
+  * **État** : composant présent, import dynamique `ssr: false`.
+  * **Actions** :
+
+    * [x] Lister les **analyses** et **stratégies** liées à l’asset actif (filtre par `symbol`).
+    * [x] Cliquer ouvre l’**artefact** correspondant (voir section Artefacts), ou focus le chart si contextuel.
+    * [x] Assurer des `data-testid` cohérents avec `tests/e2e/artifact-interact.spec.ts` (`analyses-card`, bouton “Sample analysis”).
+  * **Objectif** : consultation rapide, cohérente avec la page chat.
+
+* [x] **tests/bento/analyses-card.test.tsx** — enlever le `SKIP` dès que le chargement est stable
+
+  * **Action** : si besoin, mocker `next/dynamic` ou monter la version client dans JSDOM.
+  * **Objectif** : couvrir la tuile en unit tests.
+
+---
+
+# État global “asset/timeframe” partagé entre tuiles
+
+* [x] **components/dashboard/BentoGrid.tsx** (ou un petit store React Context local à la Home)
+
+  * **Actions** :
+
+    * [x] Introduire un **state** `selectedSymbol` et `timeframe`, source de vérité pour :
+
+      * la carte **Cours** (`ChartGrid`),
+      * la carte **News**,
+      * la carte **Analyses & Stratégies**.
+    * [x] Offrir un setter `onSymbolChange` (depuis la toolbar ou une recherche).
+  * **Snippet** :
+
+    ```tsx
+    // components/dashboard/BentoGrid.tsx (idée)
+    export function BentoGrid() {
+      const [symbol, setSymbol] = useState('AAPL');
+      const [timeframe, setTimeframe] = useState<'1m'|'5m'|'1h'|'1d'>('1h');
+
+      return (
+        <div className="bento-grid grid ...">
+          <Card>
+            <Header>
+              <h3>{symbol}</h3>
+              <ChartToolbar
+                timeframe={timeframe}
+                onTimeframeChange={setTimeframe}
+                // ...autres callbacks
+              />
+            </Header>
+            <ChartGrid symbol={symbol} timeframe={timeframe} onSymbolChange={setSymbol} />
+          </Card>
+
+          <Card>
+            <NewsTile symbol={symbol} />
+          </Card>
+
+          <Card data-testid="analyses-card">
+            <AnalysesTile symbol={symbol} />
+          </Card>
+        </div>
+      );
+    }
+    ```
+
+---
+
+# Sidebar : ouverture au même niveau que le bento et push de la grille
+
+* [x] **components/ui/sidebar.tsx**, **components/app-sidebar.tsx**
+
+  * **État** : composants présents (radix-like), `SidebarInset` est disponible.
+  * **Actions** :
+
+    * [x] Vérifier que la **Home** est rendue dans `SidebarInset` pour que la grille soit **poussée** latéralement lors de l’ouverture.
+    * [x] S’assurer que le dock du chat **suit** le contenu (position fixe + `inset-x-0` suffit si layout base bouge).
+  * **Objectif** : l’ouverture n’écrase pas la grille, elle **recalcule** la largeur dynamiquement (cf. test `dashboard.menu tile toggles finance actions`).
+
+---
+
+# Artefacts : chart enrichi, indicators, annotations & interaction
+
+* [x] **components/artifact.tsx** + **components/finance/***
+
+  * **Actions** :
+
+    * [x] Quand l’agent génère une **stratégie** ou une **analyse**, créer un **artefact** de type “chart” :
+
+      * symbol + timeframe,
+      * indicateurs (`sma/ema/rsi/macd/bollinger` via `lib/finance/indicators.ts`),
+      * annotations (zones, flèches, lignes) via l’`AttentionLayer`.
+    * [x] Dans l’artefact, capter `click` sur le canvas et émettre un **événement** (voir `lib/ui/events.ts`) qui
+      rattache le prochain message utilisateur à la **bougie**/point cliqué (ancre).
+    * [x] Bouton “Ouvrir dans le chat” qui préremplit l’input avec une mention ancrée (cf. tests `artifact-interact.spec.ts`).
+  * **Objectif** : fluide : artefact ↔ chat, et inversement.
+
+* [x] **lib/ai/tools-finance.ts** — Vérifier les outils d’agent
+
+  * **Action** : s’assurer que `show_chart`, `add_indicator`, `annotate`, `fetch_ohlc` sont exposés et utilisés dans les prompts “finance”.
+  * **Piège** : valider les schémas Zod pour éviter les 400/422 silencieux.
+
+* [x] **components/bento/ChartGrid.tsx** — Émettre `ask_about_selection` lors du clic sur une bougie pour ancrer la prochaine question du chat à l’horodatage choisi.
+
+---
+
+# i18n : clés et fallback
+
+* [x] **messages/fr/dashboard.json** & **messages/en/dashboard.json**
+
+  * **État** : `dashboard.prices` est présent dans la version courante (l’ancienne erreur `MISSING_MESSAGE` était due à une version précédente).
+  * **Actions** :
+
+    * [x] Vérifier la présence des labels utilisés par les tiles (ex : “Summarise”, “Split view”, tooltips toolbar…).
+    * [x] Si ajout de labels dans `ChartToolbar`/`MenuTile`, mettre à jour les 2 fichiers.
+  * **Objectif** : garder `tests/i18n/key-check.test.ts` au vert.
+
+---
+
+# API finance : robustesse & cache
+
+* [x] **app/(chat)/api/finance/quote/route.ts** & **.../ohlc/route.ts**
+
+  * **État** : unit/integration tests OK (retries, TTL intraday/daily).
+  * **Actions** :
+
+    * [x] S’assurer que le **bento** utilise la route `/api/finance/ohlc` et respecte les TTL pour éviter le spam réseau.
+    * [x] Pour la tuile “Cours”, **debouncer** les changements de timeframe/split pour minimiser les fetchs.
+  * **Objectif** : fluidité perçue + sobriété réseau.
+
+---
+
+# Tests E2E : remettre au vert
+
+* [x] **tests/pages/chat.ts** — Les sélecteurs supposent l’input sur `/`
+
+  * **Action** : avec le **dock** ajouté à la Home et `data-testid="multimodal-input"`, les timeouts devraient disparaître.
+  * **Objectif** : déverrouiller tous les scénarios `chat.*`.
+
+* [x] **tests/e2e/dashboard.spec.ts** — Toggler du menu
+
+  * **Action** : vérifier la présence du `data-testid="tile-menu-toggle"` dans `MenuTile` (il y est), et que l’overlay toolbar ne se rend plus globalement (comme attendu par le test).
+  * **Objectif** : assertion de visibilité redevient vraie quand la Home ne 500 plus.
+
+* [x] **tests/e2e/artifacts.test.ts** & **artifact-interact.spec.ts**
+
+  * **Action** : s’assurer que l’**analyses-card** apparaît (voir plus haut) et que cliquer “Sample analysis” ouvre bien un artefact avec `data-testid="artifact-view"` et un `canvas` cliquable.
+  * **Objectif** : pouvoir cliquer une bougie et voir le chat s’ancrer.
+  * **Progress** : nettoyé la création de chat en double dans `artifacts.test.ts` pour clarifier les scénarios.
+
+* [x] Investigate Playwright test suite hanging after build; ensure tests execute without manual interruption.
+  * **Progress** : pretest now installs Chromium with system dependencies via `playwright install --with-deps`, allowing the suite to run without manual intervention.
+
+---
+
+# Accessibilité & testability
+
+* [x] Ajouter/valider les `data-testid` suivants :
+
+* [x] Home : `bento-grid`, `tile-menu-toggle`, `multimodal-input`
+* [x] Chart : `chart-grid`, `chart-canvas`, `tf-{value}`, `series-{type}`, `ind-{name}`
+* [x] News : `news-card`, `news-item`, `news-summarise`
+* [x] Analyses : `analyses-card`, `analysis-item`
+* [x] Artefact : `artifact-view`
+
+---
+
+# Petites arêtes vives / perf
+
+* [x] **components/finance/ChartPanel.tsx**
+
+  * **Action** : s’assurer que la **désinscription** des listeners `ResizeObserver`, `onVisibleRangeChanged`, etc., est bien effectuée dans le `useEffect` cleanup.
+  * **Objectif** : éviter les fuites mémoires et listeners “fantômes”.
+
+* [x] **components/finance/ChartToolbar.tsx**
+
+  * **Action** : `onToggleIndicator` doit garder une liste **unique** (Set) pour éviter les doublons lors de toggles rapides.
+  * **Snippet** :
+
+    ```tsx
+    setIndicators(prev => prev.includes(name) ? prev.filter(n => n!==name) : [...prev, name]);
+    // ou
+    setIndicators(prev => {
+      const s = new Set(prev);
+      s.has(name) ? s.delete(name) : s.add(name);
+      return [...s];
+    });
+    ```
+
+---
+
+# Sécurité & CI
+
+* [x] **scripts/scan-secrets.ts** — déjà OK (tests verts), garder l’exécution en pré-unit.
+* [x] Ajouter une étape **lancée en CI** pour empêcher la régression PPR :
+
+  * **Action** : vérif simple dans un script que **aucun** `experimental_ppr = true` n’est committé dans un segment tant que la suite E2E n’est pas PPR-safe.
+  * **Snippet** :
+
+    ```bash
+    git grep -n "export const experimental_ppr = true" && \
+      echo "PPR segment ON interdit en CI" && exit 1 || exit 0
+    ```
+
+---
+
+# Résumé des “gros rochers”
+
+1. **Fix critique** : retirer `export const experimental_ppr = true` dans `app/(chat)/layout.tsx` **et** builder l’app **avec `PLAYWRIGHT=True`** avant les E2E.
+2. **Home** : ajouter le **chat dock** fixe bas-centre, déclencher le **fade-out** et **rediriger** vers `/chat/:id` à l’envoi.
+3. **Bento synchronisé** : `symbol/timeframe` partagés entre Cours, News, Analyses/Stratégies, avec split 1/2/4 et toolbar compacte.
+4. **Artefacts** : interaction bougie→chat ancré, indicateurs & annotations, consultation depuis la tuile analyses.
+5. **i18n** & **tests** : maintenir les clés, fournir les `data-testid` attendus, et remettre le vert E2E.
+
+Ensuite, on pourra passer au “sucré-salé” : backtests pilotés par agent, paramétriques, et génération d’artefacts comparatifs multi-stratégies.
+
+---
 
 ## Historique
 
-* 2025-02-15: reset du fichier AGENTS.md et import de la liste de tâches.
-* 2025-02-15: mise à jour du layout avec grille sidebar, ajouts de traductions bento et test i18n-loader.
-* 2025-08-17: ajout AssetContext, Bento scaffold (header, grid, chat dock), Sidebar avec toggle, style fading-out et test asset-context.
-* 2025-08-17: Home prefetch tolérant, ChatDock crée le chat via API et envoie le draft, `min-h-0` sur les cards scrollables, utilitaire `createChatDraft` et test associé.
-* 2025-08-17: centralisation des symboles finance, renommage des TTL cache et ajout du test `symbols`.
-* 2025-08-18: prise en charge du paramètre `anchor` dans les pages chat, affichage du chip de contexte et tests d'ancrage.
-* 2025-08-18: bus d'événements typé avec `ask_about_selection` et test `events`.
-* 2025-08-18: normalisation des flux news, NewsCard connectée et test du routeur/news.
-* 2025-08-18: amélioration du mappage Binance (`toBinancePair`), typage des klines et tests associés; complétion du fallback Stooq.
-* 2025-08-18: ajout de `ui.ask_about_selection` dans les outils finance et test de l'émission d'événement.
-* 2025-08-19: tests d'intégration des routes quote/ohlc avec vérification des TTL intraday/daily.
-* 2025-08-19: ajout de l'endpoint `/api/document/query`, mise en place de l'AnalysesCard tabulée et test `document.query`.
-* 2025-08-20: implémentation de ChartCard/ChartGrid avec lightweight-charts, synchro et annotations via bus.
-* 2025-08-20: quota invité chat + DataSourceError transformé en message assistant, tests d'intégration associés.
-* 2025-08-21: persistence des stratégies/analyses en artefacts avec métadonnées et tests associés.
-* 2025-08-21: ajout couleurs accessibles positive/négative, mise à jour README et `.env.local.example`.
-* 2025-08-22: ajout d'un hook `useDebounce` pour temporiser les changements d'asset/timeframe, annulation des fetchs OHLC et limitation des annotations dans ChartGrid.
-* 2025-08-22: gestion des overlays via bus d'événements dans ChartGrid et fonction `computeOverlay` testée.
-* 2025-08-23: ajout ArtifactViewer interactif, outils d'artefact pour workflows et annotations, tests unitaires associés.
-* 2025-08-24: ajout du test E2E `home-bento.spec.ts` validant le push de la grille, les splits 1/2/4 et l'envoi de message avec navigation vers le chat.
-* 2025-08-25: ouverture d'artefacts via l'AnalysesCard, bouton "Continuer avec l’agent" et ajout du test E2E `artifact-interact.spec.ts`.
-* 2025-08-26: implémentation du résumé des news en artefact via `/api/finance/news/summary` et action depuis la NewsCard.
-* 2025-08-26: installation des dépendances Playwright et tentative d'exécution de `pnpm test:e2e`.
-* 2025-08-26: vérification finale des tests; unit OK, e2e échouent faute de navigateurs.
-* 2025-08-26: localisation du bouton de résumé des news et ajout du test `news-card`.
-* 2025-08-26: installation des navigateurs Playwright, tentative d'exécution des tests e2e et ajout de la doc d'installation dans le README.
+* 2024-11-09: reset du fichier AGENTS.md et import de la nouvelle TODO.
+* 2024-11-09: neutralisation PPR dans app/(chat)/layout.tsx, build Playwright dans playwright.config.ts, scripts CI et garde-fou next.config.ts.
+* 2025-08-18: ajout des attributs `data-testid` pour le chat dock et stabilisation de la grille bento avec la classe `bento-grid`.
+* 2025-08-19: nettoyage des listeners dans `ChartPanel` et gestion unique des indicateurs dans `ChartToolbar`.
+* 2025-08-20: localisation des labels de la toolbar du graphique et ajout des testids `chart-grid`/`chart-canvas`.
+* 2025-08-20: ajout des testids pour les tuiles News et Analyses avec couverture de tests associée.
+* 2025-08-22: couverture du refetch de NewsCard et validation du state asset/timeframe partagé.
+* 2025-08-23: conversion du chat dock en overlay fixe et ajout de la transition de fade-out sur la grille bento.
+* 2025-08-24: home rendue dans `SidebarInset` avec `SidebarProvider` et utilisation de `SidebarToggle` partagé.
+* 2025-08-26: ajout des outils `add_indicator`, `annotate` et alias `fetch_ohlc` avec tests unitaires et événement UI dédié.
+* 2025-08-27: nettoyage des scénarios de test e2e d'artefacts pour éviter les créations de chat redondantes.
+* 2025-08-28: prise en charge des overlays d’indicateurs dans les artefacts de graphique avec test unitaire.
+* 2025-08-29: intégration du MenuTile dans la grille bento et validation des scénarios E2E tableau de bord et artefacts.
+* 2025-08-30: remplacement du champ texte du ChatDock par `MultimodalInput` pour supporter les pièces jointes et la redirection vers le chat.
+* 2025-08-31: stabilisation du test `useDebounce` en restaurant les globals et ajout d'une tâche pour investiguer le blocage de la suite E2E.
+* 2025-09-01: simplification du pretest e2e pour n'installer que Chromium; les tests échouent faute de dépendances système.
+* 2025-09-02: préinstallation des dépendances système Playwright via `playwright install --with-deps` pour débloquer la suite E2E.
+* 2025-09-03: émission d'événements `ask_about_selection` au clic sur les bougies du graphique pour ancrer le chat.
+* 2025-09-04: désactivation de `reuseExistingServer` dans `playwright.config.ts` pour forcer un nouveau build Playwright.
+* 2025-09-05: Playwright démarre désormais sur la build préalablement générée; `pretest:e2e` installe Chromium et construit l'app.

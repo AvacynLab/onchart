@@ -13,6 +13,8 @@ const isPlaywright = Boolean(process.env.PLAYWRIGHT);
 const nextConfig: NextConfig = {
   experimental: {
     ppr: !isPlaywright,
+    // Individual segments may override this via `export const experimental_ppr`.
+    // Leave those off while E2E tests remain incompatible with PPR.
     // Providing an empty `turbo` object ensures the next-intl plugin injects
     // its alias under `experimental.turbo` instead of the deprecated
     // top-level `turbopack` key, avoiding "unrecognized option" warnings in

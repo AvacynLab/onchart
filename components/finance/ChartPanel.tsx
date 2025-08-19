@@ -187,19 +187,19 @@ const ChartPanel = forwardRef<ChartPanelRef, ChartPanelProps>(
           });
         };
         applyTheme(mq.matches);
-        mq.addEventListener?.('change', (e: MediaQueryListEvent) =>
-          applyTheme(e.matches),
-        );
+        const mqListener = (e: MediaQueryListEvent) => applyTheme(e.matches);
+        mq.addEventListener?.('change', mqListener);
 
         // Emit crosshair movements so other components can react (e.g. show
         // price at cursor). We only forward the time for simplicity.
-        chartRef.current.subscribeCrosshairMove((param) => {
+        const crosshairHandler = (param: any) => {
           if (param.time === undefined) return;
           emitUIEvent({
             type: 'crosshair_move',
             payload: { symbol, time: Number(param.time) },
           });
-        });
+        };
+        chartRef.current.subscribeCrosshairMove(crosshairHandler);
 
         // Resize the chart when the container changes dimensions.
         const ro = new ResizeObserver(() => {
@@ -213,6 +213,8 @@ const ChartPanel = forwardRef<ChartPanelRef, ChartPanelProps>(
         ro.observe(containerRef.current);
         cleanupRef.current = () => {
           ro.disconnect();
+          mq.removeEventListener?.('change', mqListener);
+          chartRef.current?.unsubscribeCrosshairMove(crosshairHandler);
           chartRef.current?.remove();
         };
       }
@@ -301,7 +303,9 @@ const ChartPanel = forwardRef<ChartPanelRef, ChartPanelProps>(
       annotations?.forEach(addAnnotation);
     }, [annotations, addAnnotation]);
 
-    return <div ref={containerRef} data-testid="chart-panel" />;
+    // The chart library renders into this container; expose a test id so
+    // automated tests can target the canvas area.
+    return <div ref={containerRef} data-testid="chart-canvas" />;
   },
 );
 

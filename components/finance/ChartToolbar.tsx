@@ -1,4 +1,7 @@
+// Client component because it relies on interactivity hooks.
+'use client';
 import React from 'react';
+import { useTranslations } from 'next-intl';
 
 /**
  * Props for the ChartToolbar component controlling the displayed data.
@@ -17,8 +20,11 @@ export interface ChartToolbarProps {
   onTimeframeChange?: (tf: ChartToolbarProps['timeframe']) => void;
   /** Invoked when switching between candlestick and line view. */
   onSeriesTypeChange?: (type: ChartToolbarProps['seriesType']) => void;
-  /** Invoked when toggling an indicator; name is passed as argument. */
-  onToggleIndicator?: (name: string) => void;
+  /**
+   * Invoked when toggling an indicator; receives the updated list so callers
+   * can keep a unique set without worrying about race conditions.
+   */
+  onToggleIndicator?: (indicators: string[]) => void;
 }
 
 // Timeframes offered by the toolbar.
@@ -41,6 +47,17 @@ export default function ChartToolbar({
   onSeriesTypeChange,
   onToggleIndicator,
 }: ChartToolbarProps) {
+  // Translation helper for series/indicator labels.
+  const t = useTranslations('finance.chart');
+  // Mirror the externally controlled indicator list so we can compute the next
+  // state using a Set and avoid duplicate entries when users toggle quickly.
+  const [activeIndicators, setActiveIndicators] = React.useState<string[]>(
+    indicators,
+  );
+  React.useEffect(() => {
+    setActiveIndicators(indicators);
+  }, [indicators]);
+
   return (
     <div className="flex gap-2" data-testid="chart-toolbar">
       {/* Timeframe selection */}
@@ -76,7 +93,7 @@ export default function ChartToolbar({
             }
             onClick={() => onSeriesTypeChange?.(st)}
           >
-            {st}
+            {t(`series.${st}`)}
           </button>
         ))}
       </div>
@@ -88,10 +105,18 @@ export default function ChartToolbar({
             <input
               type="checkbox"
               data-testid={`ind-${name}`}
-              checked={indicators.includes(name)}
-              onChange={() => onToggleIndicator?.(name)}
+              checked={activeIndicators.includes(name)}
+              onChange={() => {
+                setActiveIndicators((prev) => {
+                  const s = new Set(prev);
+                  s.has(name) ? s.delete(name) : s.add(name);
+                  const list = [...s];
+                  onToggleIndicator?.(list);
+                  return list;
+                });
+              }}
             />
-            {name.toUpperCase()}
+            {t(`indicators.${name}`)}
           </label>
         ))}
       </div>

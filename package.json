@@ -16,9 +16,11 @@
     "db:pull": "drizzle-kit pull",
     "db:check": "drizzle-kit check",
     "db:up": "drizzle-kit up",
-    "test:unit": "tsx scripts/scan-secrets.ts && tsx --test tests/ai/prompts-i18n.node.test.ts tests/api/finance/runtime.node.test.ts tests/security/secret-scan.node.test.ts tests/finance/strategy-wizard.node.test.tsx tests/i18n/cookie-locale.test.ts tests/i18n/accept-language.test.ts tests/i18n/db-locale.test.ts tests/i18n/key-check.test.ts tests/i18n/useTranslations-fallback.test.tsx tests/db/user-settings.test.ts tests/finance/symbols.test.ts tests/finance/binance.test.ts tests/finance/stooq.test.ts tests/finance/live.test.ts tests/finance/events.test.ts tests/integration/api/quote.route.test.ts tests/integration/api/ohlc.route.test.ts tests/chat/create-chat.test.ts tests/integration/api/document.query.test.ts tests/bento/analyses-card.test.tsx tests/hooks/use-debounce.test.tsx tests/integration/api/chat.route.test.ts tests/api/finance/news-summary.test.ts tests/bento/news-card.test.tsx",
-    "test:e2e": "tsx scripts/ci/ensure-no-only-fixme.ts && tsx scripts/ci/count-tests.ts && PLAYWRIGHT=True OTEL_SDK_DISABLED=1 pnpm exec playwright test",
-    "test": "pnpm test:unit && pnpm test:e2e"
+    "test:unit": "tsx scripts/scan-secrets.ts && tsx --test tests/ai/prompts-i18n.node.test.ts tests/api/finance/runtime.node.test.ts tests/security/secret-scan.node.test.ts tests/finance/strategy-wizard.node.test.tsx tests/i18n/cookie-locale.test.ts tests/i18n/accept-language.test.ts tests/i18n/db-locale.test.ts tests/i18n/key-check.test.ts tests/i18n/useTranslations-fallback.test.tsx tests/db/user-settings.test.ts tests/finance/symbols.test.ts tests/finance/binance.test.ts tests/finance/stooq.test.ts tests/finance/live.test.ts tests/finance/events.test.ts tests/integration/api/quote.route.test.ts tests/integration/api/ohlc.route.test.ts tests/chat/create-chat.test.ts tests/integration/api/document.query.test.ts tests/bento/analyses-card.test.tsx tests/hooks/use-debounce.test.tsx tests/integration/api/chat.route.test.ts tests/api/finance/news-summary.test.ts tests/bento/news-card.test.tsx tests/bento/news-card.refetch.test.tsx tests/bento/chart-selection.test.tsx tests/ai/tools-finance.ui.test.ts tests/artifact/chart-overlays.test.tsx",
+    "test:e2e": "tsx scripts/ci/ensure-no-only-fixme.ts && tsx scripts/ci/count-tests.ts && OTEL_SDK_DISABLED=1 PLAYWRIGHT=True pnpm exec playwright test",
+    "test": "pnpm test:unit && pnpm test:e2e",
+    "pretest:e2e": "pnpm exec playwright install --with-deps chromium && rm -rf .next && PLAYWRIGHT=True pnpm build",
+    "ci:check-ppr": "bash scripts/ci/ensure-no-ppr.sh"
   },
   "dependencies": {
     "@ai-sdk/cerebras": "^1.0.3",
