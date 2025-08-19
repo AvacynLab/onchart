@@ -179,6 +179,24 @@ export function createFinanceTools(
     }
   }
 
+  // Common implementation for OHLC fetching used by both `get_ohlc` and
+  // `fetch_ohlc` so prompts can reference either name without discrepancy.
+  const fetchOhlcTool = tool({
+    description: 'Fetch OHLC candles for a symbol and timeframe',
+    inputSchema: z.object({
+      symbol: z.string(),
+      timeframe: z.string(),
+      range: z.string().optional(),
+      start: z.number().optional(),
+      end: z.number().optional(),
+    }),
+    execute: async ({ symbol, timeframe, range, start, end }) => {
+      const candles = await fetchOHLC(symbol, timeframe, { range, start, end });
+      await persistAnalysis('ohlc', { symbol, timeframe, range, start, end }, candles);
+      return candles;
+    },
+  });
+
   // Group core market data helpers under a dedicated `finance` namespace so
   // the chat route can expose them with a `finance.` prefix.
   const finance = {
@@ -203,25 +221,12 @@ export function createFinanceTools(
      * Fetch OHLC candles for a symbol and timeframe. Range is passed directly
      * to Yahoo Finance and may be values such as `1d`, `5d`, `1mo`, etc.
      */
-    get_ohlc: tool({
-      description: 'Fetch OHLC candles for a symbol and timeframe',
-      inputSchema: z.object({
-        symbol: z.string(),
-        timeframe: z.string(),
-        range: z.string().optional(),
-        start: z.number().optional(),
-        end: z.number().optional(),
-      }),
-      execute: async ({ symbol, timeframe, range, start, end }) => {
-        const candles = await fetchOHLC(symbol, timeframe, { range, start, end });
-        await persistAnalysis(
-          'ohlc',
-          { symbol, timeframe, range, start, end },
-          candles,
-        );
-        return candles;
-      },
-    }),
+    get_ohlc: fetchOhlcTool,
+
+    /**
+     * Alias for `get_ohlc` so prompts can reference `fetch_ohlc` directly.
+     */
+    fetch_ohlc: fetchOhlcTool,
 
     /**
      * Search for matching symbols using Yahoo Finance's public API.
@@ -359,6 +364,50 @@ export function createFinanceTools(
     }),
   };
 
+  const addIndicatorTool = tool({
+    description: 'Overlay a technical indicator on the active chart',
+    inputSchema: z.object({
+      symbol: z.string(),
+      timeframe: z.string(),
+      name: z.string(),
+      params: z.record(z.any()).optional(),
+    }),
+    execute: async ({ symbol, timeframe, name, params }) => {
+      emitUIEvent({ type: 'add_indicator', payload: { symbol, timeframe, name, params } });
+      await persistAnalysis('add_indicator', { symbol, timeframe, name, params }, { ok: true });
+      return { ok: true };
+    },
+  });
+
+  const annotateTool = tool({
+    description: 'Add a chart annotation at a specific time',
+    inputSchema: z.object({
+      symbol: z.string(),
+      timeframe: z.string(),
+      at: z.number(),
+      price: z.number(),
+      type: z.string(),
+      text: z.string(),
+    }),
+    execute: async ({ symbol, timeframe, at, price, type, text }) => {
+      if (!saveAttention) {
+        const mod = await import('../db/queries');
+        saveAttention = mod.saveAttentionMarker;
+      }
+      const id = await saveAttention({
+        userId: ctx.userId,
+        chatId: ctx.chatId,
+        symbol,
+        timeframe,
+        payload: { at, price, type, text },
+      });
+      const payload = { id, symbol, timeframe, at, price, type, text };
+      emitUIEvent({ type: 'add_annotation', payload });
+      await persistAnalysis('add_annotation', { symbol, timeframe, at, price, type }, { id });
+      return { id };
+    },
+  });
+
   return {
     finance,
     ui: {
@@ -382,37 +431,13 @@ export function createFinanceTools(
         },
       }),
 
+      add_indicator: addIndicatorTool,
+
       /**
        * Add an annotation marker on the client chart and persist it server side.
        */
-      add_annotation: tool({
-        description: 'Add a chart annotation at a specific time',
-        inputSchema: z.object({
-          symbol: z.string(),
-          timeframe: z.string(),
-          at: z.number(),
-          price: z.number(),
-          type: z.string(),
-          text: z.string(),
-        }),
-        execute: async ({ symbol, timeframe, at, price, type, text }) => {
-          if (!saveAttention) {
-            const mod = await import('../db/queries');
-            saveAttention = mod.saveAttentionMarker;
-          }
-          const id = await saveAttention({
-            userId: ctx.userId,
-            chatId: ctx.chatId,
-            symbol,
-            timeframe,
-            payload: { at, price, type, text },
-          });
-          const payload = { id, symbol, timeframe, at, price, type, text };
-          emitUIEvent({ type: 'add_annotation', payload });
-          await persistAnalysis('add_annotation', { symbol, timeframe, at, price, type }, { id });
-          return { id };
-        },
-      }),
+      add_annotation: annotateTool,
+      annotate: annotateTool,
 
       /**
        * Remove a previously added annotation by its identifier.

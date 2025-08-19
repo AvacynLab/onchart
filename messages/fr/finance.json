@@ -32,6 +32,16 @@
       "prompt": "Scanne les opportunités sur les paires FX majeures"
     }
   },
+  "chart": {
+    "series": {
+      "candlestick": "Chandeliers",
+      "line": "Ligne"
+    },
+    "indicators": {
+      "sma": "MMA",
+      "rsi": "RSI"
+    }
+  },
   "backtest": {
     "cagr": "TCAM",
     "sharpe": "Ratio de Sharpe",

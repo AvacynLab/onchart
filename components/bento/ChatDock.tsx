@@ -1,42 +1,78 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createChatDraft } from '@/lib/chat/create-chat';
+import { generateUUID } from '@/lib/utils';
+import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
+import type { UIMessage } from 'ai';
+import type { Attachment, ChatMessage } from '@/lib/types';
+import { MultimodalInput } from '@/components/multimodal-input';
 
 /**
- * Bottom docked chat input. Submitting fades out the bento content and
- * navigates to a newly created chat page with the typed message.
+ * Bottom docked chat input reusing the main `MultimodalInput` component. It
+ * collects a message (and optional file attachments), creates a new chat on
+ * the server and then fades out the bento grid before navigating to the chat
+ * page. Using the shared component keeps behaviour consistent with the chat
+ * view and unlocks attachment uploads for the landing page.
  */
 export function ChatDock() {
-  const [text, setText] = useState('');
   const router = useRouter();
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const message = text.trim();
-    if (!message) return;
-    // Create the chat on the server and seed it with the first message.
-    const chatId = await createChatDraft(message);
-    // Fade out the main content before navigating.
+  // Local state mirrors the props required by `MultimodalInput` but the chat is
+  // only created once the user submits their first message.
+  const [input, setInput] = useState('');
+  const [attachments, setAttachments] = useState<Array<Attachment>>([]);
+  const [messages, setMessages] = useState<Array<UIMessage>>([]);
+
+  // Generate a stable chat id so the input can optimistically change the URL
+  // before the server confirms creation. Using a ref avoids re-renders.
+  const chatIdRef = useRef(generateUUID());
+
+  // Minimal `sendMessage` implementation that persists the message server-side
+  // and then redirects the user to the newly created chat.
+  const sendMessage: (args: {
+    role: ChatMessage['role'];
+    parts: ChatMessage['parts'];
+  }) => void = async ({ role, parts }) => {
+    const messageId = generateUUID();
+    try {
+      await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: chatIdRef.current,
+          message: { id: messageId, role, parts },
+          selectedChatModel: DEFAULT_CHAT_MODEL,
+          selectedVisibilityType: 'private',
+        }),
+        keepalive: true,
+      });
+    } catch (err) {
+      console.error('failed to create chat', err);
+    }
+
+    // Fade out the bento grid before leaving the page for a smoother UX.
     document.getElementById('bento-content')?.classList.add('fading-out');
-    router.push(`/chat/${chatId}`);
-  }
+    router.push(`/chat/${chatIdRef.current}`);
+  };
 
   return (
-    <form
-      onSubmit={onSubmit}
-      className="sticky bottom-0 flex w-full justify-center"
-    >
-      <input
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        className="w-full max-w-xl border rounded-l px-2 py-1"
-        placeholder="Ask a question"
-      />
-      <button type="submit" className="border rounded-r px-3">
-        →
-      </button>
-    </form>
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center pb-6">
+      <div className="pointer-events-auto w-full max-w-xl" data-testid="multimodal-input">
+        <MultimodalInput
+          chatId={chatIdRef.current}
+          input={input}
+          setInput={setInput}
+          status="ready"
+          stop={() => {}}
+          attachments={attachments}
+          setAttachments={setAttachments}
+          messages={messages}
+          setMessages={setMessages as any}
+          sendMessage={sendMessage as any}
+          selectedVisibilityType="private"
+        />
+      </div>
+    </div>
   );
 }

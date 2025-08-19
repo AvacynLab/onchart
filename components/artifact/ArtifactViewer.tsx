@@ -1,14 +1,9 @@
 // @ts-nocheck
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  createChart,
-  type IChartApi,
-  type ISeriesApi,
-  type UTCTimestamp,
-} from 'lightweight-charts';
+import type { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
 import { ui } from '@/lib/ui/events';
 
 /**
@@ -38,7 +33,22 @@ export interface ChartArtifact {
   type: 'chart';
   symbol: string;
   timeframe: string;
-  overlays?: any[];
+  /**
+   * Optional indicator overlays to render on top of the base candlestick
+   * series. Each overlay is expected to expose a `data` array of objects in
+   * milliseconds since epoch. The shape is intentionally loose so agents can
+   * supply pre-computed series for indicators like SMA, EMA, RSI or Bollinger
+   * bands without the viewer needing to know their exact parameterisation.
+   */
+  overlays?: Array<{
+    name: string;
+    color?: string;
+    data?: Array<{ time: number; value: number }>;
+    upper?: Array<{ time: number; value: number }>;
+    lower?: Array<{ time: number; value: number }>;
+    middle?: Array<{ time: number; value: number }>;
+  }>;
+  /** Optional annotation markers rendered above candles. */
   annotations?: Array<{ at: number; text: string }>;
 }
 
@@ -50,7 +60,17 @@ export interface ChartArtifact {
  * specific timestamps. A button allows opening the selection directly in the
  * chat by passing an `anchor` query string.
  */
-export function ArtifactViewer({ artifact }: { artifact: Artifact }) {
+export function ArtifactViewer({
+  artifact,
+  createChartFn,
+  useRouterHook,
+}: {
+  artifact: Artifact;
+  /** Optional factory for injecting a stubbed chart implementation in tests. */
+  createChartFn?: (container: HTMLElement, options: any) => IChartApi;
+  /** Optional hook override to stub `useRouter` during tests. */
+  useRouterHook?: typeof useRouter;
+}) {
   if (artifact.type === 'workflow') {
     return (
       <div>
@@ -67,85 +87,125 @@ export function ArtifactViewer({ artifact }: { artifact: Artifact }) {
       </div>
     );
   }
-  return <ChartViewer artifact={artifact} />;
+  return (
+    <ChartViewer
+      artifact={artifact as ChartArtifact}
+      createChartFn={createChartFn}
+      useRouterHook={useRouterHook}
+    />
+  );
 }
 
 /** Internal component handling chart rendering and interactions. */
-function ChartViewer({ artifact }: { artifact: ChartArtifact }) {
+function ChartViewer({
+  artifact,
+  createChartFn,
+  useRouterHook = useRouter,
+}: {
+  artifact: ChartArtifact;
+  createChartFn?: (container: HTMLElement, options: any) => IChartApi;
+  useRouterHook?: typeof useRouter;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
-  const router = useRouter();
+  const router = useRouterHook();
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    // Cast to `any` to work around missing `addCandlestickSeries` in the
-    // ambient typings shipped with `lightweight-charts` during tests.
-    const chart = createChart(el, {
-      width: el.clientWidth,
-      height: el.clientHeight,
-      layout: { background: { color: '#ffffff' }, textColor: '#222' },
-      grid: { vertLines: { color: '#eee' }, horzLines: { color: '#eee' } },
-    }) as any;
-    chartRef.current = chart as IChartApi;
-    const series = chart.addCandlestickSeries();
-    seriesRef.current = series as ISeriesApi<'Candlestick'>;
+    let chart: any;
+    let series: any;
+    (async () => {
+      const creator =
+        createChartFn ?? (await import('lightweight-charts')).createChart;
+      chart = creator(el, {
+        width: el.clientWidth,
+        height: el.clientHeight,
+        layout: { background: { color: '#ffffff' }, textColor: '#222' },
+        grid: { vertLines: { color: '#eee' }, horzLines: { color: '#eee' } },
+      }) as any;
+      chartRef.current = chart as IChartApi;
+      series = chart.addCandlestickSeries();
+      seriesRef.current = series as ISeriesApi<'Candlestick'>;
 
-    // Fetch OHLC candles for the chart.
-    fetch(
-      `/api/finance/ohlc?symbol=${artifact.symbol}&interval=${artifact.timeframe}`,
-    )
-      .then((r) => r.json())
-      .then((data) => {
-        const candles = data.candles.map((c: any) => ({
-          time: (c.time / 1000) as UTCTimestamp,
-          open: c.open,
-          high: c.high,
-          low: c.low,
-          close: c.close,
-        }));
-        series.setData(candles);
-      })
-      .catch((err) => console.error('artifact ohlc fetch failed', err));
+      // Fetch OHLC candles for the chart.
+      fetch(
+        `/api/finance/ohlc?symbol=${artifact.symbol}&interval=${artifact.timeframe}`,
+      )
+        .then((r) => r.json())
+        .then((data) => {
+          const candles = data.candles.map((c: any) => ({
+            time: (c.time / 1000) as UTCTimestamp,
+            open: c.open,
+            high: c.high,
+            low: c.low,
+            close: c.close,
+          }));
+          series.setData(candles);
+        })
+        .catch((err) => console.error('artifact ohlc fetch failed', err));
 
-    // Apply annotations if provided.
-    if (artifact.annotations?.length) {
-      series.setMarkers(
-        artifact.annotations.map((a) => ({
-          time: (a.at / 1000) as UTCTimestamp,
-          position: 'aboveBar',
-          shape: 'arrowDown',
-          color: 'red',
-          text: a.text,
-        })),
-      );
-    }
+      // Apply technical indicator overlays. Each overlay can either provide a
+      // single `data` series or Bollinger-like `upper`/`lower`/`middle` bands.
+      artifact.overlays?.forEach((o) => {
+        const toLineData = (pts?: Array<{ time: number; value: number }>) =>
+          pts?.map((p) => ({
+            time: (p.time / 1000) as UTCTimestamp,
+            value: p.value,
+          })) ?? [];
+        if (o.data?.length) {
+          const line = chart.addLineSeries({ color: o.color || '#2962FF' });
+          line.setData(toLineData(o.data));
+        }
+        if (o.upper?.length && o.lower?.length && o.middle?.length) {
+          const upper = chart.addLineSeries({ color: o.color || '#FF6D00' });
+          const lower = chart.addLineSeries({ color: o.color || '#FF6D00' });
+          const mid = chart.addLineSeries({ color: o.color || '#FF6D00' });
+          upper.setData(toLineData(o.upper));
+          lower.setData(toLineData(o.lower));
+          mid.setData(toLineData(o.middle));
+        }
+      });
 
-    // Emit an event when the user clicks a candle.
-    chart.subscribeClick((param: any) => {
-      if (param.time) {
-        const ts = (param.time as number) * 1000;
-        setSelected(ts);
-        ui.emit({
-          type: 'ask_about_selection',
-          payload: {
-            symbol: artifact.symbol,
-            timeframe: artifact.timeframe,
-            at: ts,
-            kind: 'candle',
-          },
-        });
+      // Apply annotations if provided.
+      if (artifact.annotations?.length) {
+        series.setMarkers(
+          artifact.annotations.map((a) => ({
+            time: (a.at / 1000) as UTCTimestamp,
+            position: 'aboveBar',
+            shape: 'arrowDown',
+            color: 'red',
+            text: a.text,
+          })),
+        );
       }
-    });
+
+      // Emit an event when the user clicks a candle.
+      chart.subscribeClick((param: any) => {
+        if (param.time) {
+          const ts = (param.time as number) * 1000;
+          setSelected(ts);
+          ui.emit({
+            type: 'ask_about_selection',
+            payload: {
+              symbol: artifact.symbol,
+              timeframe: artifact.timeframe,
+              at: ts,
+              kind: 'candle',
+            },
+          });
+        }
+      });
+    })();
 
     return () => {
-      chart.remove();
+      chart?.remove?.();
       chartRef.current = null;
       seriesRef.current = null;
     };
-  }, [artifact]);
+  }, [artifact, createChartFn]);
 
   function openInChat() {
     if (!selected) return;

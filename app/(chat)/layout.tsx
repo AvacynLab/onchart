@@ -6,7 +6,8 @@ import { auth } from '../(auth)/auth';
 import Script from 'next/script';
 import { DataStreamProvider } from '@/components/data-stream-provider';
 
-export const experimental_ppr = true;
+// Force Partial Pre-rendering off for this segment until E2E tests support it.
+export const experimental_ppr = false;
 
 export default async function Layout({
   children,

@@ -8,8 +8,9 @@ import {
   type IChartApi,
   type ISeriesApi,
   type UTCTimestamp,
+  type MouseEventParams,
 } from 'lightweight-charts';
-import { ui } from '@/lib/ui/events';
+import { emitSelection } from './emit-selection';
 import useDebounce from '@/hooks/use-debounce';
 import { computeOverlay, type Candle } from '@/lib/finance/overlays';
 
@@ -24,6 +25,7 @@ export interface ChartGridProps {
   sync: boolean;
 }
 
+
 /**
  * Render a grid of lightweight-charts instances. Each pane fetches its own
  * OHLC candles from the internal API and updates when the asset or timeframe
@@ -34,6 +36,7 @@ export function ChartGrid({ panes, asset, timeframe, sync }: ChartGridProps) {
   const containerRefs = useRef<HTMLDivElement[]>([]);
   const charts = useRef<IChartApi[]>([]);
   const series = useRef<ISeriesApi<'Candlestick'>[]>([]);
+  const clickHandlers = useRef<((p: MouseEventParams) => void)[]>([]);
   const markers = useRef<Record<number, any[]>>({});
   const overlays = useRef<Record<number, ISeriesApi<'Line'>[]>>({});
   const candleData = useRef<Record<number, Candle[]>>({});
@@ -63,6 +66,19 @@ export function ChartGrid({ panes, asset, timeframe, sync }: ChartGridProps) {
       charts.current.push(chart as IChartApi);
       const s = chart.addCandlestickSeries();
       series.current.push(s as ISeriesApi<'Candlestick'>);
+
+      // Emit a selection event whenever the user clicks a candle so the next
+      // chat message can be anchored to the chosen timestamp.
+      const clickHandler = (param: MouseEventParams) => {
+        if (param.time === undefined) return;
+        emitSelection(
+          debouncedSymbol,
+          debouncedTimeframe,
+          (param.time as number) * 1000,
+        );
+      };
+      chart.subscribeClick(clickHandler);
+      clickHandlers.current[i] = clickHandler;
 
       const controller = new AbortController();
       controllers.push(controller);
@@ -95,9 +111,13 @@ export function ChartGrid({ panes, asset, timeframe, sync }: ChartGridProps) {
 
     return () => {
       controllers.forEach((c) => c.abort());
-      charts.current.forEach((c) => c.remove());
+      charts.current.forEach((c, i) => {
+        if (clickHandlers.current[i]) c.unsubscribeClick(clickHandlers.current[i]);
+        c.remove();
+      });
       charts.current = [];
       series.current = [];
+      clickHandlers.current = [];
       markers.current = {};
       overlays.current = {};
       candleData.current = {};
@@ -166,8 +186,9 @@ export function ChartGrid({ panes, asset, timeframe, sync }: ChartGridProps) {
       ? 'grid grid-rows-2'
       : 'grid grid-cols-2 grid-rows-2';
 
+  // Expose a stable test id so end-to-end tests can locate the grid.
   return (
-    <div className={`min-h-0 ${gridClass}`}>
+    <div className={`min-h-0 ${gridClass}`} data-testid="chart-grid">
       {Array.from({ length: panes }).map((_, i) => (
         <div
           key={PANE_KEYS[i]}

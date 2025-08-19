@@ -1,6 +1,7 @@
 'use client';
 
 import { useAsset, Timeframe } from '@/lib/asset/AssetContext';
+import { SidebarToggle } from '@/components/sidebar-toggle';
 
 /**
  * Header displayed at the top of the bento dashboard.
@@ -10,25 +11,10 @@ export function BentoHeader() {
   const { asset, setTimeframe } = useAsset();
   const timeframes: Timeframe[] = ['1m', '5m', '1h', '4h', '1d'];
 
-  function toggleSidebar() {
-    const current =
-      getComputedStyle(document.documentElement).getPropertyValue(
-        '--sidebar-w',
-      ) || '0px';
-    const next = current.trim() === '0px' ? '300px' : '0px';
-    document.documentElement.style.setProperty('--sidebar-w', next);
-  }
-
   return (
     <header className="flex items-center gap-2">
-      <button
-        type="button"
-        aria-label="Toggle sidebar"
-        onClick={toggleSidebar}
-        className="rounded border px-2 py-1"
-      >
-        ☰
-      </button>
+      {/* Toggle the navigation sidebar using the shared sidebar store. */}
+      <SidebarToggle />
       <h1 className="font-semibold">
         {asset.symbol}
         {asset.name ? ` - ${asset.name}` : ''}

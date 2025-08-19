@@ -32,6 +32,16 @@
       "prompt": "Scan for opportunities on major FX pairs"
     }
   },
+  "chart": {
+    "series": {
+      "candlestick": "Candlestick",
+      "line": "Line"
+    },
+    "indicators": {
+      "sma": "SMA",
+      "rsi": "RSI"
+    }
+  },
   "backtest": {
     "cagr": "CAGR",
     "sharpe": "Sharpe",

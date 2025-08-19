@@ -79,26 +79,17 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    // Use the same `PORT` variable for both the Next.js `start` command and
-    // Playwright's readiness probe so the two remain in sync. This allows
-    // callers to override the port when 3110 is unavailable (e.g. another
-    // server is already running) while keeping 3110 as the default.
-    command: `pnpm build && pnpm start -p ${PORT}`,
+    // Start the prebuilt app with PLAYWRIGHT=True so Next.js runs without PPR
+    // during tests. The build itself is performed ahead of time via the
+    // `pretest:e2e` script to keep the Playwright launch step fast and to make
+    // the build artefact available for reuse across retries.
+    command: `PLAYWRIGHT=True pnpm start -p ${PORT}`,
     port: PORT,
-    // Building and starting the production server can take longer on CI, so the
-    // timeout is generous to avoid flakiness.
-    timeout: 180 * 1000,
-    reuseExistingServer: !process.env.CI,
-    env: {
-      ...process.env,
-      // Point the dev server started for Playwright tests to the same
-      // request-level i18n configuration so locale detection matches the
-      // production setup.
-      NEXT_INTL_CONFIG: './i18n/request.ts',
-      AUTH_SECRET: 'test',
-      POSTGRES_URL: '',
-      PLAYWRIGHT: '1',
-      PORT: String(PORT),
-    },
+    // Always launch a fresh server to guarantee the prebuilt output is used
+    // and that no lingering process holds onto the test port.
+    reuseExistingServer: false,
+    env: { PLAYWRIGHT: 'True', OTEL_SDK_DISABLED: '1' },
+    // Allow extra time for the server to boot in constrained CI environments.
+    timeout: 300_000,
   },
 });

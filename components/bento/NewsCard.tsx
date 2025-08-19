@@ -51,7 +51,8 @@ export function NewsCard() {
       <h2 className="mb-2 font-semibold text-sm">{t('bento.news')}</h2>
       <ul className="flex-1 space-y-2 text-sm">
         {data?.map((n) => (
-          <li key={n.url}>
+          // Individual news entry with stable test id for automation
+          <li key={n.url} data-testid="news-item">
             <a
               href={n.url}
               target="_blank"
@@ -70,6 +71,7 @@ export function NewsCard() {
         type="button"
         className="mt-3 text-xs underline self-start"
         onClick={summarise}
+        data-testid="news-summarise"
       >
         {t('bento.summarize')}
       </button>

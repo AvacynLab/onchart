@@ -40,6 +40,16 @@ export type UIEvent =
       payload: { symbol: string; timeframe: string };
     }
   | {
+      /** Overlay a technical indicator on the chart. */
+      type: 'add_indicator';
+      payload: {
+        symbol: string;
+        timeframe: string;
+        name: string;
+        params?: any;
+      };
+    }
+  | {
       /** Add an overlay to a specific chart pane. */
       type: 'add_overlay';
       payload: { pane: number; kind: 'sma' | 'ema' | 'rsi'; params: any };
