@@ -40,6 +40,8 @@ test('menu tile toggles finance actions', async ({ page }) => {
   // Navigate to the dashboard. Locale negotiation happens via cookies or
   // headers and leaves the path unchanged.
   await page.goto('/');
+  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
+  await expect(page.getByTestId('bento-grid')).toBeVisible();
   await expect(page).toHaveURL(/\/$/);
 
   // Wait for the menu toggle to render which signals that client-side
@@ -70,12 +72,13 @@ test('renders tiles and switches locales', async ({ page }) => {
   await page
     .context()
     .addCookies([
-      // Specify the full URL so Playwright automatically assigns the
-      // cookie's domain and path, avoiding mismatches with the test
-      // server host.
-      { name: 'lang', value: 'en', url: 'http://localhost:3110/' },
+      // Scope the cookie to localhost without locking the port so the test
+      // does not depend on the Playwright baseURL's port number.
+      { name: 'lang', value: 'en', domain: 'localhost', path: '/' },
     ]);
   await page.goto('/');
+  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
+  await expect(page.getByTestId('bento-grid')).toBeVisible();
   await expect(page).toHaveURL(/\/$/);
 
   // The "Current prices" heading should appear in English. Waiting for the

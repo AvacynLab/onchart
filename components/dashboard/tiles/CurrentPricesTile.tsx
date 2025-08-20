@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useId } from 'react';
 import { useLocale } from 'next-intl';
 import { useTranslations } from '@/i18n/useTranslations';
-import clsx from 'clsx';
+import cx from 'clsx';
 import BentoCard from '../BentoCard';
 import {
   fetchLiveQuotes,
@@ -125,7 +125,7 @@ export function PricesClient({
                  * both themes.
                  */}
                 <td
-                  className={clsx('text-right', {
+                  className={cx('text-right', {
                     'text-green-600 dark:text-green-400':
                       typeof q.changePercent === 'number' && q.changePercent >= 0,
                     'text-red-600 dark:text-red-400':

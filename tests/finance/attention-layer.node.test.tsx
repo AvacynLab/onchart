@@ -87,7 +87,8 @@ test('persists marker when id missing', async () => {
     type: 'add_annotation',
     payload: { symbol: 'AAPL', timeframe: '1d', at: 9, type: 'note', text: 'p' },
   });
-  await new Promise((r) => setTimeout(r, 0));
+  // Allow the debounced persistence to fire before asserting.
+  await new Promise((r) => setTimeout(r, 300));
 
   const marker = container.querySelector('[data-testid="attention-marker"]') as HTMLElement;
   assert.ok(marker);

@@ -11,7 +11,7 @@ import {
   type MouseEventParams,
 } from 'lightweight-charts';
 import { emitSelection } from './emit-selection';
-import useDebounce from '@/hooks/use-debounce';
+import { useDebounce } from '@/hooks/use-debounce';
 import { computeOverlay, type Candle } from '@/lib/finance/overlays';
 
 export interface ChartGridProps {
@@ -42,6 +42,11 @@ export function ChartGrid({ panes, asset, timeframe, sync }: ChartGridProps) {
   const candleData = useRef<Record<number, Candle[]>>({});
   const debouncedSymbol = useDebounce(asset.symbol, 250);
   const debouncedTimeframe = useDebounce(timeframe, 250);
+  // Cache identical OHLC fetches so multi-pane layouts share one request and
+  // avoid spamming the network when timeframe or symbol changes rapidly.
+  const ohlcCache = useRef<
+    Map<string, { ts: number; promise: Promise<any> }>
+  >(new Map());
 
   // Instantiate charts and load data whenever the layout or asset changes.
   useEffect(() => {
@@ -79,21 +84,33 @@ export function ChartGrid({ panes, asset, timeframe, sync }: ChartGridProps) {
       };
       chart.subscribeClick(clickHandler);
       clickHandlers.current[i] = clickHandler;
+    }
 
+    // Fetch candles once per (symbol,timeframe) and reuse across panes.
+    const key = `${debouncedSymbol}:${debouncedTimeframe}`;
+    const ttl = 500; // ms cache duration
+    let entry = ohlcCache.current.get(key);
+    if (!entry || Date.now() - entry.ts > ttl) {
       const controller = new AbortController();
       controllers.push(controller);
-      fetch(`/api/finance/ohlc?symbol=${debouncedSymbol}&interval=${debouncedTimeframe}`, {
-        signal: controller.signal,
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          const candles = data.candles.map((c: any) => ({
-            time: c.time,
-            open: c.open,
-            high: c.high,
-            low: c.low,
-            close: c.close,
-          }));
+      const promise = fetch(
+        `/api/finance/ohlc?symbol=${debouncedSymbol}&interval=${debouncedTimeframe}`,
+        { signal: controller.signal },
+      ).then((r) => r.json());
+      entry = { ts: Date.now(), promise };
+      ohlcCache.current.set(key, entry);
+    }
+    entry.promise
+      .then((data) => {
+        const candles = data.candles.map((c: any) => ({
+          time: c.time,
+          open: c.open,
+          high: c.high,
+          low: c.low,
+          close: c.close,
+        }));
+        // Update each pane with the fetched candles.
+        for (let i = 0; i < panes; i++) {
           candleData.current[i] = candles;
           const chartData = candles.map((c: Candle) => ({
             time: (c.time / 1000) as UTCTimestamp,
@@ -102,12 +119,12 @@ export function ChartGrid({ panes, asset, timeframe, sync }: ChartGridProps) {
             low: c.low,
             close: c.close,
           }));
-          s.setData(chartData);
-        })
-        .catch((err) => {
-          if (err.name !== 'AbortError') console.error('ohlc fetch failed', err);
-        });
-    }
+          series.current[i]?.setData(chartData);
+        }
+      })
+      .catch((err) => {
+        if (err.name !== 'AbortError') console.error('ohlc fetch failed', err);
+      });
 
     return () => {
       controllers.forEach((c) => c.abort());
