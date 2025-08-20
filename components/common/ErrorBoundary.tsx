@@ -1,6 +1,10 @@
 'use client';
 
-import React from 'react';
+// The ErrorBoundary is a classic React class component that catches runtime
+// errors in its children and displays a small, testable fallback. Import the
+// minimal pieces from React instead of the default export so lint rules do not
+// complain about accessing members on the default namespace.
+import { Component, type ReactNode } from 'react';
 
 /**
  * Generic error boundary used around interactive client components such as the
@@ -8,8 +12,8 @@ import React from 'react';
  * displays a small fallback so tests can assert on failures without the UI
  * collapsing silently.
  */
-export class ErrorBoundary extends React.Component<
-  { children: React.ReactNode },
+export class ErrorBoundary extends Component<
+  { children: ReactNode },
   { hasError: boolean }
 > {
   state = { hasError: false };

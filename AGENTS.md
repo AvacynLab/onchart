@@ -556,3 +556,4 @@ Avec ça, on élimine la racine des 500 SSR et on déverrouille la batterie e2e.
 * 2025-08-21: Removed Turbopack build flag, verified client component boundaries, but server still 500s on `/` with `clientModules` and e2e tests remain failing.
 * 2025-08-21: Reinstalled dependencies to pin Next.js 15.2.1, but `curl /` still returns a 500 referencing `clientModules`; build/start sequence needs deeper debugging.
 * 2025-08-21: Ran `pnpm i` and `pnpm build`; server start returned 404 (no clientModules error) and `pnpm test:e2e` failed with 400 asset responses.
+* 2025-08-21: Fixed lint violations in ErrorBoundary and migration script, reinstalled to Next.js 15.2.1, built successfully, `pnpm start` served 404, and e2e tests halted after dependency download.

@@ -31,9 +31,15 @@ export async function runMigrate() {
   const postgres = (await import('postgres')).default;
 
   try {
+    // Resolve the connection string from the environment. The earlier guard
+    // ensures it exists, but we double-check here so TypeScript can safely
+    // infer a defined value without resorting to a non-null assertion.
+    const postgresUrl = process.env.POSTGRES_URL;
+    if (!postgresUrl) throw new Error('POSTGRES_URL must be defined');
+
     // The `connect_timeout` keeps failure fast when the database is
     // unreachable, avoiding long hangs in CI environments.
-    const connection = postgres(process.env.POSTGRES_URL!, {
+    const connection = postgres(postgresUrl, {
       max: 1,
       connect_timeout: 1,
     });
