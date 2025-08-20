@@ -83,7 +83,13 @@ export default defineConfig({
       `rm -rf .next && PLAYWRIGHT=True pnpm build && PLAYWRIGHT=True pnpm start -p ${PORT}`,
     port: PORT,
     reuseExistingServer: !process.env.CI,
-    env: { PLAYWRIGHT: 'True', OTEL_SDK_DISABLED: '1' },
+    env: {
+      PLAYWRIGHT: 'True',
+      OTEL_SDK_DISABLED: '1',
+      NEXTAUTH_URL: baseURL,
+      AUTH_TRUST_HOST: '1',
+      NEXTAUTH_SECRET: 'test-secret',
+    },
     timeout: 180_000,
   },
 });
