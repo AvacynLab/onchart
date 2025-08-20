@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbo",
-    "build": "tsx lib/db/migrate && next build",
+    "build": "tsx lib/db/migrate && next build && rm -f .next/server/edge-instrumentation.js .next/server/edge-instrumentation.js.map",
     "start": "next start",
     "lint": "next lint && biome lint --write --unsafe",
     "lint:fix": "next lint --fix && biome lint --write --unsafe",
@@ -16,11 +16,12 @@
     "db:pull": "drizzle-kit pull",
     "db:check": "drizzle-kit check",
     "db:up": "drizzle-kit up",
-    "test:unit": "tsx scripts/scan-secrets.ts && tsx --test tests/ai/prompts-i18n.node.test.ts tests/api/finance/runtime.node.test.ts tests/security/secret-scan.node.test.ts tests/finance/strategy-wizard.node.test.tsx tests/i18n/cookie-locale.test.ts tests/i18n/accept-language.test.ts tests/i18n/db-locale.test.ts tests/i18n/key-check.test.ts tests/i18n/useTranslations-fallback.test.tsx tests/db/user-settings.test.ts tests/finance/symbols.test.ts tests/finance/binance.test.ts tests/finance/stooq.test.ts tests/finance/live.test.ts tests/finance/events.test.ts tests/integration/api/quote.route.test.ts tests/integration/api/ohlc.route.test.ts tests/chat/create-chat.test.ts tests/integration/api/document.query.test.ts tests/bento/analyses-card.test.tsx tests/hooks/use-debounce.test.tsx tests/integration/api/chat.route.test.ts tests/api/finance/news-summary.test.ts tests/bento/news-card.test.tsx tests/bento/news-card.refetch.test.tsx tests/bento/chart-selection.test.tsx tests/ai/tools-finance.ui.test.ts tests/artifact/chart-overlays.test.tsx",
+    "i18n:check": "tsx scripts/check-i18n.ts",
+    "test:unit": "tsx scripts/scan-secrets.ts && tsx --test tests/ai/prompts-i18n.node.test.ts tests/api/finance/runtime.node.test.ts tests/security/secret-scan.node.test.ts tests/finance/strategy-wizard.node.test.tsx tests/i18n/cookie-locale.test.ts tests/i18n/accept-language.test.ts tests/i18n/db-locale.test.ts tests/i18n/key-check.test.ts tests/i18n/useTranslations-fallback.test.tsx tests/db/user-settings.test.ts tests/finance/symbols.test.ts tests/finance/binance.test.ts tests/finance/stooq.test.ts tests/finance/live.test.ts tests/finance/events.test.ts tests/integration/api/quote.route.test.ts tests/integration/api/ohlc.route.test.ts tests/chat/create-chat.test.ts tests/integration/api/document.query.test.ts tests/bento/analyses-card.test.tsx tests/hooks/use-debounce.test.tsx tests/integration/api/chat.route.test.ts tests/api/finance/news-summary.test.ts tests/bento/news-card.test.tsx tests/bento/news-card.refetch.test.tsx tests/bento/chart-selection.test.tsx tests/ai/tools-finance.ui.test.ts tests/artifact/chart-overlays.test.tsx tests/telemetry/init.test.ts",
     "test:e2e": "tsx scripts/ci/ensure-no-only-fixme.ts && tsx scripts/ci/count-tests.ts && OTEL_SDK_DISABLED=1 PLAYWRIGHT=True pnpm exec playwright test",
     "test:e2e:local": "PLAYWRIGHT=True pnpm exec playwright test -c playwright.config.ts --project=chromium --headed",
     "test": "pnpm test:unit && pnpm test:e2e",
-    "pretest:e2e": "pnpm exec playwright install --with-deps chromium && rm -rf .next && PLAYWRIGHT=True pnpm build",
+    "pretest:e2e": "pnpm exec playwright install --with-deps chromium && rm -rf .next",
     "ci:check-ppr": "bash scripts/ci/ensure-no-ppr.sh"
   },
   "dependencies": {
@@ -68,7 +69,7 @@
     "lightweight-charts": "^5.0.8",
     "lucide-react": "^0.446.0",
     "nanoid": "^5.0.8",
-    "next": "15.3.0-canary.31",
+    "next": "15.2.1",
     "next-auth": "5.0.0-beta.25",
     "next-intl": "^4.3.4",
     "next-themes": "^0.3.0",
@@ -83,9 +84,9 @@
     "prosemirror-schema-list": "^1.4.1",
     "prosemirror-state": "^1.4.3",
     "prosemirror-view": "^1.34.3",
-    "react": "19.0.0-rc-45804af1-20241021",
+    "react": "18.3.1",
     "react-data-grid": "7.0.0-beta.47",
-    "react-dom": "19.0.0-rc-45804af1-20241021",
+    "react-dom": "18.3.1",
     "react-markdown": "^9.0.1",
     "react-resizable-panels": "^2.1.7",
     "redis": "^5.0.0",
@@ -100,6 +101,9 @@
     "undici": "^7.13.0",
     "usehooks-ts": "^3.1.0",
     "zod": "^3.25.68"
+  },
+  "overrides": {
+    "next": "15.2.1"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",

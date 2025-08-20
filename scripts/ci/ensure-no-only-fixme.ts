@@ -26,3 +26,5 @@ for (const file of targets) {
 if (found) {
   process.exit(1);
 }
+
+console.log('No .only/.skip/.fixme directives found in e2e tests.');

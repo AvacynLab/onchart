@@ -1,409 +1,558 @@
-Parfait — je reprends **l’état actuel du repo** (tel qu’inspecté), **le log CI** que tu viens de coller, et **nos deux derniers comptes-rendus** (audit + direction de correction) pour te livrer une **liste exhaustive de tâches à cocher**, orientée *agent IA*, **fichier par fichier**, avec sous-étapes, objectifs attendus, et snippets là où il y a des pièges.
+Parfait. Voici une **checklist exhaustive, hiérarchisée et “file-by-file”** pour qu’un agent IA puisse **corriger/ajouter/supprimer/modifier** ce qu’il reste, en s’appuyant sur :
+
+* la **version actuelle du code**,
+* l’**analyse des échecs Playwright** (erreur `clientModules`, timeouts sur `multimodal-input`, etc.),
+* la **direction globale** (stabiliser le rendu App Router, conserver les tests e2e réalistes, limiter les features expérimentales, garder les fallback finance et l’i18n stables).
+
+J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ---
 
-# Bloc 0 — Hotfix PPR (bloquant E2E)
+# ✅ Checklist détaillée (par fichier)
 
-## `app/(chat)/layout.tsx`
+## 1) `package.json`
 
-* [x] **Supprimer tout export segmentaire PPR**.
+* [x] **Fixer la version de Next.js sur une stable** (éviter le canary qui casse le SSR/RSC avec `clientModules`).
 
-  * **Problème** : même `export const experimental_ppr = false` peut faire basculer le segment dans un codepath PPR sur Next 15 canary → `clientModules` undefined en E2E.
-  * **Action** : *retirer* totalement la ligne.
-  * **Objectif** : éviter toute activation segmentaire du pipeline PPR pendant les E2E.
+  * [x] Remplacer `next: 15.3.0-canary.31` par une **stable récente** (ex. `15.2.1`).
+  * [x] Forcer via `overrides` (Yarn/Pnpm résolvent parfois des sous-dépendances canary).
+  * [x] Supprimer le “double build” pendant la CI (on laisse Playwright builder/démarrer le server via `webServer.command`).
+  * [x] **Garder `OTEL_SDK_DISABLED=1`** dans `test:e2e` pour réduire le bruit réseau et stabiliser les temps.
 
-  **Snippet**
+  * **Snippet** :
 
-  ```diff
-  - export const experimental_ppr = false;
+    ```json
+    {
+      "dependencies": {
+        "next": "15.2.1",
+        "react": "18.3.1",
+        "react-dom": "18.3.1"
+      },
+      "overrides": {
+        "next": "15.2.1"
+      },
+      "scripts": {
+        "pretest:e2e": "pnpm exec playwright install --with-deps chromium && rm -rf .next",
+        "test:e2e": "tsx scripts/ci/ensure-no-only-fixme.ts && tsx scripts/ci/count-tests.ts && OTEL_SDK_DISABLED=1 PLAYWRIGHT=True pnpm exec playwright test"
+      }
+    }
+    ```
+* [x] **Supprimer le “double build”** pendant la CI (on laisse Playwright builder/démarrer le server via `webServer.command`).
+* [x] **Garder `OTEL_SDK_DISABLED=1`** dans `test:e2e` pour réduire le bruit réseau et stabiliser les temps.
+
+**Objectif attendu** : Plus d’erreur `Cannot read properties of undefined (reading 'clientModules')` au SSR ; temps e2e plus stable.
+
+---
+
+## 2) `next.config.ts`
+
+* [x] **Désactiver explicitement PPR et autres flags expérimentaux** (source majeure d’instabilité en canary).
+* [x] **Ne pas utiliser `output: 'standalone'`** pendant la CI e2e (ça brouille les chemins du manifeste RSC).
+* **Snippet** :
+
+  ```ts
+  // next.config.ts
+  const nextConfig = {
+    experimental: {
+      ppr: false,           // important
+      reactCompiler: false, // si jamais activé
+      serverSourceMaps: false,
+    },
+    // output: undefined,   // éviter 'standalone' pour e2e/CI
+  };
+
+  module.exports = nextConfig;
   ```
 
-## `next.config.ts`
+**Objectif attendu** : Rendu App Router prévisible en CI, plus de plantage manifeste RSC.
 
-* [x] **Durcir la désactivation PPR en E2E/CI**.
+---
 
-  * **Problème** : comparaison d’ENV fragile, et CI non pris en compte.
-  * **Actions** :
+## 3) `playwright.config.ts`
 
-    * normaliser `PLAYWRIGHT` en lower-case,
-    * considérer `CI` comme désactivateur de PPR,
-    * documenter clairement le piège.
-  * **Objectif** : PPR **OFF** dès que `PLAYWRIGHT=True` **ou** en CI.
+* [x] **Centraliser build + start** dans `webServer` (supprimer build ailleurs).
+* [x] **Ajouter un timeout suffisant** (180s mini) pour le cold build.
+* [x] **Activer `reuseExistingServer` en local** (plus rapide).
+* **Snippet** :
 
-  **Snippet**
+  ```ts
+  import { defineConfig, devices } from '@playwright/test';
 
-  ```diff
-  - const isPlaywright = process.env.PLAYWRIGHT === 'True';
-  + const isPlaywright = String(process.env.PLAYWRIGHT || '').toLowerCase() === 'true';
-  + const isCI = !!process.env.CI;
-
-  export default defineNextConfig({
-    experimental: {
-  -   ppr: !isPlaywright,
-  +   // PPR off pour E2E/CI (évite clientModules undefined sur Next 15 canary)
-  +   ppr: !(isPlaywright || isCI),
-      // ...
+  export default defineConfig({
+    webServer: {
+      command: 'rm -rf .next && PLAYWRIGHT=True pnpm build && PLAYWRIGHT=True pnpm start -p 3110',
+      port: 3110,
+      reuseExistingServer: !process.env.CI,
+      timeout: 180_000,
     },
+    use: {
+      baseURL: 'http://localhost:3110',
+      trace: 'on-first-retry',
+      video: 'retain-on-failure',
+    },
+    projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   });
   ```
 
-## `playwright.config.ts`
-
-* [x] **Forcer un build “Playwright” juste avant le start** (ceinture+bretelles).
-
-  * **Problème** : bien que le `pretest:e2e` fasse un build Playwright, le `webServer.command` peut redémarrer sur un build précédent si la CI évolue.
-  * **Action** : chaîner `rm -rf .next && PLAYWRIGHT=True pnpm build && PLAYWRIGHT=True pnpm start -p 3110`.
-  * **Objectif** : certitude que le serveur E2E tourne avec PPR OFF.
-
-  **Snippet**
-
-  ```diff
-  webServer: {
-  -  command: 'pnpm start -p 3110',
-  +  command: 'rm -rf .next && PLAYWRIGHT=True pnpm build && PLAYWRIGHT=True pnpm start -p 3110',
-     port: 3110,
-     reuseExistingServer: false,
-     env: { PLAYWRIGHT: 'True', OTEL_SDK_DISABLED: '1' },
-     timeout: 120_000,
-  },
-  ```
-
-## `.github/workflows/playwright.yml` + `scripts/ci/ensure-no-ppr.sh`
-
-* [x] **Brancher la barrière anti-PPR en CI**.
-
-  * **Action** : appeler le script existant **après** l’install et **avant** les tests.
-  * **Objectif** : empêcher toute régression segmentaire PPR.
-* [x] **Exclure la doc** du grep (sinon les exemples dans `*.md` feront échouer la CI).
-
-  * **Action** : ajuster le script pour ignorer `**/*.md`.
-
-  **Snippets**
-
-  ```diff
-  # .github/workflows/playwright.yml
-  - name: Install dependencies
-    run: pnpm install --frozen-lockfile
-
-  +- name: Guard against segment PPR
-  +  run: pnpm ci:check-ppr
-  ```
-
-  ```diff
-  # scripts/ci/ensure-no-ppr.sh
-  - git grep -n "export const experimental_ppr = true" && \
-  + git grep -n -- ":!**/*.md" "export const experimental_ppr = true" && \
-    echo "PPR segment ON interdit en CI" et exit 1 || exit 0
-  ```
+**Objectif attendu** : Un seul chemin d’exécution build→start pour e2e, moins d’états incohérents.
 
 ---
 
-# Bloc 1 — E2E robustes (ports, smoke et sélecteurs)
+## 4) `scripts/ci/ensure-no-ppr.sh` (ou créer ce fichier)
 
-## `tests/pages/chat.ts`
+* [x] **Corriger l’usage de `git grep`** (ordre des args & exclusions).
+* [x] **Échouer le job si `experimental_ppr = true` ou `ppr: true` hors `next.config.ts`.**
+* **Snippet** :
 
-* [x] **Rendre les assertions d’URL agnostiques du port**.
+  ```bash
+  #!/usr/bin/env bash
+  set -euo pipefail
 
-  * **Problème** : des tests antérieurs utilisaient `http://localhost:3000/...`. Le `baseURL` Playwright est **3110**.
-  * **Action** : matcher **uniquement** sur le **pathname**.
-  * **Objectif** : pas de flakiness si le port change.
+  echo "[guard] Scanning for PPR flags…"
 
-  **Snippet**
+  if git grep -n -e 'export const[[:space:]]\+experimental_ppr[[:space:]]*=[[:space:]]*true' -- . ":(exclude)**/*.md" ; then
+    echo "❌ Found 'export const experimental_ppr = true'"
+    exit 1
+  fi
 
-  ```diff
-  - await expect(this.page).toHaveURL(/^http:\/\/localhost:3000\/chat\/[0-9a-f-]{36}$/);
-  + await expect(this.page).toHaveURL(/\/chat\/[0-9a-f-]{36}$/);
+  if git grep -n -e 'ppr:[[:space:]]*true' -- . ":(exclude)**/*.md" ":(exclude)next.config.ts" ; then
+    echo "❌ Found 'ppr: true' outside next.config.ts"
+    exit 1
+  fi
+
+  echo "✅ No PPR flags found."
   ```
 
-* [x] **Stabiliser l’attente de l’input** (plus robuste que “click immédiat”).
+**Objectif attendu** : Empêcher toute réactivation accidentelle de PPR qui réintroduirait les 500 SSR.
 
-  * **Action** : attendre l’apparition puis interagir.
-  * **Objectif** : éviter le timeout si `/` a un petit délai de montage.
+---
 
-  **Snippet**
+## 5) `components/artifact/ArtifactViewer.tsx`
 
-  ```diff
-  async sendUserMessage(message: string) {
-  -  await this.multimodalInput.click();
-  +  await this.page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
-  +  await this.multimodalInput.click();
-     await this.multimodalInput.fill(message);
-     await this.sendButton.click();
+* [x] **Exposer un `data-testid="artifact-view"`** sur le conteneur du canvas (les tests e2e l’attendent).
+* [x] **S’assurer que le canvas est monté avant l’interaction** (utiliser `useEffect`/`requestAnimationFrame` si besoin).
+* **Snippet** :
+
+  ```tsx
+  // components/artifact/ArtifactViewer.tsx
+  'use client';
+  import { useEffect, useRef } from 'react';
+
+  export function ArtifactViewer(/* props */) {
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+      // monter le canvas dans containerRef.current
+      // requestAnimationFrame(() => initChart(containerRef.current!))
+    }, []);
+
+    return (
+      <div className="relative w-full">
+        {/* … toolbar, etc. */}
+        <div
+          ref={containerRef}
+          className="h-64"
+          data-testid="artifact-view"  // ← requis par les tests
+        />
+      </div>
+    );
   }
   ```
 
-## `tests/e2e/**`
-
-* [x] **Remplacer les `page.goto('http://localhost:3000/...')`** (s’il en reste) par des **chemins relatifs**.
-
-  * **Action** : `await page.goto('/')` partout.
-  * **Objectif** : ne plus dépendre du port.
-
-* [x] **Éliminer les URL avec port dans les cookies de tests**.
-
-  * **Action** : utiliser `{ domain: 'localhost', path: '/' }` au lieu d'un `url` avec port.
-  * **Objectif** : garder les suites E2E portables quel que soit le `baseURL`.
-
-* [x] **Conserver le smoke test Home** (existant indirectement) : après hotfix PPR, vérifier `data-testid="bento-grid"` + `multimodal-input` visibles avant d’enchaîner.
+**Objectif attendu** : Les tests **artifact-interact** ne cassent plus sur un sélecteur inexistant.
 
 ---
 
-# Bloc 2 — Nettoyage & perf chart (fuites listeners)
+## 6) `components/chat/MultimodalInput.tsx` (ou équivalent)
 
-## `components/finance/ChartPanel.tsx`
-
-* [x] **Ajouter des cleanups dans chaque `useEffect` installateur**.
-
-  * **Problème** : `ResizeObserver`, `window.addEventListener`, `chart` subscriptions, bus d’événements → **pas** désinscrits.
-  * **Objectif** : zéro fuite mémoire, pas de handlers fantômes à la navigation, stabilité des E2E “long run”.
-
-  **Snippet (patron)**
+* [x] **Vérifier/ajouter `data-testid="multimodal-input"`** sur la racine du champ d’entrée utilisé par la home/chat.
+* **Snippet (exemple générique)** :
 
   ```tsx
-  import { useEffect, useRef } from 'react';
-  // ...
+  // components/chat/MultimodalInput.tsx
+  'use client';
+  import { useState } from 'react';
 
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const el = containerRef.current;
+  export function MultimodalInput(/* props */) {
+    const [value, setValue] = useState('');
 
-    // création du chart
-    const chart = createChart(el, {/* options */});
-    const onCrosshair = (param: CrosshairMoveEvent) => { /* ... */ };
-    chart.subscribeCrosshairMove(onCrosshair);
-
-    // resize observer
-    const ro = new ResizeObserver(() => {
-      chart.applyOptions({ width: el.clientWidth, height: el.clientHeight });
-    });
-    ro.observe(el);
-
-    // window resize fallback
-    const onResize = () => {
-      chart.applyOptions({ width: el.clientWidth, height: el.clientHeight });
-    };
-    window.addEventListener('resize', onResize);
-
-    // bus d’événements (si utilisé)
-    const unsubBus = uiEvents.subscribe('onVisibleRangeChanged', /* ... */);
-
-    return () => {
-      try { chart.unsubscribeCrosshairMove(onCrosshair); } catch {}
-      try { chart.remove(); } catch {}
-      try { ro.disconnect(); } catch {}
-      window.removeEventListener('resize', onResize);
-      try { unsubBus?.(); } catch {}
-    };
-  }, [/* deps réelles: symbol, timeframe, split, etc. */]);
+    return (
+      <form data-testid="multimodal-input" onSubmit={/* … */}>
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Ask anything…"
+        />
+        {/* boutons, upload, etc. */}
+      </form>
+    );
+  }
   ```
 
-* [x] **Vérifier que le `canvas` a bien `data-testid="chart-canvas"`** (il existe déjà côté panel ou wrapper).
-
-  * **Objectif** : testabilité stable.
-
-* [x] **Couverture unitaire des cleanups**.
-
-  * **Problème** : sans test, les régressions de nettoyage pourraient passer inaperçues.
-  * **Action** : tester que `ResizeObserver`, l'écouteur `resize`, la souscription crosshair et la destruction du chart sont bien libérés à l'unmount.
-  * **Objectif** : prévenir les fuites à l'avenir.
+**Objectif attendu** : Tous les tests e2e qui attendent la visibilité de `multimodal-input` peuvent progresser.
 
 ---
 
-# Bloc 3 — ESLint & hygiène d’imports
+## 7) `app/page.tsx` (ou `app/(home)/page.tsx`)
 
-## `components/bento/ChartGrid.tsx`
+* [x] **Garantir la présence de `data-testid="bento-grid"`** sur la grille d’accueil.
+* [x] **Limiter l’hydratation à ce qui est nécessaire** (éviter d’inclure des comps client non indispensables au fold).
+* **Snippet** :
 
-* [x] **Corriger l’import de `useDebounce` (warning import/no-named-as-default)**.
+  ```tsx
+  // app/page.tsx
+  import { Suspense } from 'react';
+  import { BentoGrid } from '@/components/bento/BentoGrid';
 
-  * **Action** : importer en **named import** si le module exporte nommé.
-  * **Objectif** : build propre.
-
-  **Snippet**
-
-  ```diff
-  - import useDebounce from '@/hooks/use-debounce';
-  + import { useDebounce } from '@/hooks/use-debounce';
+  export default function Home() {
+    return (
+      <main>
+        <Suspense fallback={null}>
+          <BentoGrid data-testid="bento-grid" />
+        </Suspense>
+      </main>
+    );
+  }
   ```
 
-## `components/dashboard/tiles/CurrentPricesTile.tsx`
-
-* [x] **Renommer l’identifiant local du default import `clsx`** pour calmer `import/no-named-as-default`.
-
-  * **Action** : `import cx from 'clsx'` puis remplacer usages.
-  * **Objectif** : warnings à zéro.
-
-  **Snippet**
-
-  ```diff
-  - import clsx from 'clsx';
-  + import cx from 'clsx';
-  // ...
-  - <div className={clsx('...', condition && '...')} />
-  + <div className={cx('...', condition && '...')} />
-  ```
-
-## `components/finance/ChartToolbar.tsx`
-
-* [x] **Passer aux named imports React** (évite les warnings `import/no-named-as-default-member`).
-
-  * **Action** : `import { useEffect, useState } from 'react'`; retirer `React.useX`.
-  * **Objectif** : code plus clair, linter clean.
-
-  **Snippet**
-
-  ```diff
-  - import React from 'react';
-  + import { useEffect, useState } from 'react';
-
-  - const [state, setState] = React.useState(/*...*/);
-  + const [state, setState] = useState(/*...*/);
-
-  - React.useEffect(() => { /* ... */ }, [/* ... */]);
-  + useEffect(() => { /* ... */ }, [/* ... */]);
-  ```
+**Objectif attendu** : Les assertions e2e (`bento-grid`) passent ; SSR/hydratation restent stables.
 
 ---
 
-# Bloc 4 — Tests (stabilité, coverage, non-régressions)
+## 8) `tests/pages/chat.ts`
 
-## `tests/bento/analyses-card.test.tsx`
-
-* [x] **Retirer le `SKIP`** dès que la Home `/` remonte sans 500.
-
-  * **Action** : si besoin, mounter la version client via `next/dynamic` mock (`ssr: false`) dans JSDOM.
-  * **Objectif** : couvrir la tuile analyses (présence, items filtrés, bouton “Sample analysis”).
-
-  **Snippet indicatif (mock dynamic)**
-
-  ```ts
-  jest.mock('next/dynamic', () => (factory: any) => {
-    const C = factory();
-    return C;
-  });
-  // ou monter directement AnalysesCardClient dans le test.
-  ```
-
-## `tests/e2e/**`
-
-* [x] **Ajouter un “preflight” attendu commun** avant chaque scénario chat:
-
-  * **Action** : attendre `getByTestId('multimodal-input')` visible **sur `/`**, puis poursuivre.
-  * **Objectif** : éviter d’échouer sur des attentes aval si la Home a un petit délai.
-
-  **Snippet**
+* [x] **Ne pas “masquer” un vrai problème d’app** : conserver l’attente stricte de `multimodal-input`.
+* [x] **Optionnel** : ajouter un `page.waitForURL('**/', { waitUntil: 'domcontentloaded' })` juste après `goto('/')` pour fiabiliser les temps d’attente, **sans** relâcher la contrainte de présence du testid.
+* **Snippet (ajout minimal)** :
 
   ```ts
   await page.goto('/');
+  await page.waitForURL('**/', { waitUntil: 'domcontentloaded' });
   await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
   ```
 
-* [x] **Uniformiser les assertions d’URL** sur le **pathname** (cf. plus haut).
+**Objectif attendu** : Tests robustes mais toujours révélateurs si la page 500.
 
 ---
 
-# Bloc 5 — API/UX finance (cohérence & sobriété réseau)
+## 9) `app/ping/route.ts` (déjà présent)
 
-## `components/bento/ChartGrid.tsx`
-
-* [x] **Confirmer l’utilisation de `/api/finance/ohlc`** (OK) et le **debounce** des changements timeframe/split (OK).
-* [x] **Limiter les re-fetchs simultanés** (si multi-split 2/4) :
-
-  * **Action** : mutualiser les `fetch` par (symbol, timeframe) via un mini cache local (Map) côté composant, TTL court (ex. 250–500 ms).
-  * **Objectif** : sobriété réseau + fluidité perceptible.
-
-  **Sketch**
+* [x] **Vérifier qu’il renvoie `200` sans dépendances DB** (utile pour healthcheck local).
+* **Snippet** :
 
   ```ts
-  const cache = useRef(new Map<string, Promise<Data>>());
-  const key = `${symbol}:${timeframe}`;
-  if (!cache.current.has(key)) {
-    cache.current.set(key, fetch(`/api/finance/ohlc?...`).then(r => r.json()));
+  // app/ping/route.ts
+  export async function GET() {
+    return new Response('pong', { status: 200 });
   }
-  const data = await cache.current.get(key);
   ```
 
-## `components/finance/AttentionLayer.tsx`
-
-* [x] **Vérifier la propagation d’événements** et l’appel `/api/finance/attention` (OK).
-* [x] **Ajouter un debounce sur les hovers** si pas déjà fait (évite le spam).
-
-  * **Objectif** : réactivité correcte sans surcharger la route.
+**Objectif attendu** : Health rapide; si vous voulez l’utiliser, vous pouvez pointer Playwright dessus pour un check initial (facultatif, Playwright attend déjà la page).
 
 ---
 
-# Bloc 6 — i18n (cohérence des clés)
+## 10) `lib/db/migrate.ts`
 
-## `messages/{en,fr}/finance.json` & `messages/{en,fr}/dashboard.json`
+* [x] **Garder le comportement “skip migrations sans POSTGRES_URL”** mais :
 
-* [x] **Garder les clés en phase** quand on touche `ChartToolbar` (labels timeframe / split / tooltips).
+  * [x] **Éviter tout import/side-effect coûteux** côté app quand on n’a pas Postgres.
+  * [x] **S’assurer que SQLite de test (si utilisée dans le runtime Playwright)** n’introduit pas d’avertissements bloquants (l’avertissement *experimental SQLite* n’est pas bloquant, on peut l’ignorer).
+* **Snippet (pattern)** :
 
-  * **Action** : si on renomme/ajoute des contrôles, mettre à jour EN & FR.
-  * **Objectif** : maintenir `tests/i18n/key-check.test.ts` au vert.
+  ```ts
+  // lib/db/migrate.ts
+  if (!process.env.POSTGRES_URL) {
+    console.log('POSTGRES_URL is not defined; skipping migrations');
+    process.exit(0);
+  }
+  // … migrations réelles Postgres …
+  ```
+
+**Objectif attendu** : Build CI propre, aucun crash au `require`/`import` du module en l’absence d’URL Postgres.
 
 ---
 
-# Bloc 7 — Sécurité & CI (finition)
+## 11) `app/api/chat/route.ts` et `app/api/chat/[id]/stream/route.ts`
 
-## `.github/workflows/playwright.yml`
+* [x] **Confirmer `export const runtime = 'nodejs'`** si vous utilisez des libs Node (stream, fs, etc.).
+* [x] **S’assurer que la route GET de stream répond toujours, même si le provider IA est mocké en CI**.
+* **Snippet** :
 
-* [x] **Conserver** les étapes `ensure-no-only-fixme.ts` et `count-tests.ts` (déjà en place).
-* [x] **Ajouter** l’étape **Guard PPR** (cf. Bloc 0).
+  ```ts
+  export const runtime = 'nodejs';
 
-## `package.json`
+  export async function POST(req: Request) {
+    // validation, création du message, renvoi de l’id
+  }
+  ```
 
-* [x] **Vérifier** que `pretest:e2e` garde `rm -rf .next && PLAYWRIGHT=True pnpm build` (OK).
-* [x] **Optionnel** : script `test:e2e:local` (port 3000) pour devs, mais E2E CI reste sur 3110.
+**Objectif attendu** : Les e2e de chat (redirect `/chat/:id`, upvote/downvote, stop generation) ont un backend stable (mock si nécessaire).
 
-  * **Objectif** : éviter les confusions locales.
+---
 
-  **Exemple**
+## 12) `app/api/finance/*/route.ts` (quote, ohlc, news, etc.)
 
-  ```json
-  {
-    "scripts": {
-      "test:e2e:local": "PLAYWRIGHT=True pnpm exec playwright test -c playwright.config.ts --project=chromium --headed"
+* [x] **Confirmer l’ordre de fallback** (Yahoo → Stooq / Binance) et les TTL (intraday vs daily) — vos tests unitaires passent, donc **ne rien casser**.
+* [x] **Ajouter des logs de niveau “debug” sous flag** (`DEBUG_FINANCE=1`) si on doit diagnostiquer en CI.
+* **Snippet (pattern)** :
+
+  ```ts
+  const debug = process.env.DEBUG_FINANCE === '1';
+  if (debug) console.log('[finance] fetching ohlc', { symbol, interval });
+  ```
+
+**Objectif attendu** : Zéro régression sur la stack finance déjà verte en unit tests ; observabilité togglable.
+
+---
+
+## 13) `components/bento/*` (NewsCard, AnalysesCard, etc.)
+
+* [x] **Garder les `data-testid` déjà employés par les tests** (`bento-grid` vu côté page ; NewsCard/AnalysesCard ont leurs tests unitaires verts).
+* [x] **S’assurer que le 1er rendu ne déclenche pas de fetch bloquant SSR** (utiliser `useEffect`/SWR côté client si nécessaire).
+
+**Objectif attendu** : L’accueil se rend vite ; Playwright n’attend pas un SSR lourd.
+
+---
+
+## 14) `middleware.ts` (si présent)
+
+* [x] **Éviter toute manipulation non essentielle** de requêtes qui pourrait casser le manifeste RSC (en canary, mais par sécurité même en stable).
+* [x] **Limiter le scope `matcher`** aux chemins strictement nécessaires.
+
+**Objectif attendu** : Moins de risque d’interférer avec le rendu `_app`/RSC.
+
+---
+
+## 15) `scripts/ci/count-tests.ts` & `scripts/ci/ensure-no-only-fixme.ts`
+
+* [x] **Conserver tels quels** (ces scripts sont utiles et passaient).
+* [x] **Ajouter une sortie claire** quand des tests e2e sont ignorés/skippés.
+
+**Objectif attendu** : Visibilité CI accrue sans impacter les temps.
+
+---
+
+## 16) `tests/e2e/*.spec.ts` (général)
+
+* [x] **Ne pas affaiblir les assertions** (les timeouts venaient du 500 SSR).
+* [x] **Conserver les `getByTestId('multimodal-input')`** (utile sentinelle de rendu).
+* [x] **(Si flakiness résiduelle)** Ajouter `test.slow()` ou un `expect.poll` *ciblé*, mais seulement si nécessaire.
+* **Snippet (poll ciblé)** :
+
+  ```ts
+  await expect
+    .poll(async () => (await page.getByTestId('multimodal-input').count()) > 0)
+    .toBeTruthy({ timeout: 10_000 });
+  ```
+
+**Objectif attendu** : e2e stables, représentatifs de l’expérience utilisateur réelle.
+
+---
+
+## 17) `components/common/ErrorBoundary.tsx` (ou à créer si absent)
+
+* [x] **Ajouter un ErrorBoundary côté client** autour des zones interactives (chat, artifact).
+* [x] **Affichage d’un message utilisateur simple et d’un `data-testid="ui-error"`** pour des assertions e2e ciblées si nécessaire.
+* **Snippet** :
+
+  ```tsx
+  'use client';
+  import React from 'react';
+
+  export class ErrorBoundary extends React.Component<
+    { children: React.ReactNode },
+    { hasError: boolean }
+  > {
+    state = { hasError: false };
+    static getDerivedStateFromError() { return { hasError: true }; }
+    componentDidCatch(err: unknown) { console.error(err); }
+    render() {
+      if (this.state.hasError) {
+        return <div data-testid="ui-error">Something went wrong.</div>;
+      }
+      return this.props.children;
     }
   }
   ```
 
----
-
-# Bloc 8 — Docs (éviter faux positifs de la barrière PPR)
-
-## `AGENTS.md` (et autres `*.md`)
-
-* [x] **Remplacer** tout exemple contenant `export const experimental_ppr = true` par une variante inoffensive (ou entourer avec backticks et **changer le littéral**), *ou* laisser tel quel et **exclure `*.md`** (préféré).
-
-  * **Objectif** : ne pas faire échouer la nouvelle étape CI.
+**Objectif attendu** : Dégradation gracieuse au lieu d’un écran vide si un client component casse.
 
 ---
 
-# Bloc 9 — (Optionnel) Simplification des configs Playwright
+## 18) `lib/utils/getBaseUrl.ts` (ou équivalent ; vous avez des tests)
 
-## `playwright.e2e.config.ts`
+* [x] **Ne rien changer** si tous les tests sont verts (headers → fallback → VERCEL_URL).
+* [x] **Ajouter un log conditionnel** si DEBUG on.
 
-* [x] **Supprimer** ce fichier s’il n’est pas utilisé par CI (script actuel ne le référence pas).
-
-  * **Objectif** : éviter la divergence de `baseURL` entre configs.
+**Objectif attendu** : Préserver le passage des tests `base URL` + diagnostic aisé si souci de proxy.
 
 ---
 
-# Récap “gros rochers” restants
+## 19) i18n (`lib/i18n/*`, `locales/*`)
 
-1. **Hotfix PPR** : retirer l’export segmentaire, durcir `next.config.ts`, forcer build Playwright dans `webServer.command`, brancher la barrière PPR en CI (en excluant `*.md`).
-2. **E2E robustes** : assertions d’URL indépendantes du port, attente explicite du `multimodal-input` sur `/`.
-3. **Chart cleanup** : `ChartPanel.tsx` désabonne/retire proprement (ResizeObserver, listeners, bus, chart.remove).
-4. **Hygiène ESLint** : imports `useDebounce`, `clsx` (alias), `useEffect/useState` nommés.
-5. **AnalysesCard test** : dé-SKIP quand `/` est revenu au vert.
+* [x] **Garder la parité des clés** (tests verts).
+* [x] **S’assurer que les disclaimers FR/EN pour finance restent présents** (tests verts).
+* [x] **Optionnel** : exposer un script `pnpm i18n:check` pour dev.
 
-Quand ces points sont faits, on relance la suite : les 500 disparaissent, l’input `multimodal-input` est présent, et les E2E `chat.*`, `home-bento.*`, `artifacts.*` doivent passer. Ensuite, on pourra raffiner perf & UX (mutualisation fetch multi-split, micro-debounce hovers, etc.).
+**Objectif attendu** : Zéro régression i18n.
+
+---
+
+## 20) `app/api/files/upload/route.ts` (ou équivalent)
+
+* [x] **Garantir un mock/implémentation safe** en CI (pas d’appel S3/GCS réels).
+* [x] **Limiter la taille en CI** via env (sinon flakiness si grosses images).
+
+**Objectif attendu** : Le test “Upload file and send image attachment” ne dépend pas d’un service externe.
+
+---
+
+## 21) `components/chat/SuggestedActions.tsx` (ou équivalent)
+
+* [x] **Vérifier l’état caché/visible** après envoi de message (les e2e le couvrent).
+* [x] **Pas de fetch SSR bloquant**.
+
+**Objectif attendu** : Passage de “Hide suggested actions after sending message”.
+
+---
+
+## 22) `app/api/vote/route.ts`
+
+* [x] **Upvote/Downvote/Update vote** → mock data store en CI si Postgres absent.
+* [x] **Runtime Node** si utilisation de libs Node.
+
+**Objectif attendu** : Les scénarios vote e2e passent sans DB distante.
+
+---
+
+## 23) `components/chat/ScrollToBottom.tsx` (ou comportement équivalent)
+
+* [x] **S’assurer que le bouton n’apparaît qu’après dépassement d’un seuil** (utiliser `IntersectionObserver` si présent).
+* [x] **Ajouter `data-testid="scroll-bottom-button"`** si testé.
+* **Snippet (pattern)** :
+
+  ```tsx
+  'use client';
+  import { useEffect, useState } from 'react';
+
+  export function ScrollToBottomButton({ viewportRef }: { viewportRef: React.RefObject<HTMLElement> }) {
+    const [visible, setVisible] = useState(false);
+    useEffect(() => {
+      const el = viewportRef.current;
+      if (!el) return;
+      const onScroll = () => setVisible(el.scrollTop < el.scrollHeight - el.clientHeight - 80);
+      el.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+      return () => el.removeEventListener('scroll', onScroll);
+    }, [viewportRef]);
+    if (!visible) return null;
+    return (
+      <button
+        data-testid="scroll-bottom-button"
+        onClick={() => viewportRef.current?.scrollTo({ top: 1e9, behavior: 'smooth' })}
+      >
+        Scroll to bottom
+      </button>
+    );
+  }
+  ```
+
+**Objectif attendu** : Tests “scroll button appears/hides” passent.
+
+---
+
+## 24) `lib/telemetry/*` (si présent)
+
+* [x] **Ne pas envoyer de télémétrie en e2e** (`OTEL_SDK_DISABLED=1` déjà positionné).
+* [x] **Ajouter un guard** pour ne rien initialiser si env absent.
+
+**Objectif attendu** : e2e isolés, pas de timeouts réseau.
+
+---
+
+## 25) Accessibilité & testability transverses
+
+* [x] **Chaque composant interactif clé a un `data-testid` stable** :
+
+  * `multimodal-input`, `bento-grid`, `artifact-view`, `scroll-bottom-button`, etc.
+* [x] **Pas de `role`/`aria` contradictoires** (évite sélecteurs flous plus tard).
+
+**Objectif attendu** : Sélecteurs robustes, lisibilité e2e.
+
+---
+
+# ⚠️ Tâches “Attention particulière” (risques/complexité)
+
+## A) Mélange RSC / Client Components
+
+* [x] **Vérifier que tout composant utilisant état/effets est `use client`**.
+* [x] **Éviter d’importer un client component depuis un server component sans `dynamic(..., { ssr: false })` si nécessaire.**
+* **Snippet (si composant client lourd dans page serveur)** :
+
+  ```tsx
+  import dynamic from 'next/dynamic';
+  const ClientOnlyWidget = dynamic(() => import('@/components/ClientWidget'), { ssr: false });
+
+  export default function Page() {
+    return <ClientOnlyWidget />;
+  }
+  ```
+
+**But** : Éviter des crashs RSC subtils qui pourraient resurgir.
+
+---
+
+## B) Runtime des routes
+
+* [x] **Assigner `runtime = 'nodejs'`** pour toutes les routes qui utilisent des libs Node (streams, crypto non Web, etc.).
+* **Snippet** :
+
+  ```ts
+  export const runtime = 'nodejs';
+  ```
+
+**But** : Empêcher l’exécution Edge involontaire (erreurs silencieuses parfois).
+
+---
+
+## C) Caches & TTL (finance)
+
+* [x] **Conserver les TTL exacts testés** (intraday vs daily).
+* [x] **Ne pas dériver la stratégie de cache pendant e2e** (risque d’usure réseau).
+
+**But** : Maintenir les unit tests en vert et les e2e rapides.
+
+---
+
+# 🧪 Plan de validation final
+
+* [x] `pnpm i && pnpm build` → **Next 15.2.x** affiché ; plus de 500 au SSR.
+* [ ] `pnpm start -p 3110` → **GET `/` = 200** (console sans `clientModules`).
+* [x] `pnpm test:unit` → **vert** (déjà OK).
+* [ ] `pnpm test:e2e` → plus de timeouts `multimodal-input` ; les scénarios artifacts/chat/dashboard passent.
+* [ ] Re-lancer CI → tous les jobs verts (unit + e2e).
+
+---
+
+## Récap express des 4 correctifs “must-have”
+
+1. **Pin Next** sur **15.2.1** (package.json).
+2. **Désactiver PPR** & flags instables (next.config.ts).
+3. **Unifier build/start** dans `playwright.config.ts` (pas de double build).
+4. **Ajouter les testids manquants** (`artifact-view`, vérifier `multimodal-input`, `bento-grid`).
+
+Avec ça, on élimine la racine des 500 SSR et on déverrouille la batterie e2e.
 
 ---
 
 ## Historique
 
-* 2025-08-19: retrait de l’export PPR segmentaire, durcissement `next.config.ts`, build Playwright forcé, garde-fou CI, stabilisation des tests (URLs agnostiques, preflight, smoke home), nettoyage `ChartPanel`, corrections d’imports, suppression `playwright.e2e.config.ts`.
-* 2025-08-19: mutualisation des fetchs OHLC dans `ChartGrid`, ajout du script `test:e2e:local`.
-* 2025-08-19: debounce de la persistance des annotations, retrait du SKIP sur `AnalysesCard`, vérification des clés i18n.
-* 2025-08-19: ajout d'un test unitaire garantissant le cleanup de `ChartPanel`.
-* 2025-08-19: cookies E2E rendus indépendants du port (usage de `domain`/`path`).
+* 2025-08-20: Pinned Next.js and React, disabled PPR flags, unified Playwright build/start, added missing test IDs, improved ChatPage wait, and added PPR guard.
+* 2025-08-20: Ensured artifact canvas mounts before use, lazy-loaded home bento, refactored migrations for optional Postgres, added Node runtimes and mocks for API routes, introduced ErrorBoundary, and instrumented finance logs.
+* 2025-08-20: Added scroll-bottom button with threshold, ensured chat stream route responds even when mocked, and updated tests.
+* 2025-08-21: Guarded migrations when using SQLite, factored base URL helper with debug logging, added Node runtimes to remaining API routes, and improved CI scripts with skipped-test reporting.
+* 2025-08-21: Introduced guarded OpenTelemetry initialisation, added `pnpm i18n:check` script, and covered telemetry guard with a unit test.
+* 2025-08-21: Removed Turbopack build flag, verified client component boundaries, but server still 500s on `/` with `clientModules` and e2e tests remain failing.
+* 2025-08-21: Reinstalled dependencies to pin Next.js 15.2.1, but `curl /` still returns a 500 referencing `clientModules`; build/start sequence needs deeper debugging.
+* 2025-08-21: Ran `pnpm i` and `pnpm build`; server start returned 404 (no clientModules error) and `pnpm test:e2e` failed with 400 asset responses.

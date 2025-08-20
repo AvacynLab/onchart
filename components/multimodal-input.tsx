@@ -211,7 +211,7 @@ function PureMultimodalInput({
   }, [status, scrollToBottom]);
 
   return (
-    <div className="relative w-full flex flex-col gap-4">
+    <div data-testid="multimodal-input" className="relative w-full flex flex-col gap-4">
       <AnimatePresence>
         {!isAtBottom && (
           <motion.div
@@ -222,7 +222,7 @@ function PureMultimodalInput({
             className="absolute left-1/2 bottom-28 -translate-x-1/2 z-50"
           >
             <Button
-              data-testid="scroll-to-bottom-button"
+              data-testid="scroll-bottom-button"
               className="rounded-full"
               size="icon"
               variant="outline"
@@ -280,7 +280,6 @@ function PureMultimodalInput({
       )}
 
       <Textarea
-        data-testid="multimodal-input"
         ref={textareaRef}
         placeholder="Send a message..."
         value={input}

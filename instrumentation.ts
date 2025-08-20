@@ -5,6 +5,26 @@
 // the runtime error seen in the E2E logs.
 
 /**
+ * Force the instrumentation hook to execute in the Node.js runtime.  Without
+ * this directive Next.js also generates an Edge bundle which tries to access
+ * the global `self` object during import, failing in a Node context and leaving
+ * `clientModules` undefined at runtime.
+ */
+export const runtime = 'nodejs';
+
+/**
+ * Shim the global `self` reference.  Next.js builds an additional Edge bundle
+ * for this file and attempts to evaluate it during server start.  In a pure
+ * Node.js environment `self` is undefined and the evaluation throws before the
+ * module's exports can be read, which in turn leads to the "clientModules"
+ * undefined error.  Mapping `self` to `globalThis` keeps the evaluation safe
+ * without affecting browser environments where `self` already exists.
+ */
+if (typeof (globalThis as any).self === 'undefined') {
+  ;(globalThis as any).self = globalThis;
+}
+
+/**
  * List of client modules to preload.  Our application does not make use of this
  * feature, but exporting an empty array ensures the property exists on the
  * module object.
@@ -17,7 +37,11 @@ export const clientModules: string[] = [];
  * side effects or dependencies.
  */
 export async function register(): Promise<void> {
-  // intentionally empty
+  // Initialise telemetry only when allowed by the environment. The helper
+  // performs its own guards so this call is safe in all contexts, including
+  // local development and test runs where telemetry is disabled.
+  const { initTelemetry } = await import('./lib/telemetry');
+  await initTelemetry();
 }
 
 // Next.js historically required a default export to access instrumentation hooks.

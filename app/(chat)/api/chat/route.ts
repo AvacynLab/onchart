@@ -41,6 +41,9 @@ import type { ChatMessage } from '@/lib/types';
 import type { ChatModel } from '@/lib/ai/models';
 import type { VisibilityType } from '@/components/visibility-selector';
 
+// Ensure Node.js runtime since this route relies on Node APIs and streaming.
+export const runtime = 'nodejs';
+
 export const maxDuration = 60;
 
 let globalStreamContext: ResumableStreamContext | null = null;

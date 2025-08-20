@@ -16,7 +16,7 @@ const WORKERS = os.cpus().length >= 4 ? 4 : 2;
 // background dev servers that may already occupy port 3000. Both Playwright's
 // readiness probe and the Next.js server receive this explicit value so they
 // stay in sync.
-const PORT = Number(process.env.PORT || 3110);
+const PORT = 3110;
 
 // Base URL points to the server root and remains unchanged when switching
 // locales. Language negotiation relies on cookies or headers rather than path
@@ -55,7 +55,7 @@ export default defineConfig({
     extraHTTPHeaders: { 'Accept-Language': 'fr' },
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'retain-on-failure',
+    trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },
@@ -79,16 +79,11 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    // Rebuild with PLAYWRIGHT=True immediately before starting to guarantee
-    // the server uses a PPR-off artefact even if previous builds exist.
     command:
       `rm -rf .next && PLAYWRIGHT=True pnpm build && PLAYWRIGHT=True pnpm start -p ${PORT}`,
     port: PORT,
-    // Always launch a fresh server to guarantee the prebuilt output is used
-    // and that no lingering process holds onto the test port.
-    reuseExistingServer: false,
+    reuseExistingServer: !process.env.CI,
     env: { PLAYWRIGHT: 'True', OTEL_SDK_DISABLED: '1' },
-    // Allow extra time for the server to boot in constrained CI environments.
-    timeout: 300_000,
+    timeout: 180_000,
   },
 });

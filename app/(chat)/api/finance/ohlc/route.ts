@@ -29,6 +29,15 @@ export async function GET(req: Request): Promise<Response> {
   const start = searchParams.get('start');
   const end = searchParams.get('end');
 
+  const debug = process.env.DEBUG_FINANCE === '1';
+  if (debug) {
+    console.log('[finance] fetching ohlc', {
+      symbol: symbolParam,
+      interval,
+      range,
+    });
+  }
+
   if (!symbolParam || !interval) {
     return new Response(
       JSON.stringify({ error: 'symbol and interval parameters required' }),

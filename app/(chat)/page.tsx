@@ -9,6 +9,7 @@ import FinanceHint from '@/components/finance/FinanceHint';
 import { auth } from '../(auth)/auth';
 import { redirect } from 'next/navigation';
 import { parseAnchor, buildInitialInput } from '@/lib/chat/anchor';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 
 export default async function Page(props: { searchParams?: Promise<{ anchor?: string }> }) {
   const session = await auth();
@@ -28,18 +29,20 @@ export default async function Page(props: { searchParams?: Promise<{ anchor?: st
   if (!modelIdFromCookie) {
     return (
       <>
-        <Chat
-          key={id}
-          id={id}
-          initialMessages={[]}
-          initialChatModel={DEFAULT_CHAT_MODEL}
-          initialVisibilityType="private"
-          isReadonly={false}
-          session={session}
-          autoResume={false}
-          initialInput={initialInput}
-          anchor={anchor ?? undefined}
-        />
+        <ErrorBoundary>
+          <Chat
+            key={id}
+            id={id}
+            initialMessages={[]}
+            initialChatModel={DEFAULT_CHAT_MODEL}
+            initialVisibilityType="private"
+            isReadonly={false}
+            session={session}
+            autoResume={false}
+            initialInput={initialInput}
+            anchor={anchor ?? undefined}
+          />
+        </ErrorBoundary>
         <DataStreamHandler />
         <FinancePanel chatId={id} userId={session.user.id} />
         <FinanceHint />
@@ -49,18 +52,20 @@ export default async function Page(props: { searchParams?: Promise<{ anchor?: st
 
   return (
     <>
-      <Chat
-        key={id}
-        id={id}
-        initialMessages={[]}
-        initialChatModel={modelIdFromCookie.value}
-        initialVisibilityType="private"
-        isReadonly={false}
-        session={session}
-        autoResume={false}
-        initialInput={initialInput}
-        anchor={anchor ?? undefined}
-      />
+      <ErrorBoundary>
+        <Chat
+          key={id}
+          id={id}
+          initialMessages={[]}
+          initialChatModel={modelIdFromCookie.value}
+          initialVisibilityType="private"
+          isReadonly={false}
+          session={session}
+          autoResume={false}
+          initialInput={initialInput}
+          anchor={anchor ?? undefined}
+        />
+      </ErrorBoundary>
       <DataStreamHandler />
       <FinancePanel chatId={id} userId={session.user.id} />
       <FinanceHint />

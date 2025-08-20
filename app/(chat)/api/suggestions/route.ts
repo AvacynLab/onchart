@@ -2,6 +2,9 @@ import { auth } from '@/app/(auth)/auth';
 import { getSuggestionsByDocumentId } from '@/lib/db/queries';
 import { ChatSDKError } from '@/lib/errors';
 
+// Database reads require Node APIs; run this route on the Node runtime.
+export const runtime = 'nodejs';
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const documentId = searchParams.get('documentId');

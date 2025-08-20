@@ -15,19 +15,20 @@ export class ChatPage {
   }
 
   public get multimodalInput() {
-    return this.page.getByTestId('multimodal-input');
+    return this.page.getByTestId('multimodal-input').locator('textarea');
   }
 
   public get scrollContainer() {
     return this.page.locator('.overflow-y-scroll');
   }
 
-  public get scrollToBottomButton() {
-    return this.page.getByTestId('scroll-to-bottom-button');
+  public get scrollBottomButton() {
+    return this.page.getByTestId('scroll-bottom-button');
   }
 
   async createNewChat() {
     await this.page.goto('/');
+    await this.page.waitForURL('**/', { waitUntil: 'domcontentloaded' });
     await this.page
       .getByTestId('multimodal-input')
       .waitFor({ state: 'visible' });

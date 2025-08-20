@@ -78,6 +78,7 @@ function PureMessages({
         className="shrink-0 min-w-[24px] min-h-[24px]"
         onViewportLeave={onViewportLeave}
         onViewportEnter={onViewportEnter}
+        viewport={{ root: messagesContainerRef, margin: '0px 0px -80px 0px' }}
       />
     </div>
   );
