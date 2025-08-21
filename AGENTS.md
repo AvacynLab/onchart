@@ -428,8 +428,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 23) `components/chat/ScrollToBottom.tsx` (ou comportement équivalent)
 
-* [ ] **S’assurer que le bouton n’apparaît qu’après dépassement d’un seuil** (utiliser `IntersectionObserver` si présent).
-* [ ] **Ajouter `data-testid="scroll-bottom-button"`** si testé.
+* [x] **S’assurer que le bouton n’apparaît qu’après dépassement d’un seuil** (utiliser `IntersectionObserver` si présent).
+* [x] **Ajouter `data-testid="scroll-bottom-button"`** si testé.
 * **Snippet (pattern)** :
 
   ```tsx
@@ -464,8 +464,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 24) `lib/telemetry/*` (si présent)
 
-* [ ] **Ne pas envoyer de télémétrie en e2e** (`OTEL_SDK_DISABLED=1` déjà positionné).
-* [ ] **Ajouter un guard** pour ne rien initialiser si env absent.
+* [x] **Ne pas envoyer de télémétrie en e2e** (`OTEL_SDK_DISABLED=1` déjà positionné).
+* [x] **Ajouter un guard** pour ne rien initialiser si env absent.
 
 **Objectif attendu** : e2e isolés, pas de timeouts réseau.
 
@@ -473,10 +473,10 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 25) Accessibilité & testability transverses
 
-* [ ] **Chaque composant interactif clé a un `data-testid` stable** :
+* [x] **Chaque composant interactif clé a un `data-testid` stable** :
 
   * `multimodal-input`, `bento-grid`, `artifact-view`, `scroll-bottom-button`, etc.
-* [ ] **Pas de `role`/`aria` contradictoires** (évite sélecteurs flous plus tard).
+* [x] **Pas de `role`/`aria` contradictoires** (évite sélecteurs flous plus tard).
 
 **Objectif attendu** : Sélecteurs robustes, lisibilité e2e.
 
@@ -549,3 +549,4 @@ Avec ça, on élimine la racine des 500 SSR et on déverrouille la batterie e2e.
 ## Historique
 
 - 2024-11-07 : Pinned Next.js to 15.2.1, disabled PPR, unified Playwright build/start, added `artifact-view` and `multimodal-input` test hooks.
+- 2024-11-07 : Documented scroll-to-bottom threshold and marked telemetry/testid tasks as complete.

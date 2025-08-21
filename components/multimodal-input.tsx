@@ -212,6 +212,13 @@ function PureMultimodalInput({
 
   return (
     <div data-testid="multimodal-input" className="relative w-full flex flex-col gap-4">
+      {/*
+        The floating "scroll to bottom" button only appears once the
+        viewer has scrolled roughly 80px away from the newest message.
+        The 80px threshold is enforced by the viewport margin configured
+        in `Messages.tsx`. Tests rely on the `scroll-bottom-button`
+        test id to trigger this behaviour.
+      */}
       <AnimatePresence>
         {!isAtBottom && (
           <motion.div
