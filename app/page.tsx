@@ -1,14 +1,14 @@
-import { Suspense } from 'react';
+"use client";
+
 import { Bento } from '@/components/bento/Bento';
 
-// Render the dashboard within a suspense boundary so the initial server output
-// stays minimal and client components hydrate only when needed.
+// Mark the home page as a client component so the server doesn't attempt to
+// import the interactive dashboard. This keeps the server bundle slim and
+// avoids RSC ↔ client boundary issues.
 export default function HomePage() {
   return (
     <main>
-      <Suspense fallback={null}>
-        <Bento />
-      </Suspense>
+      <Bento />
     </main>
   );
 }

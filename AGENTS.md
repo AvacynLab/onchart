@@ -487,7 +487,7 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 ## A) Mélange RSC / Client Components
 
 * [x] **Vérifier que tout composant utilisant état/effets est `use client`**.
-* [ ] **Éviter d’importer un client component depuis un server component sans `dynamic(..., { ssr: false })` si nécessaire.**
+* [x] **Éviter d’importer un client component depuis un server component sans `dynamic(..., { ssr: false })` si nécessaire.**
 * **Snippet (si composant client lourd dans page serveur)** :
 
   ```tsx
@@ -551,3 +551,4 @@ Avec ça, on élimine la racine des 500 SSR et on déverrouille la batterie e2e.
 - 2024-11-07 : Pinned Next.js to 15.2.1, disabled PPR, unified Playwright build/start, added `artifact-view` and `multimodal-input` test hooks.
 - 2024-11-07 : Documented scroll-to-bottom threshold and marked telemetry/testid tasks as complete.
 - 2024-11-07 : Added missing `use client` directives and verified API routes run on the Node.js runtime.
+- 2025-08-20 : Converted the home page to a client component to avoid server-side imports and reinstalled Next 15.2.1; build succeeds but `/` still returns 404.
