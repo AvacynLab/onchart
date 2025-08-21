@@ -540,11 +540,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 4. **Ajouter les testids manquants** (`artifact-view`, vérifier `multimodal-input`, `bento-grid`).
 
 Avec ça, on élimine la racine des 500 SSR et on déverrouille la batterie e2e.
-
----
-
 ## Progress
-- [x] 7) `app/page.tsx` – wrap the Bento dashboard in a Suspense boundary while preserving the `data-testid="bento-grid"` hook.
+- [x] 1) `package.json` – pinned Next.js to 15.2.1 and preserved edge instrumentation files to avoid `clientModules` runtime errors.
 
 ## History
-- 2025-08-21: Reset task checklist and converted the home page to stream the dashboard via Suspense.
+- 2025-08-21: Reinstalled dependencies and adjusted build script so Next.js retains edge instrumentation.
