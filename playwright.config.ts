@@ -16,7 +16,7 @@ const WORKERS = os.cpus().length >= 4 ? 4 : 2;
 // background dev servers that may already occupy port 3000. Both Playwright's
 // readiness probe and the Next.js server receive this explicit value so they
 // stay in sync.
-const PORT = 3110;
+const PORT = Number(process.env.PORT) || 3110;
 
 // Base URL points to the server root and remains unchanged when switching
 // locales. Language negotiation relies on cookies or headers rather than path
@@ -79,9 +79,8 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command:
-      `rm -rf .next && PLAYWRIGHT=True pnpm build && PLAYWRIGHT=True pnpm start -p ${PORT}`,
-    port: PORT,
+    command: `pnpm dev -p ${PORT}`,
+    url: `${baseURL}/ping`,
     reuseExistingServer: !process.env.CI,
     env: {
       PLAYWRIGHT: 'True',
@@ -89,7 +88,9 @@ export default defineConfig({
       NEXTAUTH_URL: baseURL,
       AUTH_TRUST_HOST: '1',
       NEXTAUTH_SECRET: 'test-secret',
+      PORT: String(PORT),
+      NEXT_INTL_CONFIG: './next-intl.config.ts',
     },
-    timeout: 180_000,
+    timeout: 120_000,
   },
 });

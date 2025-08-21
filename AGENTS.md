@@ -1,7 +1,7 @@
 Parfait. Voici une **checklist exhaustive, hiérarchisée et “file-by-file”** pour qu’un agent IA puisse **corriger/ajouter/supprimer/modifier** ce qu’il reste, en s’appuyant sur :
 
-* la **version actuelle du code**,
-* l’**analyse des échecs Playwright** (erreur `clientModules`, timeouts sur `multimodal-input`, etc.),
+* la **version actuelle du code**, 
+* l’**analyse des échecs Playwright** (erreur `clientModules`, timeouts sur `multimodal-input`, etc.), 
 * la **direction globale** (stabiliser le rendu App Router, conserver les tests e2e réalistes, limiter les features expérimentales, garder les fallback finance et l’i18n stables).
 
 J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
@@ -12,12 +12,12 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 1) `package.json`
 
-* [x] **Fixer la version de Next.js sur une stable** (éviter le canary qui casse le SSR/RSC avec `clientModules`).
+* [ ] **Fixer la version de Next.js sur une stable** (éviter le canary qui casse le SSR/RSC avec `clientModules`).
 
-  * [x] Remplacer `next: 15.3.0-canary.31` par une **stable récente** (ex. `15.2.1`).
-  * [x] Forcer via `overrides` (Yarn/Pnpm résolvent parfois des sous-dépendances canary).
-  * [x] Supprimer le “double build” pendant la CI (on laisse Playwright builder/démarrer le server via `webServer.command`).
-  * [x] **Garder `OTEL_SDK_DISABLED=1`** dans `test:e2e` pour réduire le bruit réseau et stabiliser les temps.
+  * [ ] Remplacer `next: 15.3.0-canary.31` par une **stable récente** (ex. `15.2.1`).
+  * [ ] Forcer via `overrides` (Yarn/Pnpm résolvent parfois des sous-dépendances canary).
+  * [ ] Supprimer le “double build” pendant la CI (on laisse Playwright builder/démarrer le server via `webServer.command`).
+  * [ ] **Garder `OTEL_SDK_DISABLED=1`** dans `test:e2e` pour réduire le bruit réseau et stabiliser les temps.
 
   * **Snippet** :
 
@@ -37,8 +37,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
       }
     }
     ```
-* [x] **Supprimer le “double build”** pendant la CI (on laisse Playwright builder/démarrer le server via `webServer.command`).
-* [x] **Garder `OTEL_SDK_DISABLED=1`** dans `test:e2e` pour réduire le bruit réseau et stabiliser les temps.
+* [ ] **Supprimer le “double build”** pendant la CI (on laisse Playwright builder/démarrer le server via `webServer.command`).
+* [ ] **Garder `OTEL_SDK_DISABLED=1`** dans `test:e2e` pour réduire le bruit réseau et stabiliser les temps.
 
 **Objectif attendu** : Plus d’erreur `Cannot read properties of undefined (reading 'clientModules')` au SSR ; temps e2e plus stable.
 
@@ -46,8 +46,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 2) `next.config.ts`
 
-* [x] **Désactiver explicitement PPR et autres flags expérimentaux** (source majeure d’instabilité en canary).
-* [x] **Ne pas utiliser `output: 'standalone'`** pendant la CI e2e (ça brouille les chemins du manifeste RSC).
+* [ ] **Désactiver explicitement PPR et autres flags expérimentaux** (source majeure d’instabilité en canary).
+* [ ] **Ne pas utiliser `output: 'standalone'`** pendant la CI e2e (ça brouille les chemins du manifeste RSC).
 * **Snippet** :
 
   ```ts
@@ -70,9 +70,9 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 3) `playwright.config.ts`
 
-* [x] **Centraliser build + start** dans `webServer` (supprimer build ailleurs).
-* [x] **Ajouter un timeout suffisant** (180s mini) pour le cold build.
-* [x] **Activer `reuseExistingServer` en local** (plus rapide).
+* [ ] **Centraliser build + start** dans `webServer` (supprimer build ailleurs).
+* [ ] **Ajouter un timeout suffisant** (180s mini) pour le cold build.
+* [ ] **Activer `reuseExistingServer` en local** (plus rapide).
 * **Snippet** :
 
   ```ts
@@ -100,8 +100,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 4) `scripts/ci/ensure-no-ppr.sh` (ou créer ce fichier)
 
-* [x] **Corriger l’usage de `git grep`** (ordre des args & exclusions).
-* [x] **Échouer le job si `experimental_ppr = true` ou `ppr: true` hors `next.config.ts`.**
+* [ ] **Corriger l’usage de `git grep`** (ordre des args & exclusions).
+* [ ] **Échouer le job si `experimental_ppr = true` ou `ppr: true` hors `next.config.ts`.**
 * **Snippet** :
 
   ```bash
@@ -129,8 +129,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 5) `components/artifact/ArtifactViewer.tsx`
 
-* [x] **Exposer un `data-testid="artifact-view"`** sur le conteneur du canvas (les tests e2e l’attendent).
-* [x] **S’assurer que le canvas est monté avant l’interaction** (utiliser `useEffect`/`requestAnimationFrame` si besoin).
+* [ ] **Exposer un `data-testid="artifact-view"`** sur le conteneur du canvas (les tests e2e l’attendent).
+* [ ] **S’assurer que le canvas est monté avant l’interaction** (utiliser `useEffect`/`requestAnimationFrame` si besoin).
 * **Snippet** :
 
   ```tsx
@@ -165,7 +165,7 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 6) `components/chat/MultimodalInput.tsx` (ou équivalent)
 
-* [x] **Vérifier/ajouter `data-testid="multimodal-input"`** sur la racine du champ d’entrée utilisé par la home/chat.
+* [ ] **Vérifier/ajouter `data-testid="multimodal-input"`** sur la racine du champ d’entrée utilisé par la home/chat.
 * **Snippet (exemple générique)** :
 
   ```tsx
@@ -196,8 +196,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 7) `app/page.tsx` (ou `app/(home)/page.tsx`)
 
-* [x] **Garantir la présence de `data-testid="bento-grid"`** sur la grille d’accueil.
-* [x] **Limiter l’hydratation à ce qui est nécessaire** (éviter d’inclure des comps client non indispensables au fold).
+* [ ] **Garantir la présence de `data-testid="bento-grid"`** sur la grille d’accueil.
+* [ ] **Limiter l’hydratation à ce qui est nécessaire** (éviter d’inclure des comps client non indispensables au fold).
 * **Snippet** :
 
   ```tsx
@@ -222,8 +222,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 8) `tests/pages/chat.ts`
 
-* [x] **Ne pas “masquer” un vrai problème d’app** : conserver l’attente stricte de `multimodal-input`.
-* [x] **Optionnel** : ajouter un `page.waitForURL('**/', { waitUntil: 'domcontentloaded' })` juste après `goto('/')` pour fiabiliser les temps d’attente, **sans** relâcher la contrainte de présence du testid.
+* [ ] **Ne pas “masquer” un vrai problème d’app** : conserver l’attente stricte de `multimodal-input`.
+* [ ] **Optionnel** : ajouter un `page.waitForURL('**/', { waitUntil: 'domcontentloaded' })` juste après `goto('/')` pour fiabiliser les temps d’attente, **sans** relâcher la contrainte de présence du testid.
 * **Snippet (ajout minimal)** :
 
   ```ts
@@ -238,7 +238,7 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 9) `app/ping/route.ts` (déjà présent)
 
-* [x] **Vérifier qu’il renvoie `200` sans dépendances DB** (utile pour healthcheck local).
+* [ ] **Vérifier qu’il renvoie `200` sans dépendances DB** (utile pour healthcheck local).
 * **Snippet** :
 
   ```ts
@@ -254,10 +254,10 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 10) `lib/db/migrate.ts`
 
-* [x] **Garder le comportement “skip migrations sans POSTGRES_URL”** mais :
+* [ ] **Garder le comportement “skip migrations sans POSTGRES_URL”** mais :
 
-  * [x] **Éviter tout import/side-effect coûteux** côté app quand on n’a pas Postgres.
-  * [x] **S’assurer que SQLite de test (si utilisée dans le runtime Playwright)** n’introduit pas d’avertissements bloquants (l’avertissement *experimental SQLite* n’est pas bloquant, on peut l’ignorer).
+  * [ ] **Éviter tout import/side-effect coûteux** côté app quand on n’a pas Postgres.
+  * [ ] **S’assurer que SQLite de test (si utilisée dans le runtime Playwright)** n’introduit pas d’avertissements bloquants (l’avertissement *experimental SQLite* n’est pas bloquant, on peut l’ignorer).
 * **Snippet (pattern)** :
 
   ```ts
@@ -275,8 +275,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 11) `app/api/chat/route.ts` et `app/api/chat/[id]/stream/route.ts`
 
-* [x] **Confirmer `export const runtime = 'nodejs'`** si vous utilisez des libs Node (stream, fs, etc.).
-* [x] **S’assurer que la route GET de stream répond toujours, même si le provider IA est mocké en CI**.
+* [ ] **Confirmer `export const runtime = 'nodejs'`** si vous utilisez des libs Node (stream, fs, etc.).
+* [ ] **S’assurer que la route GET de stream répond toujours, même si le provider IA est mocké en CI**.
 * **Snippet** :
 
   ```ts
@@ -293,8 +293,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 12) `app/api/finance/*/route.ts` (quote, ohlc, news, etc.)
 
-* [x] **Confirmer l’ordre de fallback** (Yahoo → Stooq / Binance) et les TTL (intraday vs daily) — vos tests unitaires passent, donc **ne rien casser**.
-* [x] **Ajouter des logs de niveau “debug” sous flag** (`DEBUG_FINANCE=1`) si on doit diagnostiquer en CI.
+* [ ] **Confirmer l’ordre de fallback** (Yahoo → Stooq / Binance) et les TTL (intraday vs daily) — vos tests unitaires passent, donc **ne rien casser**.
+* [ ] **Ajouter des logs de niveau “debug” sous flag** (`DEBUG_FINANCE=1`) si on doit diagnostiquer en CI.
 * **Snippet (pattern)** :
 
   ```ts
@@ -308,8 +308,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 13) `components/bento/*` (NewsCard, AnalysesCard, etc.)
 
-* [x] **Garder les `data-testid` déjà employés par les tests** (`bento-grid` vu côté page ; NewsCard/AnalysesCard ont leurs tests unitaires verts).
-* [x] **S’assurer que le 1er rendu ne déclenche pas de fetch bloquant SSR** (utiliser `useEffect`/SWR côté client si nécessaire).
+* [ ] **Garder les `data-testid` déjà employés par les tests** (`bento-grid` vu côté page ; NewsCard/AnalysesCard ont leurs tests unitaires verts).
+* [ ] **S’assurer que le 1er rendu ne déclenche pas de fetch bloquant SSR** (utiliser `useEffect`/SWR côté client si nécessaire).
 
 **Objectif attendu** : L’accueil se rend vite ; Playwright n’attend pas un SSR lourd.
 
@@ -317,8 +317,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 14) `middleware.ts` (si présent)
 
-* [x] **Éviter toute manipulation non essentielle** de requêtes qui pourrait casser le manifeste RSC (en canary, mais par sécurité même en stable).
-* [x] **Limiter le scope `matcher`** aux chemins strictement nécessaires.
+* [ ] **Éviter toute manipulation non essentielle** de requêtes qui pourrait casser le manifeste RSC (en canary, mais par sécurité même en stable).
+* [ ] **Limiter le scope `matcher`** aux chemins strictement nécessaires.
 
 **Objectif attendu** : Moins de risque d’interférer avec le rendu `_app`/RSC.
 
@@ -326,8 +326,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 15) `scripts/ci/count-tests.ts` & `scripts/ci/ensure-no-only-fixme.ts`
 
-* [x] **Conserver tels quels** (ces scripts sont utiles et passaient).
-* [x] **Ajouter une sortie claire** quand des tests e2e sont ignorés/skippés.
+* [ ] **Conserver tels quels** (ces scripts sont utiles et passaient).
+* [ ] **Ajouter une sortie claire** quand des tests e2e sont ignorés/skippés.
 
 **Objectif attendu** : Visibilité CI accrue sans impacter les temps.
 
@@ -335,9 +335,9 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 16) `tests/e2e/*.spec.ts` (général)
 
-* [x] **Ne pas affaiblir les assertions** (les timeouts venaient du 500 SSR).
-* [x] **Conserver les `getByTestId('multimodal-input')`** (utile sentinelle de rendu).
-* [x] **(Si flakiness résiduelle)** Ajouter `test.slow()` ou un `expect.poll` *ciblé*, mais seulement si nécessaire.
+* [ ] **Ne pas affaiblir les assertions** (les timeouts venaient du 500 SSR).
+* [ ] **Conserver les `getByTestId('multimodal-input')`** (utile sentinelle de rendu).
+* [ ] **(Si flakiness résiduelle)** Ajouter `test.slow()` ou un `expect.poll` *ciblé*, mais seulement si nécessaire.
 * **Snippet (poll ciblé)** :
 
   ```ts
@@ -352,8 +352,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 17) `components/common/ErrorBoundary.tsx` (ou à créer si absent)
 
-* [x] **Ajouter un ErrorBoundary côté client** autour des zones interactives (chat, artifact).
-* [x] **Affichage d’un message utilisateur simple et d’un `data-testid="ui-error"`** pour des assertions e2e ciblées si nécessaire.
+* [ ] **Ajouter un ErrorBoundary côté client** autour des zones interactives (chat, artifact).
+* [ ] **Affichage d’un message utilisateur simple et d’un `data-testid="ui-error"`** pour des assertions e2e ciblées si nécessaire.
 * **Snippet** :
 
   ```tsx
@@ -382,8 +382,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 18) `lib/utils/getBaseUrl.ts` (ou équivalent ; vous avez des tests)
 
-* [x] **Ne rien changer** si tous les tests sont verts (headers → fallback → VERCEL_URL).
-* [x] **Ajouter un log conditionnel** si DEBUG on.
+* [ ] **Ne rien changer** si tous les tests sont verts (headers → fallback → VERCEL_URL).
+* [ ] **Ajouter un log conditionnel** si DEBUG on.
 
 **Objectif attendu** : Préserver le passage des tests `base URL` + diagnostic aisé si souci de proxy.
 
@@ -391,9 +391,9 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 19) i18n (`lib/i18n/*`, `locales/*`)
 
-* [x] **Garder la parité des clés** (tests verts).
-* [x] **S’assurer que les disclaimers FR/EN pour finance restent présents** (tests verts).
-* [x] **Optionnel** : exposer un script `pnpm i18n:check` pour dev.
+* [ ] **Garder la parité des clés** (tests verts).
+* [ ] **S’assurer que les disclaimers FR/EN pour finance restent présents** (tests verts).
+* [ ] **Optionnel** : exposer un script `pnpm i18n:check` pour dev.
 
 **Objectif attendu** : Zéro régression i18n.
 
@@ -401,8 +401,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 20) `app/api/files/upload/route.ts` (ou équivalent)
 
-* [x] **Garantir un mock/implémentation safe** en CI (pas d’appel S3/GCS réels).
-* [x] **Limiter la taille en CI** via env (sinon flakiness si grosses images).
+* [ ] **Garantir un mock/implémentation safe** en CI (pas d’appel S3/GCS réels).
+* [ ] **Limiter la taille en CI** via env (sinon flakiness si grosses images).
 
 **Objectif attendu** : Le test “Upload file and send image attachment” ne dépend pas d’un service externe.
 
@@ -410,8 +410,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 21) `components/chat/SuggestedActions.tsx` (ou équivalent)
 
-* [x] **Vérifier l’état caché/visible** après envoi de message (les e2e le couvrent).
-* [x] **Pas de fetch SSR bloquant**.
+* [ ] **Vérifier l’état caché/visible** après envoi de message (les e2e le couvrent).
+* [ ] **Pas de fetch SSR bloquant**.
 
 **Objectif attendu** : Passage de “Hide suggested actions after sending message”.
 
@@ -419,8 +419,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 22) `app/api/vote/route.ts`
 
-* [x] **Upvote/Downvote/Update vote** → mock data store en CI si Postgres absent.
-* [x] **Runtime Node** si utilisation de libs Node.
+* [ ] **Upvote/Downvote/Update vote** → mock data store en CI si Postgres absent.
+* [ ] **Runtime Node** si utilisation de libs Node.
 
 **Objectif attendu** : Les scénarios vote e2e passent sans DB distante.
 
@@ -428,8 +428,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 23) `components/chat/ScrollToBottom.tsx` (ou comportement équivalent)
 
-* [x] **S’assurer que le bouton n’apparaît qu’après dépassement d’un seuil** (utiliser `IntersectionObserver` si présent).
-* [x] **Ajouter `data-testid="scroll-bottom-button"`** si testé.
+* [ ] **S’assurer que le bouton n’apparaît qu’après dépassement d’un seuil** (utiliser `IntersectionObserver` si présent).
+* [ ] **Ajouter `data-testid="scroll-bottom-button"`** si testé.
 * **Snippet (pattern)** :
 
   ```tsx
@@ -464,8 +464,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 24) `lib/telemetry/*` (si présent)
 
-* [x] **Ne pas envoyer de télémétrie en e2e** (`OTEL_SDK_DISABLED=1` déjà positionné).
-* [x] **Ajouter un guard** pour ne rien initialiser si env absent.
+* [ ] **Ne pas envoyer de télémétrie en e2e** (`OTEL_SDK_DISABLED=1` déjà positionné).
+* [ ] **Ajouter un guard** pour ne rien initialiser si env absent.
 
 **Objectif attendu** : e2e isolés, pas de timeouts réseau.
 
@@ -473,10 +473,10 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 25) Accessibilité & testability transverses
 
-* [x] **Chaque composant interactif clé a un `data-testid` stable** :
+* [ ] **Chaque composant interactif clé a un `data-testid` stable** :
 
   * `multimodal-input`, `bento-grid`, `artifact-view`, `scroll-bottom-button`, etc.
-* [x] **Pas de `role`/`aria` contradictoires** (évite sélecteurs flous plus tard).
+* [ ] **Pas de `role`/`aria` contradictoires** (évite sélecteurs flous plus tard).
 
 **Objectif attendu** : Sélecteurs robustes, lisibilité e2e.
 
@@ -486,8 +486,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## A) Mélange RSC / Client Components
 
-* [x] **Vérifier que tout composant utilisant état/effets est `use client`**.
-* [x] **Éviter d’importer un client component depuis un server component sans `dynamic(..., { ssr: false })` si nécessaire.**
+* [ ] **Vérifier que tout composant utilisant état/effets est `use client`**.
+* [ ] **Éviter d’importer un client component depuis un server component sans `dynamic(..., { ssr: false })` si nécessaire.**
 * **Snippet (si composant client lourd dans page serveur)** :
 
   ```tsx
@@ -505,7 +505,7 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## B) Runtime des routes
 
-* [x] **Assigner `runtime = 'nodejs'`** pour toutes les routes qui utilisent des libs Node (streams, crypto non Web, etc.).
+* [ ] **Assigner `runtime = 'nodejs'`** pour toutes les routes qui utilisent des libs Node (streams, crypto non Web, etc.).
 * **Snippet** :
 
   ```ts
@@ -518,8 +518,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## C) Caches & TTL (finance)
 
-* [x] **Conserver les TTL exacts testés** (intraday vs daily).
-* [x] **Ne pas dériver la stratégie de cache pendant e2e** (risque d’usure réseau).
+* [ ] **Conserver les TTL exacts testés** (intraday vs daily).
+* [ ] **Ne pas dériver la stratégie de cache pendant e2e** (risque d’usure réseau).
 
 **But** : Maintenir les unit tests en vert et les e2e rapides.
 
@@ -527,9 +527,9 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 # 🧪 Plan de validation final
 
-* [x] `pnpm i && pnpm build` → **Next 15.2.x** affiché ; plus de 500 au SSR.
+* [ ] `pnpm i && pnpm build` → **Next 15.2.x** affiché ; plus de 500 au SSR.
 * [ ] `pnpm start -p 3110` → **GET `/` = 200** (console sans `clientModules`).
-* [x] `pnpm test:unit` → **vert** (déjà OK).
+* [ ] `pnpm test:unit` → **vert** (déjà OK).
 * [ ] `pnpm test:e2e` → plus de timeouts `multimodal-input` ; les scénarios artifacts/chat/dashboard passent.
 * [ ] Re-lancer CI → tous les jobs verts (unit + e2e).
 
@@ -543,17 +543,3 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 4. **Ajouter les testids manquants** (`artifact-view`, vérifier `multimodal-input`, `bento-grid`).
 
 Avec ça, on élimine la racine des 500 SSR et on déverrouille la batterie e2e.
-
----
-
-## Historique
-
-* 2025-08-20: Pinned Next.js and React, disabled PPR flags, unified Playwright build/start, added missing test IDs, improved ChatPage wait, and added PPR guard.
-* 2025-08-20: Ensured artifact canvas mounts before use, lazy-loaded home bento, refactored migrations for optional Postgres, added Node runtimes and mocks for API routes, introduced ErrorBoundary, and instrumented finance logs.
-* 2025-08-20: Added scroll-bottom button with threshold, ensured chat stream route responds even when mocked, and updated tests.
-* 2025-08-21: Guarded migrations when using SQLite, factored base URL helper with debug logging, added Node runtimes to remaining API routes, and improved CI scripts with skipped-test reporting.
-* 2025-08-21: Introduced guarded OpenTelemetry initialisation, added `pnpm i18n:check` script, and covered telemetry guard with a unit test.
-* 2025-08-21: Removed Turbopack build flag, verified client component boundaries, but server still 500s on `/` with `clientModules` and e2e tests remain failing.
-* 2025-08-21: Reinstalled dependencies to pin Next.js 15.2.1, but `curl /` still returns a 500 referencing `clientModules`; build/start sequence needs deeper debugging.
-* 2025-08-21: Ran `pnpm i` and `pnpm build`; server start returned 404 (no clientModules error) and `pnpm test:e2e` failed with 400 asset responses.
-* 2025-08-21: Fixed lint violations in ErrorBoundary and migration script, reinstalled to Next.js 15.2.1, built successfully, `pnpm start` served 404, and e2e tests halted after dependency download.
