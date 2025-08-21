@@ -551,8 +551,11 @@ Avec ça, on élimine la racine des 500 SSR et on déverrouille la batterie e2e.
 - [x] 7) `app/page.tsx` – kept bento dashboard under `(chat)/page.tsx` with `data-testid="bento-grid"`.
 - [x] 8) `tests/pages/chat.ts` – enforced `waitForURL` plus strict `multimodal-input` visibility.
 - [x] Switched Playwright and documentation to use port 3000 for e2e tests.
+- [ ] `pnpm start -p 3000` – still returns 404 with `UntrustedHost` errors unless NEXTAUTH_URL and AUTH_TRUST_HOST are set.
+- [ ] `pnpm test:e2e` – static asset requests return 400; server misconfiguration persists.
 
 ## History
 - 2025-08-21: Reset checklist to exhaustive task list and restored home route under `(chat)/page.tsx` to address 404 responses.
 - 2025-08-21: Pinned Next.js to 15.2.1, disabled PPR, streamlined Playwright build/start, and added `artifact-view` and `multimodal-input` hooks; unit tests and build pass, but `/` still responds 404 and e2e tests remain pending.
 - 2025-08-21: Updated Playwright and docs to run the app on port 3000 for e2e.
+- 2025-08-21: Built the app successfully, but manual start on port 3000 and e2e tests yielded `UntrustedHost` and 400 static asset responses.
