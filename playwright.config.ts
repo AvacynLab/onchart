@@ -78,10 +78,10 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    // Build the production bundle and start Next.js on the test port. Using a
-    // single command ensures Playwright waits for the server to become ready
-    // before executing tests and avoids double-build scenarios.
-    command: `rm -rf .next && PLAYWRIGHT=True pnpm build && PLAYWRIGHT=True pnpm start -p ${PORT}`,
+    // Start the pre-built production server on the test port. The build is
+    // executed ahead of time by the `pretest:e2e` script so Playwright only
+    // needs to wait for the server to become ready.
+    command: `PLAYWRIGHT=True pnpm start -p ${PORT}`,
     url: `${baseURL}/ping`,
     reuseExistingServer: !process.env.CI,
     env: {
@@ -93,10 +93,8 @@ export default defineConfig({
       PORT: String(PORT),
       NEXT_INTL_CONFIG: './next-intl.config.ts',
     },
-    // Allow generous time for the initial production build on resource-constrained
-    // CI runners. The full Next.js compile can occasionally exceed three
-    // minutes, so extend the readiness timeout to ten minutes to avoid
-    // premature failures before tests even begin.
+    // Allow generous time for the server to boot on resource-constrained
+    // CI runners.
     timeout: 600_000,
   },
 });

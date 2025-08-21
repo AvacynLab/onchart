@@ -67,7 +67,7 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 3) `playwright.config.ts`
 
-* [x] **Centraliser build + start** dans `webServer` (supprimer build ailleurs).
+* [x] **Lancer le serveur de production pré-compilé** via `webServer` (le build est exécuté par `pretest:e2e`).
 * [x] **Ajouter un timeout suffisant** (180s mini) pour le cold build.
 * [x] **Activer `reuseExistingServer` en local** (plus rapide).
 * **Snippet** :
@@ -77,7 +77,7 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
   export default defineConfig({
     webServer: {
-      command: 'rm -rf .next && PLAYWRIGHT=True pnpm build && PLAYWRIGHT=True pnpm start -p 3000',
+      command: 'PLAYWRIGHT=True pnpm start -p 3000',
       port: 3000,
       reuseExistingServer: !process.env.CI,
       timeout: 180_000,
@@ -527,7 +527,7 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 * [x] `pnpm i && pnpm build` → **Next 15.2.x** affiché ; plus de 500 au SSR.
 * [ ] `pnpm start -p 3000` → **GET `/` = 200** (console sans `clientModules`).
 * [x] `pnpm test:unit` → **vert** (déjà OK).
-* [ ] `pnpm test:e2e` → plus de timeouts `multimodal-input` ; les scénarios artifacts/chat/dashboard passent.
+* [ ] `pnpm test:e2e` → Playwright doit démarrer le serveur de prod sur le port 3000 sans conflit.
 * [ ] Re-lancer CI → tous les jobs verts (unit + e2e).
 
 ---
@@ -544,7 +544,7 @@ Avec ça, on élimine la racine des 500 SSR et on déverrouille la batterie e2e.
 ## Progress
 - [x] 1) `package.json` – pinned Next.js to 15.2.1 and retained OTEL_SDK_DISABLED in test scripts.
 - [x] 2) `next.config.ts` – disabled PPR and experimental flags.
-- [x] 3) `playwright.config.ts` – centralized build/start with extended timeout and env vars.
+ - [x] 3) `playwright.config.ts` – configured to start pre-built server on port 3000 with extended timeout and env vars.
 - [x] 4) `scripts/ci/ensure-no-ppr.sh` – added guard to block accidental PPR flags.
 - [x] 5) `components/artifact/ArtifactViewer.tsx` – exposed `artifact-view` hook and deferred chart init.
 - [x] 6) `components/chat/MultimodalInput.tsx` – surfaced stable `multimodal-input` test id.
@@ -552,10 +552,11 @@ Avec ça, on élimine la racine des 500 SSR et on déverrouille la batterie e2e.
 - [x] 8) `tests/pages/chat.ts` – enforced `waitForURL` plus strict `multimodal-input` visibility.
 - [x] Switched Playwright and documentation to use port 3000 for e2e tests.
 - [ ] `pnpm start -p 3000` – still returns 404 with `UntrustedHost` errors unless NEXTAUTH_URL and AUTH_TRUST_HOST are set.
-- [ ] `pnpm test:e2e` – static asset requests return 400; server misconfiguration persists.
+- [ ] `pnpm test:e2e` – Playwright failed to start the web server on port 3000 (`EADDRINUSE`).
 
 ## History
 - 2025-08-21: Reset checklist to exhaustive task list and restored home route under `(chat)/page.tsx` to address 404 responses.
 - 2025-08-21: Pinned Next.js to 15.2.1, disabled PPR, streamlined Playwright build/start, and added `artifact-view` and `multimodal-input` hooks; unit tests and build pass, but `/` still responds 404 and e2e tests remain pending.
 - 2025-08-21: Updated Playwright and docs to run the app on port 3000 for e2e.
 - 2025-08-21: Built the app successfully, but manual start on port 3000 and e2e tests yielded `UntrustedHost` and 400 static asset responses.
+- 2025-08-21: Adjusted Playwright to start the pre-built app on port 3000 and moved the build step to `pretest:e2e`.
