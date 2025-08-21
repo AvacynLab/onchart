@@ -46,6 +46,10 @@ export const {
   signOut,
 } = NextAuth({
   ...authConfig,
+  // Default to trusting the request host so development and test servers do
+  // not require NEXTAUTH_URL or AUTH_TRUST_HOST environment variables. This
+  // mirrors setting AUTH_TRUST_HOST=true at runtime.
+  trustHost: true,
   providers: [
     Credentials({
       credentials: {},
