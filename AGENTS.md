@@ -541,7 +541,10 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 Avec ça, on élimine la racine des 500 SSR et on déverrouille la batterie e2e.
 ## Progress
-- [x] 1) `package.json` – pinned Next.js to 15.2.1 and preserved edge instrumentation files to avoid `clientModules` runtime errors.
+- [x] 1) `package.json` – pinned Next.js to 15.2.1 and removed Edge instrumentation bundles after build to prevent `clientModules` crashes.
+- [x] 2) `next.config.ts` – disabled PPR and other unstable flags for deterministic server rendering.
+- [x] 3) `playwright.config.ts` – unified production build/start with extended timeout and test env vars.
 
 ## History
 - 2025-08-21: Reinstalled dependencies and adjusted build script so Next.js retains edge instrumentation.
+- 2025-08-21: Purged Edge instrumentation after builds to resolve `clientModules` 500s and pinned Playwright web server to unified build/start workflow.
