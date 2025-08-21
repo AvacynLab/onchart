@@ -1,15 +1,16 @@
-"use client";
-
+import { Suspense } from 'react';
 import { Bento } from '@/components/bento/Bento';
 
-// Mark the home page as a client component so the server doesn't attempt to
-// import the interactive dashboard. This keeps the server bundle slim and
-// avoids RSC ↔ client boundary issues.
+// Render the interactive dashboard within a Suspense boundary so the server
+// can stream the shell without waiting for client modules to load. The Bento
+// component itself is marked as a client component and exposes the
+// `data-testid="bento-grid"` hook used by end-to-end tests.
 export default function HomePage() {
   return (
     <main>
-      <Bento />
+      <Suspense fallback={null}>
+        <Bento />
+      </Suspense>
     </main>
   );
 }
-
