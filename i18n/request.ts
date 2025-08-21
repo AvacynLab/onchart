@@ -22,7 +22,18 @@ export default getRequestConfig(async () => {
   // authenticated user. During Playwright runs we skip the session lookup to
   // keep the environment lean.
   let locale: Locale | undefined;
-  const session = process.env.PLAYWRIGHT ? null : await auth();
+  // Attempt to resolve the session when running in a real environment. In
+  // local or CI test runs the authentication stack may be misconfigured (e.g.
+  // missing secrets or host headers) which would throw an error. Swallow such
+  // failures and continue with locale negotiation using other signals.
+  let session = null;
+  if (!process.env.PLAYWRIGHT) {
+    try {
+      session = await auth();
+    } catch {
+      session = null;
+    }
+  }
   if (session?.user?.id) {
     const preferred = await getUserSettings(session.user.id);
     if (preferred && locales.includes(preferred as Locale)) {
