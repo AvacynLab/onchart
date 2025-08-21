@@ -529,7 +529,7 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 * [ ] `pnpm i && pnpm build` → **Next 15.2.x** affiché ; plus de 500 au SSR.
 * [ ] `pnpm start -p 3110` → **GET `/` = 200** (console sans `clientModules`).
-* [ ] `pnpm test:unit` → **vert** (déjà OK).
+* [x] `pnpm test:unit` → **vert** (déjà OK).
 * [ ] `pnpm test:e2e` → plus de timeouts `multimodal-input` ; les scénarios artifacts/chat/dashboard passent.
 * [ ] Re-lancer CI → tous les jobs verts (unit + e2e).
 
@@ -552,3 +552,4 @@ Avec ça, on élimine la racine des 500 SSR et on déverrouille la batterie e2e.
 - 2024-11-07 : Documented scroll-to-bottom threshold and marked telemetry/testid tasks as complete.
 - 2024-11-07 : Added missing `use client` directives and verified API routes run on the Node.js runtime.
 - 2025-08-20 : Converted the home page to a client component to avoid server-side imports and reinstalled Next 15.2.1; build succeeds but `/` still returns 404.
+- 2025-08-21 : Reinstalled dependencies and attempted production build; build command did not complete, preventing server start and e2e tests.
