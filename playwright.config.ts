@@ -12,11 +12,10 @@ config({
 // vCPUs).
 const WORKERS = os.cpus().length >= 4 ? 4 : 2;
 
-// Use a fixed, rarely used port during tests to avoid conflicts with any
-// background dev servers that may already occupy port 3000. Both Playwright's
-// readiness probe and the Next.js server receive this explicit value so they
-// stay in sync.
-const PORT = Number(process.env.PORT) || 3110;
+// Use the conventional Next.js development port so Playwright interacts with
+// the application exactly as local users would. Both the readiness probe and
+// the Next.js server receive this explicit value to stay in sync.
+const PORT = Number(process.env.PORT) || 3000;
 
 // Base URL points to the server root and remains unchanged when switching
 // locales. Language negotiation relies on cookies or headers rather than path

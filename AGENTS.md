@@ -77,13 +77,13 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
   export default defineConfig({
     webServer: {
-      command: 'rm -rf .next && PLAYWRIGHT=True pnpm build && PLAYWRIGHT=True pnpm start -p 3110',
-      port: 3110,
+      command: 'rm -rf .next && PLAYWRIGHT=True pnpm build && PLAYWRIGHT=True pnpm start -p 3000',
+      port: 3000,
       reuseExistingServer: !process.env.CI,
       timeout: 180_000,
     },
     use: {
-      baseURL: 'http://localhost:3110',
+      baseURL: 'http://localhost:3000',
       trace: 'on-first-retry',
       video: 'retain-on-failure',
     },
@@ -525,7 +525,7 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 # 🧪 Plan de validation final
 
 * [x] `pnpm i && pnpm build` → **Next 15.2.x** affiché ; plus de 500 au SSR.
-* [ ] `pnpm start -p 3110` → **GET `/` = 200** (console sans `clientModules`).
+* [ ] `pnpm start -p 3000` → **GET `/` = 200** (console sans `clientModules`).
 * [x] `pnpm test:unit` → **vert** (déjà OK).
 * [ ] `pnpm test:e2e` → plus de timeouts `multimodal-input` ; les scénarios artifacts/chat/dashboard passent.
 * [ ] Re-lancer CI → tous les jobs verts (unit + e2e).
@@ -550,7 +550,9 @@ Avec ça, on élimine la racine des 500 SSR et on déverrouille la batterie e2e.
 - [x] 6) `components/chat/MultimodalInput.tsx` – surfaced stable `multimodal-input` test id.
 - [x] 7) `app/page.tsx` – kept bento dashboard under `(chat)/page.tsx` with `data-testid="bento-grid"`.
 - [x] 8) `tests/pages/chat.ts` – enforced `waitForURL` plus strict `multimodal-input` visibility.
+- [x] Switched Playwright and documentation to use port 3000 for e2e tests.
 
 ## History
 - 2025-08-21: Reset checklist to exhaustive task list and restored home route under `(chat)/page.tsx` to address 404 responses.
 - 2025-08-21: Pinned Next.js to 15.2.1, disabled PPR, streamlined Playwright build/start, and added `artifact-view` and `multimodal-input` hooks; unit tests and build pass, but `/` still responds 404 and e2e tests remain pending.
+- 2025-08-21: Updated Playwright and docs to run the app on port 3000 for e2e.
