@@ -87,7 +87,7 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
       trace: 'on-first-retry',
       video: 'retain-on-failure',
     },
-    projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+    projects: [{ name: 'e2e', use: { ...devices['Desktop Chrome'] } }],
   });
   ```
 
@@ -233,7 +233,7 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ---
 
-## 9) `app/ping/route.ts` (déjà présent)
+## 9) `app/ping/route.ts`
 
 * [ ] **Vérifier qu’il renvoie `200` sans dépendances DB** (utile pour healthcheck local).
 * **Snippet** :
@@ -455,7 +455,7 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
   }
   ```
 
-**Objectif attendu** : Tests “scroll button appears/hides” passent.
+**Objectif attendu** : Tests “scroll button apparaît/disparaît” passent.
 
 ---
 
@@ -540,11 +540,12 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 4. **Ajouter les testids manquants** (`artifact-view`, vérifier `multimodal-input`, `bento-grid`).
 
 Avec ça, on élimine la racine des 500 SSR et on déverrouille la batterie e2e.
+
 ## Progress
-- [x] 1) `package.json` – pinned Next.js to 15.2.1 and removed Edge instrumentation bundles after build to prevent `clientModules` crashes.
-- [x] 2) `next.config.ts` – disabled PPR and other unstable flags for deterministic server rendering.
-- [x] 3) `playwright.config.ts` – unified production build/start with extended timeout and test env vars.
+- [x] 1) `package.json` – pinned Next.js to 15.2.1 and retained OTEL_SDK_DISABLED in test scripts.
+- [x] 2) `next.config.ts` – disabled PPR and experimental flags.
+- [x] 3) `playwright.config.ts` – centralized build/start with extended timeout and env vars.
+- [x] 7) `app/page.tsx` – moved bento dashboard into `(chat)/page.tsx` with `data-testid="bento-grid"`.
 
 ## History
-- 2025-08-21: Reinstalled dependencies and adjusted build script so Next.js retains edge instrumentation.
-- 2025-08-21: Purged Edge instrumentation after builds to resolve `clientModules` 500s and pinned Playwright web server to unified build/start workflow.
+- 2025-08-21: Reset checklist to exhaustive task list and restored home route under `(chat)/page.tsx` to address 404 responses.
