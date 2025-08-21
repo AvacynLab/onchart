@@ -12,10 +12,10 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 1) `package.json`
 
-* [ ] **Fixer la version de Next.js sur une stable** (éviter le canary qui casse le SSR/RSC avec `clientModules`).
+* [x] **Fixer la version de Next.js sur une stable** (éviter le canary qui casse le SSR/RSC avec `clientModules`).
 
-  * [ ] Remplacer `next: 15.3.0-canary.31` par une **stable récente** (ex. `15.2.1`).
-  * [ ] Forcer via `overrides` (Yarn/Pnpm résolvent parfois des sous-dépendances canary).
+  * [x] Remplacer `next: 15.3.0-canary.31` par une **stable récente** (ex. `15.2.1`).
+  * [x] Forcer via `overrides` (Yarn/Pnpm résolvent parfois des sous-dépendances canary).
   * **Snippet** :
 
     ```json
@@ -34,8 +34,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
       }
     }
     ```
-* [ ] **Supprimer le “double build”** pendant la CI (on laisse Playwright builder/démarrer le server via `webServer.command`).
-* [ ] **Garder `OTEL_SDK_DISABLED=1`** dans `test:e2e` pour réduire le bruit réseau et stabiliser les temps.
+* [x] **Supprimer le “double build”** pendant la CI (on laisse Playwright builder/démarrer le server via `webServer.command`).
+* [x] **Garder `OTEL_SDK_DISABLED=1`** dans `test:e2e` pour réduire le bruit réseau et stabiliser les temps.
 
 **Objectif attendu** : Plus d’erreur `Cannot read properties of undefined (reading 'clientModules')` au SSR ; temps e2e plus stable.
 
@@ -43,8 +43,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 2) `next.config.ts`
 
-* [ ] **Désactiver explicitement PPR et autres flags expérimentaux** (source majeure d’instabilité en canary).
-* [ ] **Ne pas utiliser `output: 'standalone'`** pendant la CI e2e (ça brouille les chemins du manifeste RSC).
+* [x] **Désactiver explicitement PPR et autres flags expérimentaux** (source majeure d’instabilité en canary).
+* [x] **Ne pas utiliser `output: 'standalone'`** pendant la CI e2e (ça brouille les chemins du manifeste RSC).
 * **Snippet** :
 
   ```ts
@@ -67,9 +67,9 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 3) `playwright.config.ts`
 
-* [ ] **Centraliser build + start** dans `webServer` (supprimer build ailleurs).
-* [ ] **Ajouter un timeout suffisant** (180s mini) pour le cold build.
-* [ ] **Activer `reuseExistingServer` en local** (plus rapide).
+* [x] **Centraliser build + start** dans `webServer` (supprimer build ailleurs).
+* [x] **Ajouter un timeout suffisant** (180s mini) pour le cold build.
+* [x] **Activer `reuseExistingServer` en local** (plus rapide).
 * **Snippet** :
 
   ```ts
@@ -97,8 +97,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 4) `scripts/ci/ensure-no-ppr.sh` (ou créer ce fichier)
 
-* [ ] **Corriger l’usage de `git grep`** (ordre des args & exclusions).
-* [ ] **Échouer le job si `experimental_ppr = true` ou `ppr: true` hors `next.config.ts`.**
+* [x] **Corriger l’usage de `git grep`** (ordre des args & exclusions).
+* [x] **Échouer le job si `experimental_ppr = true` ou `ppr: true` hors `next.config.ts`.**
 * **Snippet** :
 
   ```bash
@@ -126,8 +126,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 5) `components/artifact/ArtifactViewer.tsx`
 
-* [ ] **Exposer un `data-testid="artifact-view"`** sur le conteneur du canvas (les tests e2e l’attendent).
-* [ ] **S’assurer que le canvas est monté avant l’interaction** (utiliser `useEffect`/`requestAnimationFrame` si besoin).
+* [x] **Exposer un `data-testid="artifact-view"`** sur le conteneur du canvas (les tests e2e l’attendent).
+* [x] **S’assurer que le canvas est monté avant l’interaction** (utiliser `useEffect`/`requestAnimationFrame` si besoin).
 * **Snippet** :
 
   ```tsx
@@ -162,7 +162,7 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 6) `components/chat/MultimodalInput.tsx` (ou équivalent)
 
-* [ ] **Vérifier/ajouter `data-testid="multimodal-input"`** sur la racine du champ d’entrée utilisé par la home/chat.
+* [x] **Vérifier/ajouter `data-testid="multimodal-input"`** sur la racine du champ d’entrée utilisé par la home/chat.
 * **Snippet (exemple générique)** :
 
   ```tsx
@@ -193,8 +193,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 7) `app/page.tsx` (ou `app/(home)/page.tsx`)
 
-* [ ] **Garantir la présence de `data-testid="bento-grid"`** sur la grille d’accueil.
-* [ ] **Limiter l’hydratation à ce qui est nécessaire** (éviter d’inclure des comps client non indispensables au fold).
+* [x] **Garantir la présence de `data-testid="bento-grid"`** sur la grille d’accueil.
+* [x] **Limiter l’hydratation à ce qui est nécessaire** (éviter d’inclure des comps client non indispensables au fold).
 * **Snippet** :
 
   ```tsx
@@ -219,8 +219,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 8) `tests/pages/chat.ts`
 
-* [ ] **Ne pas “masquer” un vrai problème d’app** : conserver l’attente stricte de `multimodal-input`.
-* [ ] **Optionnel** : ajouter un `page.waitForURL('**/', { waitUntil: 'domcontentloaded' })` juste après `goto('/')` pour fiabiliser les temps d’attente, **sans** relâcher la contrainte de présence du testid.
+* [x] **Ne pas “masquer” un vrai problème d’app** : conserver l’attente stricte de `multimodal-input`.
+* [x] **Optionnel** : ajouter un `page.waitForURL('**/', { waitUntil: 'domcontentloaded' })` juste après `goto('/')` pour fiabiliser les temps d’attente, **sans** relâcher la contrainte de présence du testid.
 * **Snippet (ajout minimal)** :
 
   ```ts
@@ -524,9 +524,9 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 # 🧪 Plan de validation final
 
-* [ ] `pnpm i && pnpm build` → **Next 15.2.x** affiché ; plus de 500 au SSR.
+* [x] `pnpm i && pnpm build` → **Next 15.2.x** affiché ; plus de 500 au SSR.
 * [ ] `pnpm start -p 3110` → **GET `/` = 200** (console sans `clientModules`).
-* [ ] `pnpm test:unit` → **vert** (déjà OK).
+* [x] `pnpm test:unit` → **vert** (déjà OK).
 * [ ] `pnpm test:e2e` → plus de timeouts `multimodal-input` ; les scénarios artifacts/chat/dashboard passent.
 * [ ] Re-lancer CI → tous les jobs verts (unit + e2e).
 
@@ -545,7 +545,12 @@ Avec ça, on élimine la racine des 500 SSR et on déverrouille la batterie e2e.
 - [x] 1) `package.json` – pinned Next.js to 15.2.1 and retained OTEL_SDK_DISABLED in test scripts.
 - [x] 2) `next.config.ts` – disabled PPR and experimental flags.
 - [x] 3) `playwright.config.ts` – centralized build/start with extended timeout and env vars.
-- [x] 7) `app/page.tsx` – moved bento dashboard into `(chat)/page.tsx` with `data-testid="bento-grid"`.
+- [x] 4) `scripts/ci/ensure-no-ppr.sh` – added guard to block accidental PPR flags.
+- [x] 5) `components/artifact/ArtifactViewer.tsx` – exposed `artifact-view` hook and deferred chart init.
+- [x] 6) `components/chat/MultimodalInput.tsx` – surfaced stable `multimodal-input` test id.
+- [x] 7) `app/page.tsx` – kept bento dashboard under `(chat)/page.tsx` with `data-testid="bento-grid"`.
+- [x] 8) `tests/pages/chat.ts` – enforced `waitForURL` plus strict `multimodal-input` visibility.
 
 ## History
 - 2025-08-21: Reset checklist to exhaustive task list and restored home route under `(chat)/page.tsx` to address 404 responses.
+- 2025-08-21: Pinned Next.js to 15.2.1, disabled PPR, streamlined Playwright build/start, and added `artifact-view` and `multimodal-input` hooks; unit tests and build pass, but `/` still responds 404 and e2e tests remain pending.
