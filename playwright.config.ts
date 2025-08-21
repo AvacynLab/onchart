@@ -89,7 +89,7 @@ export default defineConfig({
       OTEL_SDK_DISABLED: '1',
       NEXTAUTH_URL: baseURL,
       AUTH_TRUST_HOST: '1',
-      NEXTAUTH_SECRET: 'test-secret',
+      AUTH_SECRET: 'test-secret',
       PORT: String(PORT),
       NEXT_INTL_CONFIG: './next-intl.config.ts',
     },
