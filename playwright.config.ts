@@ -94,8 +94,10 @@ export default defineConfig({
       PORT: String(PORT),
       NEXT_INTL_CONFIG: './next-intl.config.ts',
     },
-    // Allow plenty of time for the initial production build on cold CI
-    // runners.
-    timeout: 180_000,
+    // Allow generous time for the initial production build on resource-constrained
+    // CI runners. The full Next.js compile can occasionally exceed three
+    // minutes, so extend the readiness timeout to ten minutes to avoid
+    // premature failures before tests even begin.
+    timeout: 600_000,
   },
 });
