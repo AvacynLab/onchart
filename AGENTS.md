@@ -12,12 +12,12 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 1) `package.json`
 
-* [ ] **Fixer la version de Next.js sur une stable** (éviter le canary qui casse le SSR/RSC avec `clientModules`).
+* [x] **Fixer la version de Next.js sur une stable** (éviter le canary qui casse le SSR/RSC avec `clientModules`).
 
-  * [ ] Remplacer `next: 15.3.0-canary.31` par une **stable récente** (ex. `15.2.1`).
-  * [ ] Forcer via `overrides` (Yarn/Pnpm résolvent parfois des sous-dépendances canary).
-  * [ ] Supprimer le “double build” pendant la CI (on laisse Playwright builder/démarrer le server via `webServer.command`).
-  * [ ] **Garder `OTEL_SDK_DISABLED=1`** dans `test:e2e` pour réduire le bruit réseau et stabiliser les temps.
+  * [x] Remplacer `next: 15.3.0-canary.31` par une **stable récente** (ex. `15.2.1`).
+  * [x] Forcer via `overrides` (Yarn/Pnpm résolvent parfois des sous-dépendances canary).
+  * [x] Supprimer le “double build” pendant la CI (on laisse Playwright builder/démarrer le server via `webServer.command`).
+  * [x] **Garder `OTEL_SDK_DISABLED=1`** dans `test:e2e` pour réduire le bruit réseau et stabiliser les temps.
 
   * **Snippet** :
 
@@ -37,8 +37,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
       }
     }
     ```
-* [ ] **Supprimer le “double build”** pendant la CI (on laisse Playwright builder/démarrer le server via `webServer.command`).
-* [ ] **Garder `OTEL_SDK_DISABLED=1`** dans `test:e2e` pour réduire le bruit réseau et stabiliser les temps.
+* [x] **Supprimer le “double build”** pendant la CI (on laisse Playwright builder/démarrer le server via `webServer.command`).
+* [x] **Garder `OTEL_SDK_DISABLED=1`** dans `test:e2e` pour réduire le bruit réseau et stabiliser les temps.
 
 **Objectif attendu** : Plus d’erreur `Cannot read properties of undefined (reading 'clientModules')` au SSR ; temps e2e plus stable.
 
@@ -46,8 +46,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 2) `next.config.ts`
 
-* [ ] **Désactiver explicitement PPR et autres flags expérimentaux** (source majeure d’instabilité en canary).
-* [ ] **Ne pas utiliser `output: 'standalone'`** pendant la CI e2e (ça brouille les chemins du manifeste RSC).
+* [x] **Désactiver explicitement PPR et autres flags expérimentaux** (source majeure d’instabilité en canary).
+* [x] **Ne pas utiliser `output: 'standalone'`** pendant la CI e2e (ça brouille les chemins du manifeste RSC).
 * **Snippet** :
 
   ```ts
@@ -70,9 +70,9 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 3) `playwright.config.ts`
 
-* [ ] **Centraliser build + start** dans `webServer` (supprimer build ailleurs).
-* [ ] **Ajouter un timeout suffisant** (180s mini) pour le cold build.
-* [ ] **Activer `reuseExistingServer` en local** (plus rapide).
+* [x] **Centraliser build + start** dans `webServer` (supprimer build ailleurs).
+* [x] **Ajouter un timeout suffisant** (180s mini) pour le cold build.
+* [x] **Activer `reuseExistingServer` en local** (plus rapide).
 * **Snippet** :
 
   ```ts
@@ -100,8 +100,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 4) `scripts/ci/ensure-no-ppr.sh` (ou créer ce fichier)
 
-* [ ] **Corriger l’usage de `git grep`** (ordre des args & exclusions).
-* [ ] **Échouer le job si `experimental_ppr = true` ou `ppr: true` hors `next.config.ts`.**
+* [x] **Corriger l’usage de `git grep`** (ordre des args & exclusions).
+* [x] **Échouer le job si `experimental_ppr = true` ou `ppr: true` hors `next.config.ts`.**
 * **Snippet** :
 
   ```bash
@@ -129,8 +129,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 5) `components/artifact/ArtifactViewer.tsx`
 
-* [ ] **Exposer un `data-testid="artifact-view"`** sur le conteneur du canvas (les tests e2e l’attendent).
-* [ ] **S’assurer que le canvas est monté avant l’interaction** (utiliser `useEffect`/`requestAnimationFrame` si besoin).
+* [x] **Exposer un `data-testid="artifact-view"`** sur le conteneur du canvas (les tests e2e l’attendent).
+* [x] **S’assurer que le canvas est monté avant l’interaction** (utiliser `useEffect`/`requestAnimationFrame` si besoin).
 * **Snippet** :
 
   ```tsx
@@ -165,7 +165,7 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 6) `components/chat/MultimodalInput.tsx` (ou équivalent)
 
-* [ ] **Vérifier/ajouter `data-testid="multimodal-input"`** sur la racine du champ d’entrée utilisé par la home/chat.
+* [x] **Vérifier/ajouter `data-testid="multimodal-input"`** sur la racine du champ d’entrée utilisé par la home/chat.
 * **Snippet (exemple générique)** :
 
   ```tsx
@@ -196,7 +196,7 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 7) `app/page.tsx` (ou `app/(home)/page.tsx`)
 
-* [ ] **Garantir la présence de `data-testid="bento-grid"`** sur la grille d’accueil.
+* [x] **Garantir la présence de `data-testid="bento-grid"`** sur la grille d’accueil.
 * [ ] **Limiter l’hydratation à ce qui est nécessaire** (éviter d’inclure des comps client non indispensables au fold).
 * **Snippet** :
 
@@ -222,7 +222,7 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## 8) `tests/pages/chat.ts`
 
-* [ ] **Ne pas “masquer” un vrai problème d’app** : conserver l’attente stricte de `multimodal-input`.
+* [x] **Ne pas “masquer” un vrai problème d’app** : conserver l’attente stricte de `multimodal-input`.
 * [ ] **Optionnel** : ajouter un `page.waitForURL('**/', { waitUntil: 'domcontentloaded' })` juste après `goto('/')` pour fiabiliser les temps d’attente, **sans** relâcher la contrainte de présence du testid.
 * **Snippet (ajout minimal)** :
 
@@ -543,3 +543,9 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 4. **Ajouter les testids manquants** (`artifact-view`, vérifier `multimodal-input`, `bento-grid`).
 
 Avec ça, on élimine la racine des 500 SSR et on déverrouille la batterie e2e.
+
+---
+
+## Historique
+
+- 2024-11-07 : Pinned Next.js to 15.2.1, disabled PPR, unified Playwright build/start, added `artifact-view` and `multimodal-input` test hooks.

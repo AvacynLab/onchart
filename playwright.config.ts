@@ -79,7 +79,10 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: `pnpm dev -p ${PORT}`,
+    // Build the production bundle and start Next.js on the test port. Using a
+    // single command ensures Playwright waits for the server to become ready
+    // before executing tests and avoids double-build scenarios.
+    command: `rm -rf .next && PLAYWRIGHT=True pnpm build && PLAYWRIGHT=True pnpm start -p ${PORT}`,
     url: `${baseURL}/ping`,
     reuseExistingServer: !process.env.CI,
     env: {
@@ -91,6 +94,8 @@ export default defineConfig({
       PORT: String(PORT),
       NEXT_INTL_CONFIG: './next-intl.config.ts',
     },
-    timeout: 120_000,
+    // Allow plenty of time for the initial production build on cold CI
+    // runners.
+    timeout: 180_000,
   },
 });
