@@ -5,16 +5,16 @@ import { config } from 'dotenv';
 // loading heavy database libraries when the POSTGRES_URL is absent.
 config({ path: '.env.local' });
 
-// Exit early when no Postgres URL is configured or when the environment is
-// pointed at an SQLite database. This keeps builds fast in environments like
-// CI where a database may not be available and avoids noisy experimental
-// warnings from SQLite drivers.
-if (!process.env.POSTGRES_URL) {
+// Detect whether a Postgres database is configured. When absent we simply
+// log and skip running migrations rather than forcibly exiting the process.
+// This avoids surprising terminations when the script is imported as part of
+// a larger build or test pipeline.
+const postgresUrl = process.env.POSTGRES_URL;
+if (!postgresUrl) {
   const dbUrl = process.env.DATABASE_URL;
   if (dbUrl && (dbUrl.startsWith('file:') || dbUrl.startsWith('sqlite:')))
     console.log('DATABASE_URL uses SQLite; skipping migrations');
   else console.log('POSTGRES_URL is not defined; skipping migrations');
-  process.exit(0);
 }
 
 /**
@@ -63,9 +63,10 @@ export async function runMigrate() {
   }
 }
 
-// Run automatically unless explicitly skipped so local developers do not need
-// to remember to execute the migration script manually.
-if (!process.env.SKIP_AUTO_MIGRATE) {
+// Run automatically when a Postgres URL is present unless explicitly skipped
+// so local developers do not need to remember to execute the migration script
+// manually. If no database is configured we simply do nothing.
+if (postgresUrl && !process.env.SKIP_AUTO_MIGRATE) {
   runMigrate().catch((err) => {
     console.error('❌ Migration encountered an unexpected error');
     console.error(err);
