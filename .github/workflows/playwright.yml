@@ -67,6 +67,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Build application
+        run: pnpm build
+
       - name: Run Playwright tests
         # Executes unit, API, and E2E tests in headless mode.
         env:

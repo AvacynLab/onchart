@@ -551,8 +551,8 @@ Avec ça, on élimine la racine des 500 SSR et on déverrouille la batterie e2e.
 - [x] 7) `app/page.tsx` – kept bento dashboard under `(chat)/page.tsx` with `data-testid="bento-grid"`.
 - [x] 8) `tests/pages/chat.ts` – enforced `waitForURL` plus strict `multimodal-input` visibility.
 - [x] Switched Playwright and documentation to use port 3000 for e2e tests.
-- [ ] `pnpm start -p 3000` – still returns 404 with `UntrustedHost` errors unless NEXTAUTH_URL and AUTH_TRUST_HOST are set.
-- [ ] `pnpm test:e2e` – Playwright failed to start the web server on port 3000 (`EADDRINUSE`).
+- [ ] `pnpm start -p 3000` – succeeds when `NEXTAUTH_URL`, `AUTH_TRUST_HOST`, and `NEXT_INTL_CONFIG` are provided; missing env vars yield 404.
+- [ ] `pnpm test:e2e` – pending verification after removing the double build and reusing the prebuilt server.
 
 ## History
 - 2025-08-21: Reset checklist to exhaustive task list and restored home route under `(chat)/page.tsx` to address 404 responses.
@@ -560,3 +560,4 @@ Avec ça, on élimine la racine des 500 SSR et on déverrouille la batterie e2e.
 - 2025-08-21: Updated Playwright and docs to run the app on port 3000 for e2e.
 - 2025-08-21: Built the app successfully, but manual start on port 3000 and e2e tests yielded `UntrustedHost` and 400 static asset responses.
 - 2025-08-21: Adjusted Playwright to start the pre-built app on port 3000 and moved the build step to `pretest:e2e`.
+- 2025-08-21: Simplified `pretest:e2e` to avoid rebuilding and updated CI to build once before running tests.

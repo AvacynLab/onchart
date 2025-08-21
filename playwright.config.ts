@@ -83,7 +83,9 @@ export default defineConfig({
     // needs to wait for the server to become ready.
     command: `PLAYWRIGHT=True pnpm start -p ${PORT}`,
     url: `${baseURL}/ping`,
-    reuseExistingServer: !process.env.CI,
+    // Reuse any server already running on the target port so the test suite can
+    // connect to a preloaded instance in CI or local runs.
+    reuseExistingServer: true,
     env: {
       PLAYWRIGHT: 'True',
       OTEL_SDK_DISABLED: '1',
