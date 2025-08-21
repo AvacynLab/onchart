@@ -486,7 +486,7 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## A) Mélange RSC / Client Components
 
-* [ ] **Vérifier que tout composant utilisant état/effets est `use client`**.
+* [x] **Vérifier que tout composant utilisant état/effets est `use client`**.
 * [ ] **Éviter d’importer un client component depuis un server component sans `dynamic(..., { ssr: false })` si nécessaire.**
 * **Snippet (si composant client lourd dans page serveur)** :
 
@@ -505,7 +505,7 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## B) Runtime des routes
 
-* [ ] **Assigner `runtime = 'nodejs'`** pour toutes les routes qui utilisent des libs Node (streams, crypto non Web, etc.).
+* [x] **Assigner `runtime = 'nodejs'`** pour toutes les routes qui utilisent des libs Node (streams, crypto non Web, etc.).
 * **Snippet** :
 
   ```ts
@@ -518,8 +518,8 @@ J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
 
 ## C) Caches & TTL (finance)
 
-* [ ] **Conserver les TTL exacts testés** (intraday vs daily).
-* [ ] **Ne pas dériver la stratégie de cache pendant e2e** (risque d’usure réseau).
+* [x] **Conserver les TTL exacts testés** (intraday vs daily).
+* [x] **Ne pas dériver la stratégie de cache pendant e2e** (risque d’usure réseau).
 
 **But** : Maintenir les unit tests en vert et les e2e rapides.
 
@@ -550,3 +550,4 @@ Avec ça, on élimine la racine des 500 SSR et on déverrouille la batterie e2e.
 
 - 2024-11-07 : Pinned Next.js to 15.2.1, disabled PPR, unified Playwright build/start, added `artifact-view` and `multimodal-input` test hooks.
 - 2024-11-07 : Documented scroll-to-bottom threshold and marked telemetry/testid tasks as complete.
+- 2024-11-07 : Added missing `use client` directives and verified API routes run on the Node.js runtime.
