@@ -139,11 +139,12 @@ export async function POST(request: Request) {
   const locale =
     (request.headers.get('x-next-intl-locale') as 'fr' | 'en') || 'fr';
 
-  // In CI and Playwright-driven tests, bypass the expensive LLM streaming
-  // logic and return a lightweight stub so the endpoint responds immediately.
-  // This keeps e2e runs fast and deterministic without relying on external
-  // services.
-  if (process.env.PLAYWRIGHT === 'True' || process.env.CI) {
+  // During Playwright-driven end-to-end tests, bypass the expensive LLM
+  // streaming logic and return a lightweight stub so the endpoint responds
+  // immediately. Unit tests still exercise the full handler, even on CI,
+  // ensuring quota checks remain covered while e2e runs stay fast and
+  // deterministic.
+  if (process.env.PLAYWRIGHT === 'True') {
     return Response.json({ id: 'draft_test', createdAt: Date.now() });
   }
 

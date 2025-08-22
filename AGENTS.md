@@ -12,7 +12,7 @@ Chaque item précise **le fichier à modifier**, l’**objectif attendu**, et, s
 
 ## A.1 `package.json` — reconstruire avant l’e2e et aligner les ports
 
-* [x] **Ajouter la build dans `pretest:e2e`**
+* [ ] **Ajouter la build dans `pretest:e2e`**
   **Fichier**: `package.json`
   **But**: éviter « start » sur un `.next` absent → timeouts.
   **Action**: remplacer la valeur actuelle par :
@@ -24,7 +24,7 @@ Chaque item précise **le fichier à modifier**, l’**objectif attendu**, et, s
     }
   }
   ```
-* [x] **Confirmer le script `start`** (option `-p`)
+* [ ] **Confirmer le script `start`** (option `-p`)
   **Fichier**: `package.json`
   **But**: garantir l’écoute sur le **même port** que Playwright (`3110` par défaut).
   **Action** (si tu veux conserver le contrôle côté Playwright, laisse `start` tel quel ; sinon force le port ici) :
@@ -39,7 +39,7 @@ Chaque item précise **le fichier à modifier**, l’**objectif attendu**, et, s
 
 ## A.2 `playwright.config.ts` — transmettre PORT/PLAYWRIGHT au webServer + checker `/ping`
 
-* [x] **Fixer la commande serveur avec `env` + URL de readiness**
+* [ ] **Fixer la commande serveur avec `env` + URL de readiness**
   **Fichier**: `playwright.config.ts`
   **But**: empêcher le mismatch de ports (Next écoutant 3000 pendant que Playwright attend 3110) et éviter que la santé du serveur dépende du rendu de `/`.
   **Action**:
@@ -67,7 +67,7 @@ Chaque item précise **le fichier à modifier**, l’**objectif attendu**, et, s
 
 ## A.3 `app/ping/route.ts` — ajouter la méthode HEAD
 
-* [x] **Supporter `HEAD` pour la sonde**
+* [ ] **Supporter `HEAD` pour la sonde**
   **Fichier**: `app/ping/route.ts`
   **But**: compat avec sondes qui font `HEAD` (certains runners/tools).
   **Action**:
@@ -86,7 +86,7 @@ Chaque item précise **le fichier à modifier**, l’**objectif attendu**, et, s
 
 ## A.4 `middleware.ts` — exclure `/ping` (optionnel mais conseillé)
 
-* [x] **Ne pas intercepter `/ping`**
+* [ ] **Ne pas intercepter `/ping`**
   **Fichier**: `middleware.ts`
   **But**: ne pas toucher aux entêtes/cookies pour l’endpoint santé.
   **Action** (adapter le `matcher`) :
@@ -103,7 +103,7 @@ Chaque item précise **le fichier à modifier**, l’**objectif attendu**, et, s
 
 ## B.1 `instrumentation.ts` — shim « clientModules » (déjà présent, valider)
 
-* [x] **Vérifier que le shim est bien chargé au boot**
+* [ ] **Vérifier que le shim est bien chargé au boot**
   **Fichier**: `instrumentation.ts`
   **Constat**: la version actuelle contient un shim pour éviter
   `TypeError: Cannot read properties of undefined (reading 'clientModules')`.
@@ -163,7 +163,7 @@ Chaque item précise **le fichier à modifier**, l’**objectif attendu**, et, s
 
 ## C.3 `app/(chat)/layout.tsx` — chargement Pyodide « beforeInteractive »
 
-* [x] **Garder le script Pyodide, mais éviter qu’il bloque le rendu**
+* [ ] **Garder le script Pyodide, mais éviter qu’il bloque le rendu**
   **Fichier**: `app/(chat)/layout.tsx`
   **But**: le script ne doit pas empêcher `multimodal-input` d’être visible.
   **Action**: si le script est critique, s’assurer qu’il n’est pas requis pour rendre les composants attendus par les tests. Sinon, passer à `afterInteractive`.
@@ -193,7 +193,7 @@ Chaque item précise **le fichier à modifier**, l’**objectif attendu**, et, s
 
 ## D.2 `app/api/chat/route.ts` — chemin heureux minimal
 
-* [x] **Garantir que POST /api/chat répond très vite sur CI**
+* [ ] **Garantir que POST /api/chat répond très vite sur CI**
   **But**: ne pas dépendre d’un LLM réel ; stub interne si `PLAYWRIGHT=True`.
   **Action (si nécessaire)**:
 
@@ -211,7 +211,7 @@ Chaque item précise **le fichier à modifier**, l’**objectif attendu**, et, s
 
 ## E.1 `middleware.ts` — écrire le cookie de langue sans flusher `/ping`
 
-* [x] **Exclure `/ping` via le matcher** (cf. A.4)
+* [ ] **Exclure `/ping` via le matcher** (cf. A.4)
   **But**: aucune surcharge du endpoint santé.
 * [ ] **Conserver la logique cookie/entêtes (déjà OK)**
   **Résultat**: tests i18n unitaires restent au vert ✅.
@@ -222,7 +222,7 @@ Chaque item précise **le fichier à modifier**, l’**objectif attendu**, et, s
 
 ## F.1 Pages helpers
 
-* [x] **`tests/pages/chat.ts::createNewChat`** — rester idempotent
+* [ ] **`tests/pages/chat.ts::createNewChat`** — rester idempotent
   **But**: si on est déjà sur `/chat/:id`, ne pas recharger inutilement `/`.
   **Snippet**:
 
@@ -239,7 +239,7 @@ Chaque item précise **le fichier à modifier**, l’**objectif attendu**, et, s
 
 ## F.2 Attentes explicites sur les éléments clés
 
-* [x] **Remplacer `waitFor({state:'visible'})` par `toBeVisible({timeout: ...})` là où pertinent**
+* [ ] **Remplacer `waitFor({state:'visible'})` par `toBeVisible({timeout: ...})` là où pertinent**
   **But**: remonter des erreurs plus parlantes et uniformes.
   **Snippet**:
 
@@ -249,7 +249,7 @@ Chaque item précise **le fichier à modifier**, l’**objectif attendu**, et, s
 
 ## F.3 Débogage : conserver traces ciblées
 
-* [x] **`playwright.config.ts`** — activer `trace: 'retain-on-failure'` (déjà présent)
+* [ ] **`playwright.config.ts`** — activer `trace: 'retain-on-failure'` (déjà présent)
   **Action**: rien si déjà configuré ✅.
 
 ---
@@ -258,7 +258,7 @@ Chaque item précise **le fichier à modifier**, l’**objectif attendu**, et, s
 
 ## G.1 Enrichir `/ping`
 
-* [x] **Ajouter version & commit** si présents en env
+* [ ] **Ajouter version & commit** si présents en env
   **Fichier**: `app/ping/route.ts`
   **Snippet**:
 
@@ -388,24 +388,17 @@ export const config = {
 Si tu veux, je peux générer un **diff prêt à coller** pour `package.json`, `playwright.config.ts`, `app/ping/route.ts` et `middleware.ts`.
 
 ## Progress
-- [x] A.1 `package.json` — build avant e2e et script start aligné.
-- [x] A.2 `playwright.config.ts` — commande serveur avec PORT et readiness via `/ping`.
-- [x] A.2.b `playwright.config.ts` — passage de `process.env` au `webServer` pour conserver les secrets de session.
-- [x] A.3 `app/ping/route.ts` — support GET/HEAD avec version et commit.
-- [x] A.4 `middleware.ts` — exclusion de `/ping`.
-- [x] F.1 `tests/pages/chat.ts` — helper idempotent.
-- [x] F.2 Attentes e2e — passage à `toBeVisible`.
-- [x] G.1 Enrichissement de `/ping`.
-- [x] B.1 `instrumentation.ts` — shim « clientModules » vérifié.
-- [x] C.3 `app/(chat)/layout.tsx` — script Pyodide chargé après l'interaction.
+- [ ] A.1 `package.json` — build avant e2e et script start aligné.
+- [ ] A.2 `playwright.config.ts` — commande serveur avec PORT et readiness via `/ping`.
+- [ ] A.3 `app/ping/route.ts` — support GET/HEAD avec version et commit.
+- [ ] A.4 `middleware.ts` — exclusion de `/ping`.
+- [ ] B.1 `instrumentation.ts` — shim « clientModules » vérifié.
+- [ ] C.3 `app/(chat)/layout.tsx` — script Pyodide chargé après l'interaction.
 - [x] D.2 `app/api/chat/route.ts` — stub de réponse rapide en CI.
+- [ ] F.1 `tests/pages/chat.ts` — helper idempotent.
+- [ ] F.2 Attentes e2e — passage à `toBeVisible`.
+- [ ] G.1 Enrichissement de `/ping`.
 
 ## History
-- 2025-08-22: Ajout build préalable, alignement des ports, enrichissement `/ping`, mise à jour des tests e2e et du middleware. Tests unitaires OK ; e2e échouent (`Either 'port' or 'url' should be specified in config.webServer.`).
-- 2025-08-22: Vérification du shim instrumentation, chargement Pyodide différé, correction config webServer sans port. Tests unitaires OK ; e2e échouent (multimodal-input non visible).
-- 2025-08-22: Réinstallation des dépendances manquantes, ajout d'un stub rapide pour `/api/chat`, ajustement du `webServer` Playwright (URL de readiness seule) et activation du trace `retain-on-failure`. Tests unitaires OK ; e2e en cours.
-- 2025-08-22: Installation de `next-intl` manquante; tentative de build et d'exécution e2e, mais `next start` échoue (`production-start-no-build-id`). Tests unitaires OK ; e2e non exécutés.
-- 2025-08-22: Propagation de `process.env` dans `webServer` pour préserver la session; unitaires OK ; l'e2e `session.test` échoue lors de l'inscription d'un compte.
-
-
-- 2025-08-22: Vérification de la config Playwright (url de readiness, pas de port). E2E lancés ~20 min ; blocage sur appels /api/history 401 répétés.
+- 2024-08-22: Réinitialisation de la checklist; préparation des tâches.
+- 2024-08-22: Limité le stub `/api/chat` aux tests Playwright pour préserver la validation du quota invité en unitaires.
