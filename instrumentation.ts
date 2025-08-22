@@ -37,6 +37,14 @@ export const clientModules: string[] = [];
  * side effects or dependencies.
  */
 export async function register(): Promise<void> {
+  const g = globalThis as any;
+  // Ensure Next.js globals expected by the runtime exist.  The properties are
+  // created only when absent so the shim remains side‑effect free if Next.js
+  // starts providing them natively in future releases.
+  g.__next_require__ ??= {};
+  g.__next_require__.clientModules ??= new Map();
+  g.clientModules ??= g.__next_require__.clientModules;
+
   // Initialise telemetry only when allowed by the environment. The helper
   // performs its own guards so this call is safe in all contexts, including
   // local development and test runs where telemetry is disabled.

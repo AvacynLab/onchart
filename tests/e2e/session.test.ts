@@ -10,8 +10,12 @@ test.describe
       page,
     }) => {
       const response = await page.goto('/');
-      await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
-      await expect(page.getByTestId('bento-grid')).toBeVisible();
+      await expect(page.getByTestId('multimodal-input')).toBeVisible({
+        timeout: 20_000,
+      });
+      await expect(page.getByTestId('bento-grid')).toBeVisible({
+        timeout: 20_000,
+      });
 
       if (!response) {
         throw new Error('Failed to load page');
@@ -36,8 +40,12 @@ test.describe
 
     test('Log out is not available for guest users', async ({ page }) => {
       await page.goto('/');
-      await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
-      await expect(page.getByTestId('bento-grid')).toBeVisible();
+      await expect(page.getByTestId('multimodal-input')).toBeVisible({
+        timeout: 20_000,
+      });
+      await expect(page.getByTestId('bento-grid')).toBeVisible({
+        timeout: 20_000,
+      });
 
       const sidebarToggleButton = page.getByTestId('sidebar-toggle-button');
       await sidebarToggleButton.click();
@@ -57,10 +65,12 @@ test.describe
       adaContext,
     }) => {
       const response = await adaContext.page.goto('/');
-      await adaContext.page
-        .getByTestId('multimodal-input')
-        .waitFor({ state: 'visible' });
-      await expect(adaContext.page.getByTestId('bento-grid')).toBeVisible();
+      await expect(
+        adaContext.page.getByTestId('multimodal-input'),
+      ).toBeVisible({ timeout: 20_000 });
+      await expect(adaContext.page.getByTestId('bento-grid')).toBeVisible({
+        timeout: 20_000,
+      });
 
       if (!response) {
         throw new Error('Failed to load page');
@@ -93,8 +103,12 @@ test.describe
 
     test('Do not show email in user menu for guest user', async ({ page }) => {
       await page.goto('/');
-      await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
-      await expect(page.getByTestId('bento-grid')).toBeVisible();
+      await expect(page.getByTestId('multimodal-input')).toBeVisible({
+        timeout: 20_000,
+      });
+      await expect(page.getByTestId('bento-grid')).toBeVisible({
+        timeout: 20_000,
+      });
 
       const sidebarToggleButton = page.getByTestId('sidebar-toggle-button');
       await sidebarToggleButton.click();

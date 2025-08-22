@@ -34,7 +34,8 @@ export function middleware(request: NextRequest) {
   return response;
 }
 
-// Avoid intercepting Next.js internals, API routes or static assets.
+// Avoid intercepting Next.js internals, API routes, static assets, or the
+// `/ping` healthcheck used by Playwright.
 export const config = {
-  matcher: ['/((?!api|_next|.*\\..*).*)'],
+  matcher: ['/((?!api|_next|ping|.*\\..*).*)'],
 };

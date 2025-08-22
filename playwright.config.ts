@@ -12,10 +12,10 @@ config({
 // vCPUs).
 const WORKERS = os.cpus().length >= 4 ? 4 : 2;
 
-// Use the conventional Next.js development port so Playwright interacts with
-// the application exactly as local users would. Both the readiness probe and
-// the Next.js server receive this explicit value to stay in sync.
-const PORT = Number(process.env.PORT) || 3000;
+// Use a fixed port so the Next.js server and Playwright remain in sync. The
+// default mirrors Playwright's 3110 but can be overridden via the PORT
+// environment variable.
+const PORT = Number.parseInt(process.env.PORT ?? '', 10) || 3110;
 
 // Base URL points to the server root and remains unchanged when switching
 // locales. Language negotiation relies on cookies or headers rather than path
@@ -54,7 +54,7 @@ export default defineConfig({
     extraHTTPHeaders: { 'Accept-Language': 'fr' },
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },
@@ -78,25 +78,19 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    // Start the pre-built production server on the test port. The build is
-    // executed ahead of time by the `pretest:e2e` script so Playwright only
-    // needs to wait for the server to become ready.
-    command: `PLAYWRIGHT=True pnpm start -p ${PORT}`,
-    url: `${baseURL}/ping`,
-    // Reuse any server already running on the target port so the test suite can
-    // connect to a preloaded instance in CI or local runs.
-    reuseExistingServer: true,
-    env: {
-      PLAYWRIGHT: 'True',
-      OTEL_SDK_DISABLED: '1',
-      NEXTAUTH_URL: baseURL,
-      AUTH_TRUST_HOST: '1',
-      AUTH_SECRET: 'test-secret',
-      PORT: String(PORT),
-      NEXT_INTL_CONFIG: './next-intl.config.ts',
-    },
-    // Allow generous time for the server to boot on resource-constrained
-    // CI runners.
+    // Start the production server on the designated port. The application is
+    // built beforehand by the `pretest:e2e` script so the server only needs to
+    // become ready. Only the readiness `url` is provided because Playwright
+    // requires either `port` or `url` (not both) in `config.webServer`.
+    command: `pnpm start -p ${PORT}`,
+    reuseExistingServer: !process.env.CI,
     timeout: 600_000,
+    // Probe the lightweight `/ping` endpoint to ensure readiness instead of
+    // relying on the full application shell.
+    url: `http://localhost:${PORT}/ping`,
+    env: {
+      PORT: String(PORT),
+      PLAYWRIGHT: 'True',
+    },
   },
 });
