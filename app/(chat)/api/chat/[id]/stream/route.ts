@@ -11,6 +11,9 @@ import { createUIMessageStream, JsonToSseTransformStream } from 'ai';
 import { getStreamContext } from '../../route';
 import { differenceInSeconds } from 'date-fns';
 
+// Explicitly run on Node.js to access streaming APIs reliably.
+export const runtime = 'nodejs';
+
 export async function GET(
   _: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -19,9 +22,15 @@ export async function GET(
 
   const streamContext = getStreamContext();
   const resumeRequestedAt = new Date();
+  const emptyDataStream = createUIMessageStream<ChatMessage>({
+    execute: () => {},
+  });
 
+  // Always respond with a valid SSE stream even when resumable streams are
+  // disabled (e.g. in CI where the provider is mocked) so clients do not hang
+  // waiting for a connection.
   if (!streamContext) {
-    return new Response(null, { status: 204 });
+    return new Response(emptyDataStream, { status: 200 });
   }
 
   if (!chatId) {
@@ -61,10 +70,6 @@ export async function GET(
   if (!recentStreamId) {
     return new ChatSDKError('not_found:stream').toResponse();
   }
-
-  const emptyDataStream = createUIMessageStream<ChatMessage>({
-    execute: () => {},
-  });
 
   const stream = await streamContext.resumableStream(recentStreamId, () =>
     emptyDataStream.pipeThrough(new JsonToSseTransformStream()),

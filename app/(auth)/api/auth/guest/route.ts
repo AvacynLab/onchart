@@ -3,6 +3,10 @@ import { isDevelopmentEnvironment } from '@/lib/constants';
 import { getToken } from 'next-auth/jwt';
 import { NextResponse } from 'next/server';
 
+// NextAuth depends on Node.js primitives; force the Node runtime to ensure the
+// JWT helper and cookies work reliably across platforms.
+export const runtime = 'nodejs';
+
 /**
  * Authenticate as a guest user. When a session already exists, simply redirect
  * to the dashboard. Otherwise, delegate to NextAuth which issues the session

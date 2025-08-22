@@ -3,6 +3,10 @@ import type { NextRequest } from 'next/server';
 import { getChatsByUserId } from '@/lib/db/queries';
 import { ChatSDKError } from '@/lib/errors';
 
+// Database access requires Node.js features; ensure this route executes on the
+// Node runtime.
+export const runtime = 'nodejs';
+
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
 

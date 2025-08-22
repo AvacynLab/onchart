@@ -67,8 +67,7 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Build
-        # Ensure the Next.js app compiles before executing tests.
+      - name: Build application
         run: pnpm build
 
       - name: Run Playwright tests

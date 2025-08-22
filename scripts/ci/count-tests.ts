@@ -15,12 +15,18 @@ function walk(dir: string): string[] {
 // not match the simple `test(` regex.
 const files = walk(join(process.cwd(), 'tests'));
 let count = 0;
+let skipped = 0;
 for (const file of files) {
   // Only scan TypeScript sources; other files (e.g. fixtures) cannot contain
   // tests.
   if (!file.endsWith('.ts') && !file.endsWith('.tsx')) continue;
-  const matches = readFileSync(file, 'utf8').match(/^\s*test\(/gm);
+  const content = readFileSync(file, 'utf8');
+  const matches = content.match(/^\s*test\(/gm);
   if (matches) count += matches.length;
+  skipped += (content.match(/test\.skip\(/g) || []).length;
+  skipped += (content.match(/test\.fixme\(/g) || []).length;
+  skipped += (content.match(/describe\.skip\(/g) || []).length;
+  skipped += (content.match(/describe\.fixme\(/g) || []).length;
 }
 
 const MIN = 80;
@@ -28,3 +34,5 @@ if (count < MIN) {
   console.error(`Expected at least ${MIN} tests, found ${count}`);
   process.exit(1);
 }
+
+console.log(`Detected ${count} tests${skipped ? ` (${skipped} skipped)` : ''}.`);

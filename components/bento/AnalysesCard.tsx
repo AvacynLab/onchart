@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import type { Artifact } from '@/components/artifact/ArtifactViewer';
 import { createChatDraft } from '@/lib/chat/create-chat';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 
 // Lazily load the artifact viewer on the client only so heavyweight charting
 // libraries are excluded from the server bundle.
@@ -110,12 +111,11 @@ export function AnalysesCard() {
         Continuer avec l’agent
       </button>
       {viewer && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center"
-          data-testid="artifact-view"
-        >
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
           <div className="bg-white dark:bg-neutral-900 p-4 rounded max-w-lg w-full">
-            <ArtifactViewer artifact={viewer} />
+            <ErrorBoundary>
+              <ArtifactViewer artifact={viewer} />
+            </ErrorBoundary>
             <button
               type="button"
               className="mt-2 text-sm underline"

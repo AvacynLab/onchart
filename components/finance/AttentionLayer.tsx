@@ -1,4 +1,5 @@
 // @ts-nocheck
+'use client'; // Required to handle chart annotations on the client
 import React, { useEffect, useState, useRef } from 'react';
 import type { IChartApi, ISeriesApi } from 'lightweight-charts';
 import { subscribeUIEvents, type UIEvent } from '../../lib/ui/events';

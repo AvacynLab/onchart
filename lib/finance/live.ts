@@ -3,6 +3,7 @@ import { getCache, setCache, INTRADAY_TTL_MS } from './cache';
 import { fetchWithRetry } from './request';
 import { DataSourceError } from './errors';
 import { headers } from 'next/headers.js';
+import { getBaseUrl } from '@/lib/utils/getBaseUrl';
 
 /** Determine if the given symbol should be treated as a crypto pair. */
 export function isCryptoSymbol(symbol: string): boolean {
@@ -111,18 +112,7 @@ async function fetchQuoteWithRetry(
   // SSR environments the host information is surfaced via the forwarded
   // headers. If absent (e.g. local tests) fall back to the Vercel URL in
   // production or localhost in development.
-  const h = typeof window === 'undefined' ? await getHeaders() : null;
-  const baseUrl = typeof window === 'undefined'
-    ? (() => {
-        const proto = h?.get('x-forwarded-proto');
-        const host = h?.get('x-forwarded-host');
-        if (proto && host) return `${proto}://${host}`;
-        if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_VERCEL_URL) {
-          return `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`;
-        }
-        return 'http://localhost:3000';
-      })()
-    : '';
+  const baseUrl = typeof window === 'undefined' ? await getBaseUrl(getHeaders) : '';
 
   const url = `${baseUrl}/api/finance/quote?symbol=${encodeURIComponent(symbol)}`;
 

@@ -16,7 +16,7 @@ export class ArtifactPage {
   }
 
   public get multimodalInput() {
-    return this.page.getByTestId('multimodal-input');
+    return this.page.getByTestId('multimodal-input').locator('textarea');
   }
 
   async isGenerationComplete() {
@@ -28,8 +28,11 @@ export class ArtifactPage {
   }
 
   async sendUserMessage(message: string) {
-    await this.artifact.getByTestId('multimodal-input').click();
-    await this.artifact.getByTestId('multimodal-input').fill(message);
+    await this.artifact.getByTestId('multimodal-input').locator('textarea').click();
+    await this.artifact
+      .getByTestId('multimodal-input')
+      .locator('textarea')
+      .fill(message);
     await this.artifact.getByTestId('send-button').click();
   }
 

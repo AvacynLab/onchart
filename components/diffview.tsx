@@ -1,3 +1,4 @@
+'use client'; // Renders diff editor in the browser
 import OrderedMap from 'orderedmap';
 import {
   Schema,

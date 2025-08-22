@@ -115,9 +115,23 @@ function ChartViewer({
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+
     let chart: any;
     let series: any;
-    (async () => {
+
+    // Initialise the chart on the next animation frame to ensure the DOM
+    // container has been laid out. Without this some tests could attempt to
+    // interact with a canvas that has zero dimensions.
+    const raf: typeof requestAnimationFrame =
+      typeof requestAnimationFrame === 'function'
+        ? requestAnimationFrame
+        : (cb: FrameRequestCallback) => cb(0);
+    const caf: typeof cancelAnimationFrame =
+      typeof cancelAnimationFrame === 'function'
+        ? cancelAnimationFrame
+        : clearTimeout;
+
+    const frameId = raf(async () => {
       const creator =
         createChartFn ?? (await import('lightweight-charts')).createChart;
       chart = creator(el, {
@@ -198,9 +212,10 @@ function ChartViewer({
           });
         }
       });
-    })();
+    });
 
     return () => {
+      caf(frameId as any);
       chart?.remove?.();
       chartRef.current = null;
       seriesRef.current = null;
@@ -215,7 +230,7 @@ function ChartViewer({
 
   return (
     <div className="flex flex-col">
-      <div ref={containerRef} className="h-64" />
+      <div ref={containerRef} className="h-64" data-testid="artifact-view" />
       <button
         type="button"
         onClick={openInChat}

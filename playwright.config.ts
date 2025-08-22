@@ -12,11 +12,10 @@ config({
 // vCPUs).
 const WORKERS = os.cpus().length >= 4 ? 4 : 2;
 
-// Use a fixed, rarely used port during tests to avoid conflicts with any
-// background dev servers that may already occupy port 3000. Both Playwright's
-// readiness probe and the Next.js server receive this explicit value so they
-// stay in sync.
-const PORT = Number(process.env.PORT || 3110);
+// Use the conventional Next.js development port so Playwright interacts with
+// the application exactly as local users would. Both the readiness probe and
+// the Next.js server receive this explicit value to stay in sync.
+const PORT = Number(process.env.PORT) || 3000;
 
 // Base URL points to the server root and remains unchanged when switching
 // locales. Language negotiation relies on cookies or headers rather than path
@@ -55,7 +54,7 @@ export default defineConfig({
     extraHTTPHeaders: { 'Accept-Language': 'fr' },
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'retain-on-failure',
+    trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },
@@ -79,16 +78,25 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    // Rebuild with PLAYWRIGHT=True immediately before starting to guarantee
-    // the server uses a PPR-off artefact even if previous builds exist.
-    command:
-      `rm -rf .next && PLAYWRIGHT=True pnpm build && PLAYWRIGHT=True pnpm start -p ${PORT}`,
-    port: PORT,
-    // Always launch a fresh server to guarantee the prebuilt output is used
-    // and that no lingering process holds onto the test port.
-    reuseExistingServer: false,
-    env: { PLAYWRIGHT: 'True', OTEL_SDK_DISABLED: '1' },
-    // Allow extra time for the server to boot in constrained CI environments.
-    timeout: 300_000,
+    // Start the pre-built production server on the test port. The build is
+    // executed ahead of time by the `pretest:e2e` script so Playwright only
+    // needs to wait for the server to become ready.
+    command: `PLAYWRIGHT=True pnpm start -p ${PORT}`,
+    url: `${baseURL}/ping`,
+    // Reuse any server already running on the target port so the test suite can
+    // connect to a preloaded instance in CI or local runs.
+    reuseExistingServer: true,
+    env: {
+      PLAYWRIGHT: 'True',
+      OTEL_SDK_DISABLED: '1',
+      NEXTAUTH_URL: baseURL,
+      AUTH_TRUST_HOST: '1',
+      AUTH_SECRET: 'test-secret',
+      PORT: String(PORT),
+      NEXT_INTL_CONFIG: './next-intl.config.ts',
+    },
+    // Allow generous time for the server to boot on resource-constrained
+    // CI runners.
+    timeout: 600_000,
   },
 });

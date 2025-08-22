@@ -1,4 +1,5 @@
 // @ts-nocheck
+'use client'; // Uses React hooks for chart interactivity
 import React, {
   forwardRef,
   useCallback,

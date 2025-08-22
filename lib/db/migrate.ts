@@ -1,25 +1,45 @@
 import { config } from 'dotenv';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import { migrate } from 'drizzle-orm/postgres-js/migrator';
-import postgres from 'postgres';
 
-config({
-  path: '.env.local',
-});
+// Load environment variables from the local file so migrations can run outside
+// of production. This is intentionally the only top-level import to avoid
+// loading heavy database libraries when the POSTGRES_URL is absent.
+config({ path: '.env.local' });
 
+// Detect whether a Postgres database is configured. When absent we simply
+// log and skip running migrations rather than forcibly exiting the process.
+// This avoids surprising terminations when the script is imported as part of
+// a larger build or test pipeline.
+const postgresUrl = process.env.POSTGRES_URL;
+if (!postgresUrl) {
+  const dbUrl = process.env.DATABASE_URL;
+  if (dbUrl && (dbUrl.startsWith('file:') || dbUrl.startsWith('sqlite:')))
+    console.log('DATABASE_URL uses SQLite; skipping migrations');
+  else console.log('POSTGRES_URL is not defined; skipping migrations');
+}
+
+/**
+ * Run database migrations using drizzle's migrator. All heavyweight modules
+ * are imported dynamically so they are only evaluated when a database is
+ * actually configured.
+ */
 export async function runMigrate() {
-  // Skip migrations entirely when no Postgres URL is provided. This allows
-  // local development or CI environments without a database to build the
-  // project without failing during the migration step.
-  if (!process.env.POSTGRES_URL) {
-    console.warn('POSTGRES_URL is not defined; skipping migrations');
-    return;
-  }
+  // Lazily import database libraries to avoid paying their cost when no DB is
+  // present. This pattern keeps the module side-effect free unless explicitly
+  // executed.
+  const { drizzle } = await import('drizzle-orm/postgres-js');
+  const { migrate } = await import('drizzle-orm/postgres-js/migrator');
+  const postgres = (await import('postgres')).default;
 
   try {
+    // Resolve the connection string from the environment. The earlier guard
+    // ensures it exists, but we double-check here so TypeScript can safely
+    // infer a defined value without resorting to a non-null assertion.
+    const postgresUrl = process.env.POSTGRES_URL;
+    if (!postgresUrl) throw new Error('POSTGRES_URL must be defined');
+
     // The `connect_timeout` keeps failure fast when the database is
     // unreachable, avoiding long hangs in CI environments.
-    const connection = postgres(process.env.POSTGRES_URL, {
+    const connection = postgres(postgresUrl, {
       max: 1,
       connect_timeout: 1,
     });
@@ -43,9 +63,13 @@ export async function runMigrate() {
   }
 }
 
-if (!process.env.SKIP_AUTO_MIGRATE) {
+// Run automatically when a Postgres URL is present unless explicitly skipped
+// so local developers do not need to remember to execute the migration script
+// manually. If no database is configured we simply do nothing.
+if (postgresUrl && !process.env.SKIP_AUTO_MIGRATE) {
   runMigrate().catch((err) => {
     console.error('❌ Migration encountered an unexpected error');
     console.error(err);
   });
 }
+

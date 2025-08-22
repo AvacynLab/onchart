@@ -7,6 +7,9 @@ import {
 } from '@/lib/db/queries';
 import { ChatSDKError } from '@/lib/errors';
 
+// Document operations touch the database and require Node.js features.
+export const runtime = 'nodejs';
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
