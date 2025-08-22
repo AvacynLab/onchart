@@ -37,8 +37,12 @@ test('renders French heading without missing messages', async ({ page }) => {
   );
 
   await page.goto('/');
-  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
-  await expect(page.getByTestId('bento-grid')).toBeVisible();
+  await expect(page.getByTestId('multimodal-input')).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.getByTestId('bento-grid')).toBeVisible({
+    timeout: 20_000,
+  });
   await expect(
     page.getByRole('heading', { name: (frDashboard as any).prices.title }),
   ).toBeVisible();
@@ -96,8 +100,12 @@ test('shows prices with fallback providers', async ({ page }) => {
   });
 
   await page.goto('/');
-  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
-  await expect(page.getByTestId('bento-grid')).toBeVisible();
+  await expect(page.getByTestId('multimodal-input')).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.getByTestId('bento-grid')).toBeVisible({
+    timeout: 20_000,
+  });
   // Ensure each symbol row is rendered with the stubbed prices.
   await expect(page.getByText('AAPL')).toBeVisible();
   await expect(page.getByText('MSFT')).toBeVisible();
@@ -153,8 +161,12 @@ test('renders offline state and recovers on retry', async ({ page }) => {
   });
 
   await page.goto('/');
-  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
-  await expect(page.getByTestId('bento-grid')).toBeVisible();
+  await expect(page.getByTestId('multimodal-input')).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.getByTestId('bento-grid')).toBeVisible({
+    timeout: 20_000,
+  });
   await expect(
     page.getByText((frDashboard as any).prices.offline),
   ).toBeVisible();

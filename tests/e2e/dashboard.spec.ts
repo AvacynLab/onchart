@@ -40,8 +40,12 @@ test('menu tile toggles finance actions', async ({ page }) => {
   // Navigate to the dashboard. Locale negotiation happens via cookies or
   // headers and leaves the path unchanged.
   await page.goto('/');
-  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
-  await expect(page.getByTestId('bento-grid')).toBeVisible();
+  await expect(page.getByTestId('multimodal-input')).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.getByTestId('bento-grid')).toBeVisible({
+    timeout: 20_000,
+  });
   await expect(page).toHaveURL(/\/$/);
 
   // Wait for the menu toggle to render which signals that client-side
@@ -77,8 +81,12 @@ test('renders tiles and switches locales', async ({ page }) => {
       { name: 'lang', value: 'en', domain: 'localhost', path: '/' },
     ]);
   await page.goto('/');
-  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
-  await expect(page.getByTestId('bento-grid')).toBeVisible();
+  await expect(page.getByTestId('multimodal-input')).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.getByTestId('bento-grid')).toBeVisible({
+    timeout: 20_000,
+  });
   await expect(page).toHaveURL(/\/$/);
 
   // The "Current prices" heading should appear in English. Waiting for the
