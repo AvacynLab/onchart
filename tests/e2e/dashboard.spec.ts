@@ -40,7 +40,9 @@ test('menu tile toggles finance actions', async ({ page }) => {
   // Navigate to the dashboard. Locale negotiation happens via cookies or
   // headers and leaves the path unchanged.
   await page.goto('/');
-  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
+  await expect(page.getByTestId('multimodal-input')).toBeVisible({
+    timeout: 20_000,
+  });
   await expect(page.getByTestId('bento-grid')).toBeVisible();
   await expect(page).toHaveURL(/\/$/);
 
@@ -69,15 +71,15 @@ test('menu tile toggles finance actions', async ({ page }) => {
 test('renders tiles and switches locales', async ({ page }) => {
   // Force English via cookie before navigating so the server renders the page
   // in English on first load.
-  await page
-    .context()
-    .addCookies([
-      // Scope the cookie to localhost without locking the port so the test
-      // does not depend on the Playwright baseURL's port number.
-      { name: 'lang', value: 'en', domain: 'localhost', path: '/' },
-    ]);
+  await page.context().addCookies([
+    // Scope the cookie to localhost without locking the port so the test
+    // does not depend on the Playwright baseURL's port number.
+    { name: 'lang', value: 'en', domain: 'localhost', path: '/' },
+  ]);
   await page.goto('/');
-  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
+  await expect(page.getByTestId('multimodal-input')).toBeVisible({
+    timeout: 20_000,
+  });
   await expect(page.getByTestId('bento-grid')).toBeVisible();
   await expect(page).toHaveURL(/\/$/);
 

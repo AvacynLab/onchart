@@ -1,7 +1,25 @@
-// Simple healthcheck endpoint used by Playwright's webServer readiness probe.
-// Returns a 200 status with a small body once the Next.js server is ready.
+// Health check endpoint for Playwright's readiness probe.
+// Exposes application version and commit metadata when available so CI logs
+// can confirm which build responded.
+
+export const runtime = 'nodejs';
+
+/**
+ * Respond to GET requests with a JSON payload indicating basic server health.
+ * Including version and commit helps track deployments during debugging.
+ */
 export async function GET() {
-  // Respond with a plain 200 so external systems can quickly verify that the
-  // server is ready. No database or other dependencies are touched.
-  return new Response('pong', { status: 200 });
+  return Response.json({
+    ok: true,
+    version: process.env.npm_package_version,
+    commit: process.env.GITHUB_SHA?.slice(0, 7) ?? null,
+  });
+}
+
+/**
+ * Respond to HEAD requests with an empty 200. Some container platforms perform
+ * HEAD probes instead of GET, so supporting both maximises compatibility.
+ */
+export async function HEAD() {
+  return new Response(null, { status: 200 });
 }

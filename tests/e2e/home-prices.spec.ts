@@ -1,5 +1,7 @@
 import { test, expect } from '../fixtures';
-import frDashboard from '../../messages/fr/dashboard.json' assert { type: 'json' };
+import frDashboard from '../../messages/fr/dashboard.json' assert {
+  type: 'json',
+};
 
 // Stub font requests globally so tests do not reach external services.
 test.beforeEach(async ({ page }) => {
@@ -37,7 +39,9 @@ test('renders French heading without missing messages', async ({ page }) => {
   );
 
   await page.goto('/');
-  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
+  await expect(page.getByTestId('multimodal-input')).toBeVisible({
+    timeout: 20_000,
+  });
   await expect(page.getByTestId('bento-grid')).toBeVisible();
   await expect(
     page.getByRole('heading', { name: (frDashboard as any).prices.title }),
@@ -96,7 +100,9 @@ test('shows prices with fallback providers', async ({ page }) => {
   });
 
   await page.goto('/');
-  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
+  await expect(page.getByTestId('multimodal-input')).toBeVisible({
+    timeout: 20_000,
+  });
   await expect(page.getByTestId('bento-grid')).toBeVisible();
   // Ensure each symbol row is rendered with the stubbed prices.
   await expect(page.getByText('AAPL')).toBeVisible();
@@ -153,7 +159,9 @@ test('renders offline state and recovers on retry', async ({ page }) => {
   });
 
   await page.goto('/');
-  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
+  await expect(page.getByTestId('multimodal-input')).toBeVisible({
+    timeout: 20_000,
+  });
   await expect(page.getByTestId('bento-grid')).toBeVisible();
   await expect(
     page.getByText((frDashboard as any).prices.offline),

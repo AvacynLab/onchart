@@ -1,563 +1,411 @@
-Parfait. Voici une **checklist exhaustive, hiérarchisée et “file-by-file”** pour qu’un agent IA puisse **corriger/ajouter/supprimer/modifier** ce qu’il reste, en s’appuyant sur :
+Voici une **checklist exhaustive et hiérarchisée** (à cocher) destinée à un agent IA. Elle s’appuie sur :
 
-* la **version actuelle du code**,
-* l’**analyse des échecs Playwright** (erreur `clientModules`, timeouts sur `multimodal-input`, etc.),
-* la **direction globale** (stabiliser le rendu App Router, conserver les tests e2e réalistes, limiter les features expérimentales, garder les fallback finance et l’i18n stables).
+* la **version actuelle du code** que tu m’as fournie ;
+* mon **diagnostic des logs Playwright** que tu as collés (2 séries différentes : l’une avec erreurs `clientModules`, l’autre avec timeout du webServer) ;
+* la **direction globale** que j’ai proposée (fiabiliser l’e2e, durcir l’instrumentation Next 15 canary, alléger l’UI au chargement, télémétrie désactivable).
 
-J’inclus des **snippets** là où il y a de la subtilité ou des pièges.
+Chaque item précise **le fichier à modifier**, l’**objectif attendu**, et, si pertinent, un **snippet exact**.
 
 ---
 
-# ✅ Checklist détaillée (par fichier)
+# ✅ A. Harness E2E & CI — démarrages fiables et rapides
 
-## 1) `package.json`
+## A.1 `package.json` — reconstruire avant l’e2e et aligner les ports
 
-* [x] **Fixer la version de Next.js sur une stable** (éviter le canary qui casse le SSR/RSC avec `clientModules`).
+* [x] **Ajouter la build dans `pretest:e2e`**
+  **Fichier**: `package.json`
+  **But**: éviter « start » sur un `.next` absent → timeouts.
+  **Action**: remplacer la valeur actuelle par :
 
-  * [x] Remplacer `next: 15.3.0-canary.31` par une **stable récente** (ex. `15.2.1`).
-  * [x] Forcer via `overrides` (Yarn/Pnpm résolvent parfois des sous-dépendances canary).
-  * **Snippet** :
-
-    ```json
-    {
-      "dependencies": {
-        "next": "15.2.1",
-        "react": "18.3.1",
-        "react-dom": "18.3.1"
-      },
-      "overrides": {
-        "next": "15.2.1"
-      },
-      "scripts": {
-        "pretest:e2e": "pnpm exec playwright install --with-deps chromium && rm -rf .next",
-        "test:e2e": "tsx scripts/ci/ensure-no-only-fixme.ts && tsx scripts/ci/count-tests.ts && OTEL_SDK_DISABLED=1 PLAYWRIGHT=True pnpm exec playwright test"
-      }
+  ```json
+  {
+    "scripts": {
+      "pretest:e2e": "pnpm exec playwright install --with-deps chromium && rm -rf .next && PLAYWRIGHT=True pnpm build"
     }
-    ```
-* [x] **Supprimer le “double build”** pendant la CI (on laisse Playwright builder/démarrer le server via `webServer.command`).
-* [x] **Garder `OTEL_SDK_DISABLED=1`** dans `test:e2e` pour réduire le bruit réseau et stabiliser les temps.
-
-**Objectif attendu** : Plus d’erreur `Cannot read properties of undefined (reading 'clientModules')` au SSR ; temps e2e plus stable.
-
----
-
-## 2) `next.config.ts`
-
-* [x] **Désactiver explicitement PPR et autres flags expérimentaux** (source majeure d’instabilité en canary).
-* [x] **Ne pas utiliser `output: 'standalone'`** pendant la CI e2e (ça brouille les chemins du manifeste RSC).
-* **Snippet** :
-
-  ```ts
-  // next.config.ts
-  const nextConfig = {
-    experimental: {
-      ppr: false,           // important
-      reactCompiler: false, // si jamais activé
-      serverSourceMaps: false,
-    },
-    // output: undefined,   // éviter 'standalone' pour e2e/CI
-  };
-
-  module.exports = nextConfig;
+  }
   ```
+* [x] **Confirmer le script `start`** (option `-p`)
+  **Fichier**: `package.json`
+  **But**: garantir l’écoute sur le **même port** que Playwright (`3110` par défaut).
+  **Action** (si tu veux conserver le contrôle côté Playwright, laisse `start` tel quel ; sinon force le port ici) :
 
-**Objectif attendu** : Rendu App Router prévisible en CI, plus de plantage manifeste RSC.
-
----
-
-## 3) `playwright.config.ts`
-
-* [x] **Lancer le serveur de production pré-compilé** via `webServer` (le build est exécuté par `pretest:e2e`).
-* [x] **Ajouter un timeout suffisant** (180s mini) pour le cold build.
-* [x] **Activer `reuseExistingServer` en local** (plus rapide).
-* **Snippet** :
-
-  ```ts
-  import { defineConfig, devices } from '@playwright/test';
-
-  export default defineConfig({
-    webServer: {
-      command: 'PLAYWRIGHT=True pnpm start -p 3000',
-      port: 3000,
-      reuseExistingServer: !process.env.CI,
-      timeout: 180_000,
-    },
-    use: {
-      baseURL: 'http://localhost:3000',
-      trace: 'on-first-retry',
-      video: 'retain-on-failure',
-    },
-    projects: [{ name: 'e2e', use: { ...devices['Desktop Chrome'] } }],
-  });
-  ```
-
-**Objectif attendu** : Un seul chemin d’exécution build→start pour e2e, moins d’états incohérents.
-
----
-
-## 4) `scripts/ci/ensure-no-ppr.sh` (ou créer ce fichier)
-
-* [x] **Corriger l’usage de `git grep`** (ordre des args & exclusions).
-* [x] **Échouer le job si `experimental_ppr = true` ou `ppr: true` hors `next.config.ts`.**
-* **Snippet** :
-
-  ```bash
-  #!/usr/bin/env bash
-  set -euo pipefail
-
-  echo "[guard] Scanning for PPR flags…"
-
-  if git grep -n -e 'export const[[:space:]]\+experimental_ppr[[:space:]]*=[[:space:]]*true' -- . " :(exclude)**/*.md" ; then
-    echo "❌ Found 'export const experimental_ppr = true'"
-    exit 1
-  fi
-
-  if git grep -n -e 'ppr:[[:space:]]*true' -- . " :(exclude)**/*.md" " :(exclude)next.config.ts" ; then
-    echo "❌ Found 'ppr: true' outside next.config.ts"
-    exit 1
-  fi
-
-  echo "✅ No PPR flags found."
-  ```
-
-**Objectif attendu** : Empêcher toute réactivation accidentelle de PPR qui réintroduirait les 500 SSR.
-
----
-
-## 5) `components/artifact/ArtifactViewer.tsx`
-
-* [x] **Exposer un `data-testid="artifact-view"`** sur le conteneur du canvas (les tests e2e l’attendent).
-* [x] **S’assurer que le canvas est monté avant l’interaction** (utiliser `useEffect`/`requestAnimationFrame` si besoin).
-* **Snippet** :
-
-  ```tsx
-  // components/artifact/ArtifactViewer.tsx
-  'use client';
-  import { useEffect, useRef } from 'react';
-
-  export function ArtifactViewer(/* props */) {
-    const containerRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-      // monter le canvas dans containerRef.current
-      // requestAnimationFrame(() => initChart(containerRef.current!))
-    }, []);
-
-    return (
-      <div className="relative w-full">
-        {/* … toolbar, etc. */}
-        <div
-          ref={containerRef}
-          className="h-64"
-          data-testid="artifact-view"  // ← requis par les tests
-        />
-      </div>
-    );
+  ```json
+  {
+    "scripts": {
+      "start": "next start -p ${PORT:-3000}"
+    }
   }
   ```
 
-**Objectif attendu** : Les tests **artifact-interact** ne cassent plus sur un sélecteur inexistant.
+## A.2 `playwright.config.ts` — transmettre PORT/PLAYWRIGHT au webServer + checker `/ping`
 
----
-
-## 6) `components/chat/MultimodalInput.tsx` (ou équivalent)
-
-* [x] **Vérifier/ajouter `data-testid="multimodal-input"`** sur la racine du champ d’entrée utilisé par la home/chat.
-* **Snippet (exemple générique)** :
-
-  ```tsx
-  // components/chat/MultimodalInput.tsx
-  'use client';
-  import { useState } from 'react';
-
-  export function MultimodalInput(/* props */) {
-    const [value, setValue] = useState('');
-
-    return (
-      <form data-testid="multimodal-input" onSubmit={/* … */}>
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="Ask anything…"
-        />
-        {/* boutons, upload, etc. */}
-      </form>
-    );
-  }
-  ```
-
-**Objectif attendu** : Tous les tests e2e qui attendent la visibilité de `multimodal-input` peuvent progresser.
-
----
-
-## 7) `app/page.tsx` (ou `app/(home)/page.tsx`)
-
-* [x] **Garantir la présence de `data-testid="bento-grid"`** sur la grille d’accueil.
-* [x] **Limiter l’hydratation à ce qui est nécessaire** (éviter d’inclure des comps client non indispensables au fold).
-* **Snippet** :
-
-  ```tsx
-  // app/page.tsx
-  import { Suspense } from 'react';
-  import { BentoGrid } from '@/components/bento/BentoGrid';
-
-  export default function Home() {
-    return (
-      <main>
-        <Suspense fallback={null}>
-          <BentoGrid data-testid="bento-grid" />
-        </Suspense>
-      </main>
-    );
-  }
-  ```
-
-**Objectif attendu** : Les assertions e2e (`bento-grid`) passent ; SSR/hydratation restent stables.
-
----
-
-## 8) `tests/pages/chat.ts`
-
-* [x] **Ne pas “masquer” un vrai problème d’app** : conserver l’attente stricte de `multimodal-input`.
-* [x] **Optionnel** : ajouter un `page.waitForURL('**/', { waitUntil: 'domcontentloaded' })` juste après `goto('/')` pour fiabiliser les temps d’attente, **sans** relâcher la contrainte de présence du testid.
-* **Snippet (ajout minimal)** :
+* [x] **Fixer la commande serveur avec `env` + URL de readiness**
+  **Fichier**: `playwright.config.ts`
+  **But**: empêcher le mismatch de ports (Next écoutant 3000 pendant que Playwright attend 3110) et éviter que la santé du serveur dépende du rendu de `/`.
+  **Action**:
 
   ```ts
-  await page.goto('/');
-  await page.waitForURL('**/', { waitUntil: 'domcontentloaded' });
-  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
+  // en haut, PORT déjà présent
+  const PORT = Number(process.env.PORT ?? 3110);
+
+  // dans export default defineConfig({...})
+  webServer: {
+    command: `pnpm start -p ${PORT}`, // Next écoutera bien sur PORT
+    reuseExistingServer: !process.env.CI,
+    timeout: 600_000,
+    // IMPORTANT: vérifier la santé via ping, pas via "/". Playwright n'accepte
+    // que `url` *ou* `port`; l'URL transmet implicitement le port.
+    url: `http://localhost:${PORT}/ping`,
+    env: {
+      PORT: String(PORT),
+      PLAYWRIGHT: 'True'
+    }
+  },
   ```
 
-**Objectif attendu** : Tests robustes mais toujours révélateurs si la page 500.
+  **Résultat attendu**: plus de `Timed out waiting 600000ms from config.webServer.` et serveur prêt dès que `/ping` répond.
 
----
+## A.3 `app/ping/route.ts` — ajouter la méthode HEAD
 
-## 9) `app/ping/route.ts`
-
-* [ ] **Vérifier qu’il renvoie `200` sans dépendances DB** (utile pour healthcheck local).
-* **Snippet** :
+* [x] **Supporter `HEAD` pour la sonde**
+  **Fichier**: `app/ping/route.ts`
+  **But**: compat avec sondes qui font `HEAD` (certains runners/tools).
+  **Action**:
 
   ```ts
-  // app/ping/route.ts
   export async function GET() {
-    return new Response('pong', { status: 200 });
+    return Response.json({ ok: true });
+  }
+
+  export async function HEAD() {
+    return new Response(null, { status: 200 });
   }
   ```
 
-**Objectif attendu** : Health rapide; si vous voulez l’utiliser, vous pouvez pointer Playwright dessus pour un check initial (facultatif, Playwright attend déjà la page).
+  **Résultat attendu**: readiness OK en `GET` et `HEAD`.
 
----
+## A.4 `middleware.ts` — exclure `/ping` (optionnel mais conseillé)
 
-## 10) `lib/db/migrate.ts`
-
-* [ ] **Garder le comportement “skip migrations sans POSTGRES_URL”** mais :
-
-  * [ ] **Éviter tout import/side-effect coûteux** côté app quand on n’a pas Postgres.
-  * [ ] **S’assurer que SQLite de test (si utilisée dans le runtime Playwright)** n’introduit pas d’avertissements bloquants (l’avertissement *experimental SQLite* n’est pas bloquant, on peut l’ignorer).
-* **Snippet (pattern)** :
+* [x] **Ne pas intercepter `/ping`**
+  **Fichier**: `middleware.ts`
+  **But**: ne pas toucher aux entêtes/cookies pour l’endpoint santé.
+  **Action** (adapter le `matcher`) :
 
   ```ts
-  // lib/db/migrate.ts
-  if (!process.env.POSTGRES_URL) {
-    console.log('POSTGRES_URL is not defined; skipping migrations');
-    process.exit(0);
-  }
-  // … migrations réelles Postgres …
+  export const config = {
+    matcher: ['/((?!api|_next|ping|.*\\..*).*)'],
+  };
   ```
-
-**Objectif attendu** : Build CI propre, aucun crash au `require`/`import` du module en l’absence d’URL Postgres.
 
 ---
 
-## 11) `app/api/chat/route.ts` et `app/api/chat/[id]/stream/route.ts`
+# ✅ B. Next 15 canary & instrumentation — stabiliser l’exécution
 
-* [ ] **Confirmer `export const runtime = 'nodejs'`** si vous utilisez des libs Node (stream, fs, etc.).
-* [ ] **S’assurer que la route GET de stream répond toujours, même si le provider IA est mocké en CI**.
-* **Snippet** :
+## B.1 `instrumentation.ts` — shim « clientModules » (déjà présent, valider)
+
+* [x] **Vérifier que le shim est bien chargé au boot**
+  **Fichier**: `instrumentation.ts`
+  **Constat**: la version actuelle contient un shim pour éviter
+  `TypeError: Cannot read properties of undefined (reading 'clientModules')`.
+  **But**: garder ce shim actif en prod et test.
+  **Contrôle**: s’assurer que **RIEN** d’autre ne redéfinit ces globals.
+  **Snippet de garde** (si besoin d’étendre) :
+
+  ```ts
+  // instrumentation.ts
+  export async function register() {
+    const g = globalThis as any;
+    // Défense : ne redéfinir que si absent
+    g.__next_require__ ??= {};
+    g.__next_require__.clientModules ??= new Map();
+    g.clientModules ??= g.__next_require__.clientModules;
+  }
+  ```
+
+  **Résultat attendu**: plus d’erreurs « clientModules » (les logs CI initiaux les montraient ; ton code actuel les neutralise, à conserver).
+
+## B.2 `lib/telemetry/index.ts` + `tests/telemetry/init.test.ts` — OTEL désactivable (déjà OK)
+
+* [ ] **Valider que `OTEL_SDK_DISABLED=1` neutralise la télémétrie**
+  **Fichiers**: `lib/telemetry/index.ts`, `tests/telemetry/init.test.ts`
+  **Constat**: déjà implémenté et testé ✅.
+  **Action**: rien, juste garder l’API stable.
+
+---
+
+# ✅ C. UI/Pages — robustesse au premier rendu (ce que testent `multimodal-input` & co.)
+
+## C.1 `components/multimodal-input.tsx` — data-testid (déjà OK)
+
+* [ ] **Confirmer la présence du `data-testid="multimodal-input"`**
+  **Fichier**: `components/multimodal-input.tsx`
+  **But**: les tests attendent ce sélecteur.
+  **Résultat**: présent ✅.
+
+## C.2 `app/page.tsx` + `components/bento/*` — bento visible à froid
+
+* [ ] **Vérifier que le bento (`data-testid="bento-grid"`) est rendu sans dépendre d’un effet client**
+  **Fichiers**: `app/page.tsx`, `components/bento/*`
+  **But**: éviter les timeouts « waiting for ... to be visible ».
+  **Action**: s’assurer que l’état initial n’est pas bloqué par un `useEffect` (SSR friendly).
+  **Snippet d’exemple** (pattern à suivre si un morceau est « client-only »):
+
+  ```tsx
+  // Exemple d’un guard côté client si nécessaire, sans bloquer SSR global
+  const isClient = typeof window !== 'undefined';
+  return (
+    <section data-testid="bento-grid" aria-busy={!isClient && 'true'}>
+      {/* contenu de fallback SSR visible immédiatement */}
+      {/* une fois monté, remplace par la version interactive */}
+    </section>
+  );
+  ```
+
+## C.3 `app/(chat)/layout.tsx` — chargement Pyodide « beforeInteractive »
+
+* [x] **Garder le script Pyodide, mais éviter qu’il bloque le rendu**
+  **Fichier**: `app/(chat)/layout.tsx`
+  **But**: le script ne doit pas empêcher `multimodal-input` d’être visible.
+  **Action**: si le script est critique, s’assurer qu’il n’est pas requis pour rendre les composants attendus par les tests. Sinon, passer à `afterInteractive`.
+  **Snippet**:
+
+  ```tsx
+  {/* Si non indispensable au premier rendu, préférer: */}
+  <Script src="/pyodide/pyodide.js" strategy="afterInteractive" />
+  ```
+
+---
+
+# ✅ D. API & routes — runtime et santé
+
+## D.1 `app/api/*` — runtime Node (déjà testé OK)
+
+* [ ] **Confirmer `runtime = 'nodejs'` pour les routes finance**
+  **Fichiers**: `app/api/finance/*/route.ts`
+  **But**: uniformiser l’exécution pendant l’e2e.
+  **Action**: si un route manque de directive runtime, ajouter :
 
   ```ts
   export const runtime = 'nodejs';
+  ```
 
-  export async function POST(req: Request) {
-    // validation, création du message, renvoi de l’id
+  **Résultat**: aligné avec les tests `tests/api/finance/runtime.node.test.ts` ✅.
+
+## D.2 `app/api/chat/route.ts` — chemin heureux minimal
+
+* [x] **Garantir que POST /api/chat répond très vite sur CI**
+  **But**: ne pas dépendre d’un LLM réel ; stub interne si `PLAYWRIGHT=True`.
+  **Action (si nécessaire)**:
+
+  ```ts
+  const isCi = process.env.PLAYWRIGHT === 'True' || process.env.CI;
+  if (isCi) {
+    // renvoyer un id de draft « simulé » immédiatement
+    return Response.json({ id: 'draft_test', createdAt: Date.now() });
   }
   ```
 
-**Objectif attendu** : Les e2e de chat (redirect `/chat/:id`, upvote/downvote, stop generation) ont un backend stable (mock si nécessaire).
+---
+
+# ✅ E. Middleware / i18n — sobriété et non-régression
+
+## E.1 `middleware.ts` — écrire le cookie de langue sans flusher `/ping`
+
+* [x] **Exclure `/ping` via le matcher** (cf. A.4)
+  **But**: aucune surcharge du endpoint santé.
+* [ ] **Conserver la logique cookie/entêtes (déjà OK)**
+  **Résultat**: tests i18n unitaires restent au vert ✅.
 
 ---
 
-## 12) `app/api/finance/*/route.ts` (quote, ohlc, news, etc.)
+# ✅ F. Tests Playwright — robustesse et lisibilité
 
-* [ ] **Confirmer l’ordre de fallback** (Yahoo → Stooq / Binance) et les TTL (intraday vs daily) — vos tests unitaires passent, donc **ne rien casser**.
-* [ ] **Ajouter des logs de niveau “debug” sous flag** (`DEBUG_FINANCE=1`) si on doit diagnostiquer en CI.
-* **Snippet (pattern)** :
+## F.1 Pages helpers
+
+* [x] **`tests/pages/chat.ts::createNewChat`** — rester idempotent
+  **But**: si on est déjà sur `/chat/:id`, ne pas recharger inutilement `/`.
+  **Snippet**:
 
   ```ts
-  const debug = process.env.DEBUG_FINANCE === '1';
-  if (debug) console.log('[finance] fetching ohlc', { symbol, interval });
-  ```
-
-**Objectif attendu** : Zéro régression sur la stack finance déjà verte en unit tests ; observabilité togglable.
-
----
-
-## 13) `components/bento/*` (NewsCard, AnalysesCard, etc.)
-
-* [ ] **Garder les `data-testid` déjà employés par les tests** (`bento-grid` vu côté page ; NewsCard/AnalysesCard ont leurs tests unitaires verts).
-* [ ] **S’assurer que le 1er rendu ne déclenche pas de fetch bloquant SSR** (utiliser `useEffect`/SWR côté client si nécessaire).
-
-**Objectif attendu** : L’accueil se rend vite ; Playwright n’attend pas un SSR lourd.
-
----
-
-## 14) `middleware.ts` (si présent)
-
-* [ ] **Éviter toute manipulation non essentielle** de requêtes qui pourrait casser le manifeste RSC (en canary, mais par sécurité même en stable).
-* [ ] **Limiter le scope `matcher`** aux chemins strictement nécessaires.
-
-**Objectif attendu** : Moins de risque d’interférer avec le rendu `_app`/RSC.
-
----
-
-## 15) `scripts/ci/count-tests.ts` & `scripts/ci/ensure-no-only-fixme.ts`
-
-* [ ] **Conserver tels quels** (ces scripts sont utiles et passaient).
-* [ ] **Ajouter une sortie claire** quand des tests e2e sont ignorés/skippés.
-
-**Objectif attendu** : Visibilité CI accrue sans impacter les temps.
-
----
-
-## 16) `tests/e2e/*.spec.ts` (général)
-
-* [ ] **Ne pas affaiblir les assertions** (les timeouts venaient du 500 SSR).
-* [ ] **Conserver les `getByTestId('multimodal-input')`** (utile sentinelle de rendu).
-* [ ] **(Si flakiness résiduelle)** Ajouter `test.slow()` ou un `expect.poll` *ciblé*, mais seulement si nécessaire.
-* **Snippet (poll ciblé)** :
-
-  ```ts
-  await expect
-    .poll(async () => (await page.getByTestId('multimodal-input').count()) > 0)
-    .toBeTruthy({ timeout: 10_000 });
-  ```
-
-**Objectif attendu** : e2e stables, représentatifs de l’expérience utilisateur réelle.
-
----
-
-## 17) `components/common/ErrorBoundary.tsx` (ou à créer si absent)
-
-* [ ] **Ajouter un ErrorBoundary côté client** autour des zones interactives (chat, artifact).
-* [ ] **Affichage d’un message utilisateur simple et d’un `data-testid="ui-error"`** pour des assertions e2e ciblées si nécessaire.
-* **Snippet** :
-
-  ```tsx
-  'use client';
-  import React from 'react';
-
-  export class ErrorBoundary extends React.Component<
-    { children: React.ReactNode },
-    { hasError: boolean }
-  > {
-    state = { hasError: false };
-    static getDerivedStateFromError() { return { hasError: true }; }
-    componentDidCatch(err: unknown) { console.error(err); }
-    render() {
-      if (this.state.hasError) {
-        return <div data-testid="ui-error">Something went wrong.</div>;
-      }
-      return this.props.children;
+  async createNewChat() {
+    const url = this.page.url();
+    if (!/\/chat\//.test(url)) {
+      await this.page.goto('/');
     }
+    await this.page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
+    await expect(this.page.getByTestId('bento-grid')).toBeVisible();
   }
   ```
 
-**Objectif attendu** : Dégradation gracieuse au lieu d’un écran vide si un client component casse.
+## F.2 Attentes explicites sur les éléments clés
 
----
-
-## 18) `lib/utils/getBaseUrl.ts` (ou équivalent ; vous avez des tests)
-
-* [ ] **Ne rien changer** si tous les tests sont verts (headers → fallback → VERCEL_URL).
-* [ ] **Ajouter un log conditionnel** si DEBUG on.
-
-**Objectif attendu** : Préserver le passage des tests `base URL` + diagnostic aisé si souci de proxy.
-
----
-
-## 19) i18n (`lib/i18n/*`, `locales/*`)
-
-* [ ] **Garder la parité des clés** (tests verts).
-* [ ] **S’assurer que les disclaimers FR/EN pour finance restent présents** (tests verts).
-* [ ] **Optionnel** : exposer un script `pnpm i18n:check` pour dev.
-
-**Objectif attendu** : Zéro régression i18n.
-
----
-
-## 20) `app/api/files/upload/route.ts` (ou équivalent)
-
-* [ ] **Garantir un mock/implémentation safe** en CI (pas d’appel S3/GCS réels).
-* [ ] **Limiter la taille en CI** via env (sinon flakiness si grosses images).
-
-**Objectif attendu** : Le test “Upload file and send image attachment” ne dépend pas d’un service externe.
-
----
-
-## 21) `components/chat/SuggestedActions.tsx` (ou équivalent)
-
-* [ ] **Vérifier l’état caché/visible** après envoi de message (les e2e le couvrent).
-* [ ] **Pas de fetch SSR bloquant**.
-
-**Objectif attendu** : Passage de “Hide suggested actions after sending message”.
-
----
-
-## 22) `app/api/vote/route.ts`
-
-* [ ] **Upvote/Downvote/Update vote** → mock data store en CI si Postgres absent.
-* [ ] **Runtime Node** si utilisation de libs Node.
-
-**Objectif attendu** : Les scénarios vote e2e passent sans DB distante.
-
----
-
-## 23) `components/chat/ScrollToBottom.tsx` (ou comportement équivalent)
-
-* [ ] **S’assurer que le bouton n’apparaît qu’après dépassement d’un seuil** (utiliser `IntersectionObserver` si présent).
-* [ ] **Ajouter `data-testid="scroll-bottom-button"`** si testé.
-* **Snippet (pattern)** :
-
-  ```tsx
-  'use client';
-  import { useEffect, useState } from 'react';
-
-  export function ScrollToBottomButton({ viewportRef }: { viewportRef: React.RefObject<HTMLElement> }) {
-    const [visible, setVisible] = useState(false);
-    useEffect(() => {
-      const el = viewportRef.current;
-      if (!el) return;
-      const onScroll = () => setVisible(el.scrollTop < el.scrollHeight - el.clientHeight - 80);
-      el.addEventListener('scroll', onScroll, { passive: true });
-      onScroll();
-      return () => el.removeEventListener('scroll', onScroll);
-    }, [viewportRef]);
-    if (!visible) return null;
-    return (
-      <button
-        data-testid="scroll-bottom-button"
-        onClick={() => viewportRef.current?.scrollTo({ top: 1e9, behavior: 'smooth' })}
-      >
-        Scroll to bottom
-      </button>
-    );
-  }
-  ```
-
-**Objectif attendu** : Tests “scroll button apparaît/disparaît” passent.
-
----
-
-## 24) `lib/telemetry/*` (si présent)
-
-* [ ] **Ne pas envoyer de télémétrie en e2e** (`OTEL_SDK_DISABLED=1` déjà positionné).
-* [ ] **Ajouter un guard** pour ne rien initialiser si env absent.
-
-**Objectif attendu** : e2e isolés, pas de timeouts réseau.
-
----
-
-## 25) Accessibilité & testability transverses
-
-* [ ] **Chaque composant interactif clé a un `data-testid` stable** :
-
-  * `multimodal-input`, `bento-grid`, `artifact-view`, `scroll-bottom-button`, etc.
-* [ ] **Pas de `role`/`aria` contradictoires** (évite sélecteurs flous plus tard).
-
-**Objectif attendu** : Sélecteurs robustes, lisibilité e2e.
-
----
-
-# ⚠️ Tâches “Attention particulière” (risques/complexité)
-
-## A) Mélange RSC / Client Components
-
-* [ ] **Vérifier que tout composant utilisant état/effets est `use client`**.
-* [ ] **Éviter d’importer un client component depuis un server component sans `dynamic(..., { ssr: false })` si nécessaire.**
-* **Snippet (si composant client lourd dans page serveur)** :
-
-  ```tsx
-  import dynamic from 'next/dynamic';
-  const ClientOnlyWidget = dynamic(() => import('@/components/ClientWidget'), { ssr: false });
-
-  export default function Page() {
-    return <ClientOnlyWidget />;
-  }
-  ```
-
-**But** : Éviter des crashs RSC subtils qui pourraient resurgir.
-
----
-
-## B) Runtime des routes
-
-* [ ] **Assigner `runtime = 'nodejs'`** pour toutes les routes qui utilisent des libs Node (streams, crypto non Web, etc.).
-* **Snippet** :
+* [x] **Remplacer `waitFor({state:'visible'})` par `toBeVisible({timeout: ...})` là où pertinent**
+  **But**: remonter des erreurs plus parlantes et uniformes.
+  **Snippet**:
 
   ```ts
-  export const runtime = 'nodejs';
+  await expect(page.getByTestId('multimodal-input')).toBeVisible({ timeout: 20_000 });
   ```
 
-**But** : Empêcher l’exécution Edge involontaire (erreurs silencieuses parfois).
+## F.3 Débogage : conserver traces ciblées
+
+* [x] **`playwright.config.ts`** — activer `trace: 'retain-on-failure'` (déjà présent)
+  **Action**: rien si déjà configuré ✅.
 
 ---
 
-## C) Caches & TTL (finance)
+# ✅ G. DX & perf — petits durcissements utiles
 
-* [ ] **Conserver les TTL exacts testés** (intraday vs daily).
-* [ ] **Ne pas dériver la stratégie de cache pendant e2e** (risque d’usure réseau).
+## G.1 Enrichir `/ping`
 
-**But** : Maintenir les unit tests en vert et les e2e rapides.
+* [x] **Ajouter version & commit** si présents en env
+  **Fichier**: `app/ping/route.ts`
+  **Snippet**:
+
+  ```ts
+  export async function GET() {
+    return Response.json({
+      ok: true,
+      version: process.env.npm_package_version,
+      commit: process.env.GITHUB_SHA?.slice(0,7) ?? null
+    });
+  }
+  ```
+
+## G.2 `next.config.ts` — garder les flags expérimentaux au strict nécessaire
+
+* [ ] **Vérifier `experimental.serverActions`** (utile ? si non, retirer)
+  **But**: limiter la surface de régression sur canary.
 
 ---
 
-# 🧪 Plan de validation final
+# ✅ H. Vérifications ciblées “fait / à faire” (par rapport à mes messages précédents)
 
-* [x] `pnpm i && pnpm build` → **Next 15.2.x** affiché ; plus de 500 au SSR.
-* [ ] `pnpm start -p 3000` → **GET `/` = 200** (console sans `clientModules`).
-* [x] `pnpm test:unit` → **vert** (déjà OK).
-* [ ] `pnpm test:e2e` → Playwright doit démarrer le serveur de prod sur le port 3000 sans conflit.
-* [ ] Re-lancer CI → tous les jobs verts (unit + e2e).
+| Item recommandé                                | État dans le code               | À faire                                  |
+| ---------------------------------------------- | ------------------------------- | ---------------------------------------- |
+| Endpoint `/ping` pour readiness                | ✅ présent (GET)                 | ➕ ajouter `HEAD` & exclure du middleware |
+| Shim `clientModules` dans `instrumentation.ts` | ✅ présent                       | 🔍 garder tel quel                       |
+| Télémétrie désactivable (`OTEL_SDK_DISABLED`)  | ✅ tests verts                   | rien                                     |
+| Build avant e2e                                | ❌ pas dans `pretest:e2e`        | ➕ ajouter `pnpm build`                   |
+| Alignement des ports Next/Playwright           | ❌ `pnpm start` sans `PORT`/`-p` | ➕ passer `env` et `-p ${PORT}`           |
+| Readiness Playwright sur `/ping`               | ❌ absent                        | ➕ ajouter `url` dans `webServer`         |
+| Exclusion `/ping` du middleware                | ❌ absent                        | ➕ modifier `matcher`                     |
+| Attentes e2e robustes                          | ↔︎ correctes mais strictes      | 🔧 toBeVisible avec timeouts cohérents   |
 
 ---
 
-## Récap express des 4 correctifs “must-have”
+# ✅ I. Snippets récapitulatifs (copier-coller)
 
-1. **Pin Next** sur **15.2.1** (package.json).
-2. **Désactiver PPR** & flags instables (next.config.ts).
-3. **Unifier build/start** dans `playwright.config.ts` (pas de double build).
-4. **Ajouter les testids manquants** (`artifact-view`, vérifier `multimodal-input`, `bento-grid`).
+### 1) `package.json` (scripts)
 
-Avec ça, on élimine la racine des 500 SSR et on déverrouille la batterie e2e.
+```json
+{
+  "scripts": {
+    "build": "tsx lib/db/migrate && next build",
+    "start": "next start -p ${PORT:-3000}",
+    "test:e2e": "tsx scripts/ci/ensure-no-only-fixme.ts && tsx scripts/ci/count-tests.ts && OTEL_SDK_DISABLED=1 PLAYWRIGHT=True pnpm exec playwright test",
+    "pretest:e2e": "pnpm exec playwright install --with-deps chromium && rm -rf .next && PLAYWRIGHT=True pnpm build"
+  }
+}
+```
+
+### 2) `playwright.config.ts` (webServer et url)
+
+```ts
+import { defineConfig, devices } from '@playwright/test';
+
+const PORT = Number(process.env.PORT ?? 3110);
+
+export default defineConfig({
+  testDir: 'tests/e2e',
+  timeout: 240_000,
+  use: {
+    baseURL: `http://localhost:${PORT}`,
+    trace: 'retain-on-failure'
+  },
+  webServer: {
+    command: `pnpm start -p ${PORT}`,
+    reuseExistingServer: !process.env.CI,
+    timeout: 600_000,
+    url: `http://localhost:${PORT}/ping`,
+    env: { PORT: String(PORT), PLAYWRIGHT: 'True' }
+  },
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } }
+  ]
+});
+```
+
+### 3) `app/ping/route.ts` (HEAD + version)
+
+```ts
+export const runtime = 'nodejs';
+
+export async function GET() {
+  return Response.json({
+    ok: true,
+    version: process.env.npm_package_version,
+    commit: process.env.GITHUB_SHA?.slice(0, 7) ?? null
+  });
+}
+
+export async function HEAD() {
+  return new Response(null, { status: 200 });
+}
+```
+
+### 4) `middleware.ts` (exclure ping)
+
+```ts
+export const config = {
+  matcher: ['/((?!api|_next|ping|.*\\..*).*)'],
+};
+```
+
+---
+
+# ✅ J. Post-merge : ce qu’on doit voir dans la CI
+
+* **Tests unitaires**: restent verts (45/46 ok, 1 skip acceptable si carte Analyses non rendue sous test).
+* **Playwright**:
+
+  * plus de timeout `webServer` ;
+  * la sonde `/ping` répond rapidement (200 en GET/HEAD) ;
+  * les tests qui attendaient `multimodal-input` et `bento-grid` passent (plus de « waiting for ... to be visible » si le serveur est sain).
+  * pas d’erreurs « `clientModules` undefined ».
+
+---
+
+# ✅ K. Backlog « direction globale » (court terme lié aux tests)
+
+* [ ] **Flakes**: introduire un helper `awaitHomeReady(page)` commun à tous les tests ouvrant `/`.
+* [ ] **Seeds**: prévoir des seeds sqlite spécifiques e2e si un test dépend de données (éviter latence réseau).
+* [ ] **Observabilité**: enrichir les logs de boot (afficher `PORT`, `NODE_ENV`, `PLAYWRIGHT`, version).
+* [ ] **Isolation**: lorsque `PLAYWRIGHT=True`, bypasser systèmes coûteux (fetch externes, workers).
+
+---
+
+Si tu veux, je peux générer un **diff prêt à coller** pour `package.json`, `playwright.config.ts`, `app/ping/route.ts` et `middleware.ts`.
 
 ## Progress
-- [x] 1) `package.json` – pinned Next.js to 15.2.1 and retained OTEL_SDK_DISABLED in test scripts.
-- [x] 2) `next.config.ts` – disabled PPR and experimental flags.
- - [x] 3) `playwright.config.ts` – configured to start pre-built server on port 3000 with extended timeout and env vars.
-- [x] 4) `scripts/ci/ensure-no-ppr.sh` – added guard to block accidental PPR flags.
-- [x] 5) `components/artifact/ArtifactViewer.tsx` – exposed `artifact-view` hook and deferred chart init.
-- [x] 6) `components/chat/MultimodalInput.tsx` – surfaced stable `multimodal-input` test id.
-- [x] 7) `app/page.tsx` – kept bento dashboard under `(chat)/page.tsx` with `data-testid="bento-grid"`.
-- [x] 8) `tests/pages/chat.ts` – enforced `waitForURL` plus strict `multimodal-input` visibility.
-- [x] Switched Playwright and documentation to use port 3000 for e2e tests.
-- [ ] `pnpm start -p 3000` – succeeds when `NEXTAUTH_URL`, `AUTH_TRUST_HOST`, and `NEXT_INTL_CONFIG` are provided; missing env vars yield 404.
-- [ ] `pnpm test:e2e` – pending verification after removing the double build and reusing the prebuilt server.
+- [x] A.1 `package.json` — build avant e2e et script start aligné.
+- [x] A.2 `playwright.config.ts` — commande serveur avec PORT et readiness via `/ping`.
+- [x] A.2.b `playwright.config.ts` — passage de `process.env` au `webServer` pour conserver les secrets de session.
+- [x] A.3 `app/ping/route.ts` — support GET/HEAD avec version et commit.
+- [x] A.4 `middleware.ts` — exclusion de `/ping`.
+- [x] F.1 `tests/pages/chat.ts` — helper idempotent.
+- [x] F.2 Attentes e2e — passage à `toBeVisible`.
+- [x] G.1 Enrichissement de `/ping`.
+- [x] B.1 `instrumentation.ts` — shim « clientModules » vérifié.
+- [x] C.3 `app/(chat)/layout.tsx` — script Pyodide chargé après l'interaction.
+- [x] D.2 `app/api/chat/route.ts` — stub de réponse rapide en CI.
 
 ## History
-- 2025-08-21: Reset checklist to exhaustive task list and restored home route under `(chat)/page.tsx` to address 404 responses.
-- 2025-08-21: Pinned Next.js to 15.2.1, disabled PPR, streamlined Playwright build/start, and added `artifact-view` and `multimodal-input` hooks; unit tests and build pass, but `/` still responds 404 and e2e tests remain pending.
-- 2025-08-21: Updated Playwright and docs to run the app on port 3000 for e2e.
-- 2025-08-21: Built the app successfully, but manual start on port 3000 and e2e tests yielded `UntrustedHost` and 400 static asset responses.
-- 2025-08-21: Adjusted Playwright to start the pre-built app on port 3000 and moved the build step to `pretest:e2e`.
-- 2025-08-21: Simplified `pretest:e2e` to avoid rebuilding and updated CI to build once before running tests.
+- 2025-08-22: Ajout build préalable, alignement des ports, enrichissement `/ping`, mise à jour des tests e2e et du middleware. Tests unitaires OK ; e2e échouent (`Either 'port' or 'url' should be specified in config.webServer.`).
+- 2025-08-22: Vérification du shim instrumentation, chargement Pyodide différé, correction config webServer sans port. Tests unitaires OK ; e2e échouent (multimodal-input non visible).
+- 2025-08-22: Réinstallation des dépendances manquantes, ajout d'un stub rapide pour `/api/chat`, ajustement du `webServer` Playwright (URL de readiness seule) et activation du trace `retain-on-failure`. Tests unitaires OK ; e2e en cours.
+- 2025-08-22: Installation de `next-intl` manquante; tentative de build et d'exécution e2e, mais `next start` échoue (`production-start-no-build-id`). Tests unitaires OK ; e2e non exécutés.
+- 2025-08-22: Propagation de `process.env` dans `webServer` pour préserver la session; unitaires OK ; l'e2e `session.test` échoue lors de l'inscription d'un compte.
+
+
+- 2025-08-22: Vérification de la config Playwright (url de readiness, pas de port). E2E lancés ~20 min ; blocage sur appels /api/history 401 répétés.

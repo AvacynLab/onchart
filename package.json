@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --turbo",
     "build": "tsx lib/db/migrate && next build && rm -f .next/server/edge-instrumentation.js .next/server/edge-instrumentation.js.map",
-    "start": "next start",
+    "start": "next start -p ${PORT:-3000}",
     "lint": "next lint && biome lint --write --unsafe",
     "lint:fix": "next lint --fix && biome lint --write --unsafe",
     "format": "biome format --write",
@@ -21,7 +21,7 @@
     "test:e2e": "tsx scripts/ci/ensure-no-only-fixme.ts && tsx scripts/ci/count-tests.ts && OTEL_SDK_DISABLED=1 PLAYWRIGHT=True pnpm exec playwright test",
     "test:e2e:local": "PLAYWRIGHT=True pnpm exec playwright test -c playwright.config.ts --project=chromium --headed",
     "test": "pnpm test:unit && pnpm test:e2e",
-    "pretest:e2e": "pnpm exec playwright install --with-deps chromium",
+    "pretest:e2e": "pnpm exec playwright install --with-deps chromium && rm -rf .next && PLAYWRIGHT=True pnpm build",
     "ci:check-ppr": "bash scripts/ci/ensure-no-ppr.sh"
   },
   "dependencies": {
