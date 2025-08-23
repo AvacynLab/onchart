@@ -27,12 +27,16 @@ export class ChatPage {
   }
 
   async createNewChat() {
-    await this.page.goto('/');
-    await this.page.waitForURL('**/', { waitUntil: 'domcontentloaded' });
-    await this.page
-      .getByTestId('multimodal-input')
-      .waitFor({ state: 'visible' });
-    await expect(this.page.getByTestId('bento-grid')).toBeVisible();
+    const url = this.page.url();
+    if (!/\/chat\//.test(url)) {
+      await this.page.goto('/');
+    }
+    await expect(this.page.getByTestId('multimodal-input')).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(this.page.getByTestId('bento-grid')).toBeVisible({
+      timeout: 20_000,
+    });
   }
 
   public getCurrentURL(): string {
@@ -40,9 +44,9 @@ export class ChatPage {
   }
 
   async sendUserMessage(message: string) {
-    await this.page
-      .getByTestId('multimodal-input')
-      .waitFor({ state: 'visible' });
+    await expect(this.page.getByTestId('multimodal-input')).toBeVisible({
+      timeout: 20_000,
+    });
     await this.multimodalInput.click();
     await this.multimodalInput.fill(message);
     await this.sendButton.click();

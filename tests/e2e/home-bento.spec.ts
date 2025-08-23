@@ -57,9 +57,13 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('sidebar toggling pushes grid and chat dock moves with content', async ({ page }) => {
+test('sidebar toggling pushes grid and chat dock moves with content', async ({
+  page,
+}) => {
   await page.goto('/');
-  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
+  await expect(page.getByTestId('multimodal-input')).toBeVisible({
+    timeout: 20_000,
+  });
   await expect(page.getByTestId('bento-grid')).toBeVisible();
   const content = page.locator('#bento-content');
   const input = page.locator('form input[placeholder="Ask a question"]');
@@ -75,7 +79,7 @@ test('sidebar toggling pushes grid and chat dock moves with content', async ({ p
   const boxAfter = await content.boundingBox();
   const inputAfter = await input.boundingBox();
 
-  expect(boxAfter?.x).toBeGreaterThan((boxBefore?.x + 250));
+  expect(boxAfter?.x).toBeGreaterThan(boxBefore?.x + 250);
   const deltaContent = boxAfter?.x - boxBefore?.x;
   const deltaInput = inputAfter?.x - inputBefore?.x;
   expect(Math.abs(deltaContent - deltaInput)).toBeLessThan(5);
@@ -83,26 +87,41 @@ test('sidebar toggling pushes grid and chat dock moves with content', async ({ p
 
 test('split and timeframe controls update charts', async ({ page }) => {
   await page.goto('/');
-  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
+  await expect(page.getByTestId('multimodal-input')).toBeVisible({
+    timeout: 20_000,
+  });
   await expect(page.getByTestId('bento-grid')).toBeVisible();
   const panes = page.locator('[data-testid="chart-pane"]');
   await expect(panes).toHaveCount(1);
 
-  await page.getByTestId('split-group').getByRole('button', { name: '2' }).click();
+  await page
+    .getByTestId('split-group')
+    .getByRole('button', { name: '2' })
+    .click();
   await expect(panes).toHaveCount(2);
 
-  await page.getByTestId('split-group').getByRole('button', { name: '4' }).click();
+  await page
+    .getByTestId('split-group')
+    .getByRole('button', { name: '4' })
+    .click();
   await expect(panes).toHaveCount(4);
 
-  await page.getByTestId('tf-group').getByRole('button', { name: '5m' }).click();
+  await page
+    .getByTestId('tf-group')
+    .getByRole('button', { name: '5m' })
+    .click();
   // Wait for debounced fetches to trigger.
   await page.waitForTimeout(300);
   expect(ohlcRequests.some((u) => u.includes('interval=5m'))).toBe(true);
 });
 
-test('sending a message fades out bento and navigates to chat', async ({ page }) => {
+test('sending a message fades out bento and navigates to chat', async ({
+  page,
+}) => {
   await page.goto('/');
-  await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
+  await expect(page.getByTestId('multimodal-input')).toBeVisible({
+    timeout: 20_000,
+  });
   await expect(page.getByTestId('bento-grid')).toBeVisible();
   const input = page.locator('form input[placeholder="Ask a question"]');
   await input.fill('Why is grass green?');

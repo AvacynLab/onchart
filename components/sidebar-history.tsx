@@ -78,7 +78,7 @@ const groupChatsByDate = (chats: Chat[]): GroupedChats => {
 
 export function getChatHistoryPaginationKey(
   pageIndex: number,
-  previousPageData: ChatHistory,
+  previousPageData: ChatHistory | null,
 ) {
   if (previousPageData && previousPageData.hasMore === false) {
     return null;
@@ -86,7 +86,7 @@ export function getChatHistoryPaginationKey(
 
   if (pageIndex === 0) return `/api/history?limit=${PAGE_SIZE}`;
 
-  const firstChatFromPage = previousPageData.chats.at(-1);
+  const firstChatFromPage = previousPageData?.chats.at(-1);
 
   if (!firstChatFromPage) return null;
 
@@ -97,15 +97,21 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
   const { setOpenMobile } = useSidebar();
   const { id } = useParams();
 
+  // Avoid polling the history endpoint when no session is present. Passing
+  // `null` as the key disables SWR and prevents endless 401 responses.
   const {
     data: paginatedChatHistories,
     setSize,
     isValidating,
     isLoading,
     mutate,
-  } = useSWRInfinite<ChatHistory>(getChatHistoryPaginationKey, fetcher, {
-    fallbackData: [],
-  });
+  } = useSWRInfinite<ChatHistory>(
+    user ? getChatHistoryPaginationKey : () => null,
+    fetcher,
+    {
+      fallbackData: [],
+    },
+  );
 
   const router = useRouter();
   const [deleteId, setDeleteId] = useState<string | null>(null);

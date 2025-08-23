@@ -16,9 +16,12 @@ export default async function Layout({
 
   return (
     <>
+      {/* Load Pyodide lazily so the dashboard shell can render immediately.
+          The library is only required for client-side Python execution and
+          does not participate in the first paint that our tests assert on. */}
       <Script
         src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"
-        strategy="beforeInteractive"
+        strategy="afterInteractive"
       />
       <DataStreamProvider>
         <SidebarProvider defaultOpen={!isCollapsed}>

@@ -36,5 +36,7 @@ export function middleware(request: NextRequest) {
 
 // Avoid intercepting Next.js internals, API routes or static assets.
 export const config = {
-  matcher: ['/((?!api|_next|.*\\..*).*)'],
+  // Skip API routes, Next.js internals, static assets and the health check so
+  // instrumentation does not interfere with the readiness probe.
+  matcher: ['/((?!api|_next|ping|.*\\..*).*)'],
 };

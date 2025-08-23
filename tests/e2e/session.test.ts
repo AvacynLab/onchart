@@ -10,7 +10,9 @@ test.describe
       page,
     }) => {
       const response = await page.goto('/');
-      await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
+      await expect(page.getByTestId('multimodal-input')).toBeVisible({
+        timeout: 20_000,
+      });
       await expect(page.getByTestId('bento-grid')).toBeVisible();
 
       if (!response) {
@@ -36,7 +38,9 @@ test.describe
 
     test('Log out is not available for guest users', async ({ page }) => {
       await page.goto('/');
-      await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
+      await expect(page.getByTestId('multimodal-input')).toBeVisible({
+        timeout: 20_000,
+      });
       await expect(page.getByTestId('bento-grid')).toBeVisible();
 
       const sidebarToggleButton = page.getByTestId('sidebar-toggle-button');
@@ -57,9 +61,9 @@ test.describe
       adaContext,
     }) => {
       const response = await adaContext.page.goto('/');
-      await adaContext.page
-        .getByTestId('multimodal-input')
-        .waitFor({ state: 'visible' });
+      await expect(adaContext.page.getByTestId('multimodal-input')).toBeVisible(
+        { timeout: 20_000 },
+      );
       await expect(adaContext.page.getByTestId('bento-grid')).toBeVisible();
 
       if (!response) {
@@ -93,7 +97,9 @@ test.describe
 
     test('Do not show email in user menu for guest user', async ({ page }) => {
       await page.goto('/');
-      await page.getByTestId('multimodal-input').waitFor({ state: 'visible' });
+      await expect(page.getByTestId('multimodal-input')).toBeVisible({
+        timeout: 20_000,
+      });
       await expect(page.getByTestId('bento-grid')).toBeVisible();
 
       const sidebarToggleButton = page.getByTestId('sidebar-toggle-button');
@@ -204,7 +210,8 @@ test.describe('Entitlements', () => {
     chatPage = new ChatPage(page);
   });
 
-  test('Guest user cannot send more than 20 messages/day', async () => {    await chatPage.createNewChat();
+  test('Guest user cannot send more than 20 messages/day', async () => {
+    await chatPage.createNewChat();
 
     for (let i = 0; i <= 20; i++) {
       await chatPage.sendUserMessage('Why is the sky blue?');

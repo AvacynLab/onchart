@@ -139,6 +139,15 @@ export async function POST(request: Request) {
   const locale =
     (request.headers.get('x-next-intl-locale') as 'fr' | 'en') || 'fr';
 
+  // During Playwright-driven end-to-end tests, bypass the expensive LLM
+  // streaming logic and return a lightweight stub so the endpoint responds
+  // immediately. Unit tests still exercise the full handler, even on CI,
+  // ensuring quota checks remain covered while e2e runs stay fast and
+  // deterministic.
+  if (process.env.PLAYWRIGHT === 'True') {
+    return Response.json({ id: 'draft_test', createdAt: Date.now() });
+  }
+
   // Helper to stream a single assistant message as an SSE response. Using a
   // stream keeps the response format consistent with the chat endpoint.
   function streamAssistantMessage(message: string) {

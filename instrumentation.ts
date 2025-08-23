@@ -21,7 +21,7 @@ export const runtime = 'nodejs';
  * without affecting browser environments where `self` already exists.
  */
 if (typeof (globalThis as any).self === 'undefined') {
-  ;(globalThis as any).self = globalThis;
+  (globalThis as any).self = globalThis;
 }
 
 /**
@@ -29,7 +29,7 @@ if (typeof (globalThis as any).self === 'undefined') {
  * feature, but exporting an empty array ensures the property exists on the
  * module object.
  */
-export const clientModules: string[] = [];
+export const clientModules = new Map<string, unknown>();
 
 /**
  * Next.js will invoke this hook during server start-up if present.  We supply a
@@ -37,9 +37,11 @@ export const clientModules: string[] = [];
  * side effects or dependencies.
  */
 export async function register(): Promise<void> {
-  // Initialise telemetry only when allowed by the environment. The helper
-  // performs its own guards so this call is safe in all contexts, including
-  // local development and test runs where telemetry is disabled.
+  const g = globalThis as any;
+  g.__next_require__ ??= {};
+  g.__next_require__.clientModules ??= clientModules;
+  g.clientModules ??= g.__next_require__.clientModules;
+
   const { initTelemetry } = await import('./lib/telemetry');
   await initTelemetry();
 }
