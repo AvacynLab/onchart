@@ -49,8 +49,10 @@ export function computeOverlay(
   // Align computed values with candle times. Indicators like SMA shrink the
   // series by `period - 1` elements, so we drop the first timestamps.
   const offset = candles.length - values.length;
-  return values.map((v, i) => ({
-    time: (candles[i + offset].time / 1000) as UTCTimestamp,
-    value: v,
-  }));
+  return values.reduce<{ time: UTCTimestamp; value: number }[]>((acc, v, i) => {
+    const candle = candles[i + offset];
+    if (!candle) return acc;
+    acc.push({ time: (candle.time / 1000) as UTCTimestamp, value: v });
+    return acc;
+  }, []);
 }

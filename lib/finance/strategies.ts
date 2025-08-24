@@ -51,6 +51,7 @@ function backtest(prices: number[], signals: Signal[]): {
   let trades = 0;
   for (const s of signals) {
     const price = p[s.index];
+    if (price === undefined) continue;
     if (s.type === 'enter' && position === null) {
       position = price;
     } else if (s.type === 'exit' && position !== null) {

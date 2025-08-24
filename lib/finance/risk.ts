@@ -36,7 +36,9 @@ export function annualizedVolatility(
 export function maxDrawdown(prices: number[]): number {
   const { prices: p } = z.object({ prices: PricesSchema }).parse({ prices });
   if (p.length < 2) return 0;
-  let peak = p[0];
+  const first = p[0];
+  if (first === undefined) return 0;
+  let peak = first;
   let maxDd = 0;
   for (const price of p) {
     if (price > peak) peak = price; // new high
@@ -125,8 +127,11 @@ export function beta(
   let cov = 0;
   let varB = 0;
   for (let i = 0; i < asset.length; i++) {
-    cov += (asset[i] - meanA) * (bench[i] - meanB);
-    varB += Math.pow(bench[i] - meanB, 2);
+    const a = asset[i];
+    const b = bench[i];
+    if (a === undefined || b === undefined) continue;
+    cov += (a - meanA) * (b - meanB);
+    varB += Math.pow(b - meanB, 2);
   }
   cov /= asset.length - 1; // sample covariance
   varB /= bench.length - 1; // sample variance
