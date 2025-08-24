@@ -411,3 +411,4 @@ Avec ces 4 blocs, les tests `e2e` doivent **déjà** passer nettement plus loin 
 - 2025-09-03: Installed missing TypeScript ESLint plugin, fixed backtest metric calculation to assert ending equity, guarded optional `DataSourceError.info`, ran lint and unit tests; e2e build still aborts before running Playwright suite.
 - 2025-09-04: Hardened EMA/RSI calculations against empty SMA seeds and unsafe price indexing; unit tests pass, e2e build stalls during type check.
 - 2025-09-05: Installed missing TypeScript ESLint plugin, verified Bento grid accessibility, ran lint and unit tests; e2e server failed to start.
+- 2025-09-06: Fixed TypeScript build errors in strategies, symbol parsing, time utilities, and test helpers to get `pnpm build` passing.

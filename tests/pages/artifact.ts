@@ -41,6 +41,9 @@ export class ArtifactPage {
       .getByTestId('message-assistant')
       .all();
     const lastMessageElement = messageElements[messageElements.length - 1];
+    if (!lastMessageElement) {
+      return { element: undefined, content: null, reasoning: null, async toggleReasoningVisibility() {} };
+    }
 
     const content = await lastMessageElement
       .getByTestId('message-content')
@@ -76,6 +79,7 @@ export class ArtifactPage {
       .getByTestId('message-user')
       .all();
     const lastMessageElement = messageElements[messageElements.length - 1];
+    if (!lastMessageElement) return null;
 
     const content = await lastMessageElement.innerText();
 
