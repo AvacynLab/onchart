@@ -44,7 +44,11 @@ export default function StrategyWizard({ onComplete }: Props) {
     constraints: undefined,
   });
 
-  const fields: Array<{ label: string; name: keyof WizardAnswers; type: string }> = [
+  const fields: Array<{
+    label: string;
+    name: keyof WizardAnswers;
+    type: string;
+  }> = [
     { label: t('horizon'), name: 'horizon', type: 'text' },
     { label: t('risk'), name: 'risk', type: 'text' },
     { label: t('universe'), name: 'universe', type: 'text' },
@@ -63,8 +67,11 @@ export default function StrategyWizard({ onComplete }: Props) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const raw = inputRef.current?.value ?? '';
-    const value = current!.type === 'number' ? Number(raw) : raw;
-    const nextAnswers = { ...answers, [current!.name]: value } as WizardAnswers;
+    // Recompute the field in case the step changed before submission.
+    const field = fields[step];
+    if (!field) return;
+    const value = field.type === 'number' ? Number(raw) : raw;
+    const nextAnswers = { ...answers, [field.name]: value } as WizardAnswers;
     setAnswers(nextAnswers);
     if (step < fields.length - 1) {
       setStep(step + 1);
@@ -81,7 +88,9 @@ export default function StrategyWizard({ onComplete }: Props) {
         {current.label}
         <input
           name={current.name}
-          data-testid={current.name === 'constraints' ? 'constraints-input' : undefined}
+          data-testid={
+            current.name === 'constraints' ? 'constraints-input' : undefined
+          }
           type={current.type}
           ref={inputRef}
           defaultValue={answers[current.name] as string | number | undefined}

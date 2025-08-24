@@ -7,8 +7,8 @@
  */
 import { initTelemetry } from '.';
 
-try {
-  await initTelemetry();
-} catch (err) {
+// Kick off telemetry initialization without blocking module load. Any failure
+// is logged but never allowed to crash the application during startup.
+void initTelemetry().catch((err) => {
   console.warn('[telemetry] failed to initialise', err);
-}
+});
