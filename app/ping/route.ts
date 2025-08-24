@@ -9,11 +9,14 @@ export const runtime = 'nodejs';
  * Including version and commit helps track deployments during debugging.
  */
 export async function GET() {
-  return Response.json({
-    ok: true,
-    version: process.env.npm_package_version,
-    commit: process.env.GITHUB_SHA?.slice(0, 7) ?? null,
-  });
+  return Response.json(
+    {
+      ok: true,
+      version: process.env.npm_package_version,
+      commit: process.env.GITHUB_SHA?.slice(0, 7) ?? null,
+    },
+    { headers: { 'Cache-Control': 'no-store' } },
+  );
 }
 
 /**

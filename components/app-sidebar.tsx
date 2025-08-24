@@ -18,7 +18,12 @@ import {
 import Link from 'next/link';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
-export function AppSidebar({ user }: { user: User | undefined }) {
+/**
+ * Shell sidebar displayed on all chat routes. It accepts an optional `user`
+ * object so the layout can render even when authentication is absent
+ * (e.g. in CI or guest mode).
+ */
+export function AppSidebar({ user }: { user: User | null }) {
   const router = useRouter();
   const { setOpenMobile } = useSidebar();
 
@@ -29,6 +34,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
           <div className="flex flex-row justify-between items-center">
             <Link
               href="/"
+              prefetch={false}
               onClick={() => {
                 setOpenMobile(false);
               }}
@@ -61,7 +67,10 @@ export function AppSidebar({ user }: { user: User | undefined }) {
       <SidebarContent>
         <SidebarHistory user={user} />
       </SidebarContent>
-      <SidebarFooter>{user && <SidebarUserNav user={user} />}</SidebarFooter>
+      {/* Always render user navigation; component handles unauthenticated state. */}
+      <SidebarFooter>
+        <SidebarUserNav user={user} />
+      </SidebarFooter>
     </Sidebar>
   );
 }

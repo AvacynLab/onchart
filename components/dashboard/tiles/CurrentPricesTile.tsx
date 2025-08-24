@@ -34,23 +34,39 @@ export function PricesClient({
   // `aria-labelledby` for better screen-reader announcements.
   const titleId = useId();
   const [quotes, setQuotes] = useState(initialQuotes);
+  const [status, setStatus] = useState<'loading' | 'error' | 'ok'>(
+    initialQuotes.length === 0 ? 'loading' : 'ok',
+  );
 
-  // If the server rendered no quotes (e.g., network failure), attempt a fetch
-  // on mount so the tile can self-heal once connectivity returns.
+  /**
+   * Fetch latest quotes and update state accordingly.
+   */
+  async function fetchPrices() {
+    setStatus('loading');
+    try {
+      const fresh = await fetchLiveQuotes(DEFAULT_SYMBOLS);
+      setQuotes(fresh);
+      setStatus('ok');
+    } catch (err) {
+      console.debug('quote fetch failed', err);
+      setStatus('error');
+    }
+  }
+
+  // Attempt initial fetch when the server provided no quotes.
   useEffect(() => {
     if (initialQuotes.length === 0) {
-      fetchLiveQuotes(DEFAULT_SYMBOLS)
-        .then(setQuotes)
-        .catch((err) => console.error('initial quote fetch failed', err));
+      void fetchPrices();
     }
   }, [initialQuotes]);
 
+  // Keep quotes refreshed every 10 seconds and via Binance websocket.
   useEffect(() => {
-    const symbols = initialQuotes.map((q) => q.symbol);
+    if (status !== 'ok') return;
+    const symbols = quotes.map((q) => q.symbol);
     const cryptoSymbols = symbols.filter(isCryptoSymbol);
     const pollSymbols = symbols.filter((s) => !isCryptoSymbol(s));
 
-    // Poll non-crypto symbols via internal API
     const id = setInterval(async () => {
       if (pollSymbols.length === 0) return;
       try {
@@ -61,11 +77,10 @@ export function PricesClient({
           return Array.from(map.values());
         });
       } catch (err) {
-        console.error('failed to refresh quotes', err);
+        console.debug('failed to refresh quotes', err);
       }
     }, 10_000);
 
-    // Subscribe to Binance WebSocket for crypto symbols
     const unsubs = cryptoSymbols.map((s) =>
       subscribeBinanceTicker(s, (quote) =>
         setQuotes((prev) =>
@@ -78,7 +93,7 @@ export function PricesClient({
       clearInterval(id);
       unsubs.forEach((u) => u());
     };
-  }, [initialQuotes]);
+  }, [quotes, status]);
 
   return (
     <BentoCard
@@ -86,25 +101,7 @@ export function PricesClient({
       titleId={titleId}
       titleTestId="tile-prices-title"
     >
-      {quotes.length === 0 ? (
-        <div className="flex flex-col items-center gap-2">
-          <PricesTileEmpty message={t('offline')} />
-          <button
-            type="button"
-            onClick={async () => {
-              try {
-                setQuotes(await fetchLiveQuotes(DEFAULT_SYMBOLS));
-              } catch (err) {
-                console.error('retry quote fetch failed', err);
-              }
-            }}
-            className="text-sm underline"
-            data-testid="prices-retry"
-          >
-            {t('retry')}
-          </button>
-        </div>
-      ) : (
+      {status === 'ok' && quotes.length > 0 ? (
         <table className="w-full text-sm" aria-labelledby={titleId}>
           <thead>
             <tr>
@@ -127,9 +124,11 @@ export function PricesClient({
                 <td
                   className={cx('text-right', {
                     'text-green-600 dark:text-green-400':
-                      typeof q.changePercent === 'number' && q.changePercent >= 0,
+                      typeof q.changePercent === 'number' &&
+                      q.changePercent >= 0,
                     'text-red-600 dark:text-red-400':
-                      typeof q.changePercent === 'number' && q.changePercent < 0,
+                      typeof q.changePercent === 'number' &&
+                      q.changePercent < 0,
                   })}
                 >
                   {typeof q.changePercent === 'number'
@@ -157,6 +156,20 @@ export function PricesClient({
             ))}
           </tbody>
         </table>
+      ) : status === 'error' ? (
+        <div className="flex flex-col items-center gap-2">
+          <PricesTileEmpty message={t('offline')} />
+          <button
+            type="button"
+            onClick={fetchPrices}
+            className="text-sm underline"
+            data-testid="prices-retry"
+          >
+            {t('retry')}
+          </button>
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">{t('loading')}</p>
       )}
     </BentoCard>
   );

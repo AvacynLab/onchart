@@ -64,9 +64,16 @@ function PureArtifactMessages({
         />
       ))}
 
-      {status === 'submitted' &&
-        messages.length > 0 &&
-        messages[messages.length - 1].role === 'user' && <ThinkingMessage />}
+      {(() => {
+        // Safely inspect the last message using `Array.at` to satisfy
+        // `noUncheckedIndexedAccess` while still rendering a thinking indicator
+        // when the most recent message originates from the user.
+        const lastMessage = messages.at(-1);
+        return (
+          status === 'submitted' &&
+          lastMessage?.role === 'user' && <ThinkingMessage />
+        );
+      })()}
 
       <motion.div
         ref={messagesEndRef}

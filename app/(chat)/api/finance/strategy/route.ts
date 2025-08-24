@@ -34,11 +34,16 @@ export async function GET(req: Request): Promise<Response> {
   if (chatId) {
     const cursor = searchParams.get('cursor');
     const limit = searchParams.get('limit');
-    const page = await listStrategiesByChat({
+
+    // Build pagination options without undefined properties to satisfy
+    // `exactOptionalPropertyTypes`.
+    const options: { chatId: string; cursor?: Date; limit?: number } = {
       chatId,
-      cursor: cursor ? new Date(cursor) : undefined,
-      limit: limit ? Number(limit) : undefined,
-    });
+    };
+    if (cursor) options.cursor = new Date(cursor);
+    if (limit) options.limit = Number(limit);
+
+    const page = await listStrategiesByChat(options);
     return Response.json(page);
   }
   return new Response(JSON.stringify({ error: 'id or chatId required' }), {
@@ -50,7 +55,14 @@ export async function POST(req: Request): Promise<Response> {
   const body = await req.json();
   // Default create strategy when no action is provided
   if (!body.action) {
-    const { userId, chatId, title, universe = {}, constraints = {}, status } = body || {};
+    const {
+      userId,
+      chatId,
+      title,
+      universe = {},
+      constraints = {},
+      status,
+    } = body || {};
     if (!userId || !chatId || !title) {
       return new Response(JSON.stringify({ error: 'invalid body' }), {
         status: 400,
@@ -86,9 +98,29 @@ export async function POST(req: Request): Promise<Response> {
         status: 400,
       });
     }
-    const { versionId, candles, signals, costs, slippage, symbolSet, window, assumptions } =
-      parsed.data;
-    const result = backtest({ candles, signals, costs, slippage });
+    const {
+      versionId,
+      candles,
+      signals,
+      costs,
+      slippage,
+      symbolSet,
+      window,
+      assumptions,
+    } = parsed.data;
+
+    // Build backtest options without undefined fields to satisfy strict optional
+    // typing.
+    const backtestOpts: {
+      candles: Candle[];
+      signals: SignalMap;
+      costs?: number;
+      slippage?: number;
+    } = { candles, signals };
+    if (costs !== undefined) backtestOpts.costs = costs;
+    if (slippage !== undefined) backtestOpts.slippage = slippage;
+
+    const result = backtest(backtestOpts);
     const saved = await saveBacktest({
       strategyVersionId: versionId,
       symbolSet: symbolSet ?? {},
@@ -102,7 +134,10 @@ export async function POST(req: Request): Promise<Response> {
 
   // Finalize a strategy by marking it validated
   if (body.action === 'finalize') {
-    const schema = z.object({ action: z.literal('finalize'), versionId: z.string() });
+    const schema = z.object({
+      action: z.literal('finalize'),
+      versionId: z.string(),
+    });
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
       return new Response(JSON.stringify({ error: 'invalid body' }), {
@@ -122,7 +157,9 @@ export async function POST(req: Request): Promise<Response> {
     return Response.json(updated);
   }
 
-  return new Response(JSON.stringify({ error: 'unknown action' }), { status: 400 });
+  return new Response(JSON.stringify({ error: 'unknown action' }), {
+    status: 400,
+  });
 }
 
 export async function PATCH(req: Request): Promise<Response> {
@@ -142,14 +179,23 @@ export async function PATCH(req: Request): Promise<Response> {
   }
   const prev = await getStrategyVersion({ id: parsed.data.versionId });
   if (!prev) {
-    return new Response(JSON.stringify({ error: 'unknown version' }), { status: 404 });
+    return new Response(JSON.stringify({ error: 'unknown version' }), {
+      status: 404,
+    });
   }
-  const next = await createStrategyVersion({
+  const createOpts: {
+    strategyId: string;
+    description?: string;
+    rules: unknown;
+    params: unknown;
+    notes?: string;
+  } = {
     strategyId: prev.strategyId,
-    description: parsed.data.description,
     rules: parsed.data.rules,
     params: parsed.data.params,
-    notes: parsed.data.notes,
-  });
+  };
+  if (parsed.data.description) createOpts.description = parsed.data.description;
+  if (parsed.data.notes) createOpts.notes = parsed.data.notes;
+  const next = await createStrategyVersion(createOpts);
   return Response.json(next);
 }

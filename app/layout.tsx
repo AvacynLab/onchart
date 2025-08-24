@@ -109,25 +109,16 @@ export default async function RootLayout({
             disableTransitionOnChange
           >
             <Toaster position="top-center" />
-            {process.env.PLAYWRIGHT ? (
-              // During Playwright runs we skip authentication providers to keep
-              // the component tree shallow and deterministic.
+            {/* Always mount providers so hooks remain functional during tests. */}
+            <SessionProvider>
               <ToolbarProvider>
                 <SidebarProvider defaultOpen={!isCollapsed}>
-                  <AppSidebar user={undefined} />
+                  {/* Pass null rather than undefined to satisfy exact optional property types */}
+                  <AppSidebar user={null} />
                   <SidebarInset>{content}</SidebarInset>
                 </SidebarProvider>
               </ToolbarProvider>
-            ) : (
-              <SessionProvider>
-                <ToolbarProvider>
-                  <SidebarProvider defaultOpen={!isCollapsed}>
-                    <AppSidebar user={undefined} />
-                    <SidebarInset>{content}</SidebarInset>
-                  </SidebarProvider>
-                </ToolbarProvider>
-              </SessionProvider>
-            )}
+            </SessionProvider>
           </ThemeProvider>
         </NextIntlClientProvider>
       </body>

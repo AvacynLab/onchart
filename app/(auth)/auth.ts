@@ -8,7 +8,7 @@ import { authConfig } from './auth.config';
 import { DUMMY_PASSWORD } from '@/lib/constants';
 import type { DefaultJWT } from 'next-auth/jwt';
 
-export type UserType = 'guest' | 'regular';
+export type UserType = 'guest' | 'regular' | 'pro';
 
 /** Maximum number of heavy analyses allowed for guest users. */
 export const GUEST_MAX_ANALYSES = 20;
@@ -63,7 +63,8 @@ export const {
 
         const [user] = users;
 
-        if (!user.password) {
+        // With `noUncheckedIndexedAccess` enabled, `user` may be undefined.
+        if (!user || !user.password) {
           await compare(password, DUMMY_PASSWORD);
           return null;
         }
@@ -99,7 +100,8 @@ export const {
       if (user) {
         token.id = user.id as string;
         token.type = user.type;
-        if (user.maxAnalyses !== undefined) token.maxAnalyses = user.maxAnalyses;
+        if (user.maxAnalyses !== undefined)
+          token.maxAnalyses = user.maxAnalyses;
       }
 
       return token;
@@ -108,7 +110,8 @@ export const {
       if (session.user) {
         session.user.id = token.id;
         session.user.type = token.type;
-        if (token.maxAnalyses !== undefined) session.user.maxAnalyses = token.maxAnalyses;
+        if (token.maxAnalyses !== undefined)
+          session.user.maxAnalyses = token.maxAnalyses;
       }
 
       return session;

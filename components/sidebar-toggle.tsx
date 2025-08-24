@@ -20,6 +20,7 @@ export function SidebarToggle({
       <TooltipTrigger asChild>
         <Button
           data-testid="sidebar-toggle-button"
+          aria-label="Toggle sidebar"
           onClick={toggleSidebar}
           variant="outline"
           className="md:px-2 md:h-fit"

@@ -93,7 +93,12 @@ export function getChatHistoryPaginationKey(
   return `/api/history?ending_before=${firstChatFromPage.id}&limit=${PAGE_SIZE}`;
 }
 
-export function SidebarHistory({ user }: { user: User | undefined }) {
+/**
+ * Renders the list of previous chats for the given `user`. When no user is
+ * provided the component displays a friendly prompt inviting visitors to sign
+ * in instead of issuing failing network requests.
+ */
+export function SidebarHistory({ user }: { user: User | null }) {
   const { setOpenMobile } = useSidebar();
   const { id } = useParams();
 
@@ -126,31 +131,35 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
     : false;
 
   const handleDelete = async () => {
-    const deletePromise = fetch(`/api/chat?id=${deleteId}`, {
-      method: 'DELETE',
-    });
+    try {
+      const deletePromise = fetch(`/api/chat?id=${deleteId}`, {
+        method: 'DELETE',
+      });
 
-    toast.promise(deletePromise, {
-      loading: 'Deleting chat...',
-      success: () => {
-        mutate((chatHistories) => {
-          if (chatHistories) {
-            return chatHistories.map((chatHistory) => ({
-              ...chatHistory,
-              chats: chatHistory.chats.filter((chat) => chat.id !== deleteId),
-            }));
-          }
-        });
+      await toast.promise(deletePromise, {
+        loading: 'Deleting chat...',
+        success: () => {
+          mutate((chatHistories) => {
+            if (chatHistories) {
+              return chatHistories.map((chatHistory) => ({
+                ...chatHistory,
+                chats: chatHistory.chats.filter((chat) => chat.id !== deleteId),
+              }));
+            }
+          });
 
-        return 'Chat deleted successfully';
-      },
-      error: 'Failed to delete chat',
-    });
+          return 'Chat deleted successfully';
+        },
+        error: 'Failed to delete chat',
+      });
+    } catch (error) {
+      console.debug('Failed to delete chat', error);
+    } finally {
+      setShowDeleteDialog(false);
 
-    setShowDeleteDialog(false);
-
-    if (deleteId === id) {
-      router.push('/');
+      if (deleteId === id) {
+        router.push('/');
+      }
     }
   };
 

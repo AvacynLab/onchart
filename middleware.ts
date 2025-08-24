@@ -27,6 +27,9 @@ export function middleware(request: NextRequest) {
   }
   const response = NextResponse.next();
   response.headers.set('x-next-intl-locale', locale);
+  // Harden security headers across the application.
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   // Écrire le cookie si absent ou différent pour mémoriser la préférence.
   if (!cookieLocale || cookieLocale !== locale) {
     response.cookies.set('lang', locale, { path: '/' });

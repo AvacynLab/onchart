@@ -20,17 +20,19 @@ export async function POST(req: Request): Promise<Response> {
   });
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
-    return new Response(JSON.stringify({ error: 'invalid body' }), { status: 400 });
+    return new Response(JSON.stringify({ error: 'invalid body' }), {
+      status: 400,
+    });
   }
   const { userId, chatId, title, answers, locale } = parsed.data;
-  // Create finance tools scoped to the user/chat and locale. The validator
-  // already restricts `locale` to `fr` or `en`, but cast here to satisfy the
-  // TypeScript signature.
-  const tools = createFinanceTools({
+  // Create finance tools scoped to the user/chat. Include locale only when
+  // provided to respect `exactOptionalPropertyTypes`.
+  const ctx: { userId: string; chatId: string; locale?: 'fr' | 'en' } = {
     userId,
     chatId,
-    locale: locale as 'fr' | 'en' | undefined,
-  });
+  };
+  if (locale) ctx.locale = locale as 'fr' | 'en';
+  const tools = createFinanceTools(ctx);
   // Persist the wizard start for traceability. Strategy helpers are guaranteed
   // to exist when this endpoint runs, so cast to `any` to satisfy TypeScript.
   const strategyTools = tools.strategy as any;

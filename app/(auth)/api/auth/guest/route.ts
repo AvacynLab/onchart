@@ -19,7 +19,8 @@ export async function GET(request: Request) {
   // Reuse any existing session to avoid creating multiple guest accounts.
   const token = await getToken({
     req: request,
-    secret: process.env.AUTH_SECRET,
+    // Only include `secret` when defined to satisfy `exactOptionalPropertyTypes`.
+    ...(process.env.AUTH_SECRET ? { secret: process.env.AUTH_SECRET } : {}),
     secureCookie: !isDevelopmentEnvironment,
   });
 

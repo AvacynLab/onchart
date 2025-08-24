@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import Module from 'module';
+import Module from 'node:module';
 
 // Intercept module loading to stub database helpers and `server-only`.
 test('filters by asset and kind with pagination', async () => {
   const originalLoad = (Module as any)._load;
-  (Module as any)._load = function (request: string, parent: any, isMain: boolean) {
+  (Module as any)._load = (request: string, parent: any, isMain: boolean) => {
     if (request === 'server-only') return {};
     return originalLoad(request, parent, isMain);
   };
@@ -32,6 +32,7 @@ test('filters by asset and kind with pagination', async () => {
       },
     },
   } as any;
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { GET } = require('../../../app/(chat)/api/document/query/route');
   // Restore loader to avoid side effects for subsequent tests
   (Module as any)._load = originalLoad;
@@ -46,7 +47,6 @@ test('filters by asset and kind with pagination', async () => {
   assert.equal(json.total, 1);
   assert.deepEqual(calls[0], {
     asset: 'AAPL',
-    timeframe: undefined,
     kind: 'strategy',
     limit: 5,
     offset: 10,

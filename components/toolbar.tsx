@@ -268,6 +268,9 @@ export const Tools = ({
 }) => {
   const { isVisible } = useToolbarStore();
   const [primaryTool, ...secondaryTools] = tools;
+  // Abort rendering if no tools are provided; ensures destructuring does not
+  // yield undefined values under strict index access rules.
+  if (!primaryTool) return null;
 
   return (
     <motion.div

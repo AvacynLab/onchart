@@ -50,7 +50,11 @@ const TRADING_DAYS_PER_YEAR = 365;
  * Compute maximum drawdown of an equity series.
  */
 function computeMaxDrawdown(curve: number[]): number {
-  let peak = curve[0];
+  const first = curve[0];
+  // If the series is empty, max drawdown is zero.
+  if (first === undefined) return 0;
+
+  let peak = first;
   let maxDd = 0;
   for (const value of curve) {
     if (value > peak) peak = value;
@@ -99,6 +103,7 @@ export function backtest({
 
   for (let i = 0; i < candles.length; i++) {
     const bar = candles[i];
+    if (!bar) continue;
     const signal = signals[i];
     const price = bar.close;
 
@@ -126,7 +131,9 @@ export function backtest({
     }
 
     const markToMarket = equity + position * price;
-    const prev = curve[curve.length - 1];
+    // `curve` always contains at least the initial equity so the previous value
+    // exists; use non-null assertion to satisfy `noUncheckedIndexedAccess`.
+    const prev = curve[curve.length - 1]!;
     curve.push(markToMarket);
     returns.push((markToMarket - prev) / prev);
   }
@@ -137,14 +144,16 @@ export function backtest({
   const downside = stdev(negativeReturns.length ? negativeReturns : [0]);
   const periods = returns.length;
   const years = periods / TRADING_DAYS_PER_YEAR;
-  const ending = curve[curve.length - 1];
+  // `curve` always has at least one element, but assert non-null for strict
+  // indexing rules.
+  const ending = curve[curve.length - 1]!;
 
   // Compute common performance statistics. CAGR expresses the compounded
   // annual growth rate, Sharpe normalises returns by volatility, Sortino only
   // penalises downside deviation, and profit factor divides gross wins by
   // absolute gross losses.
   const metrics: BacktestMetrics = {
-    cagr: Math.pow(ending / curve[0], 1 / years) - 1,
+    cagr: Math.pow(ending / curve[0]!, 1 / years) - 1,
     sharpe: (avgReturn / (volatility || 1)) * Math.sqrt(TRADING_DAYS_PER_YEAR),
     sortino: (avgReturn / (downside || 1)) * Math.sqrt(TRADING_DAYS_PER_YEAR),
     maxDrawdown: computeMaxDrawdown(curve),
@@ -154,4 +163,3 @@ export function backtest({
 
   return { equityCurve: curve, metrics };
 }
-

@@ -25,7 +25,9 @@ export default async function Layout({
       />
       <DataStreamProvider>
         <SidebarProvider defaultOpen={!isCollapsed}>
-          <AppSidebar user={session?.user} />
+          {/* Pass `null` when no authenticated session is available so the
+              sidebar can still render in guest mode. */}
+          <AppSidebar user={session?.user ?? null} />
           <SidebarInset>{children}</SidebarInset>
         </SidebarProvider>
       </DataStreamProvider>

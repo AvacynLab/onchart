@@ -1,7 +1,10 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { fetchOHLCYahoo } from '../finance/sources/yahoo';
-import type { QuoteResult } from '../finance/sources/yahoo';
+import {
+  fetchOHLCYahoo,
+  type OHLCOptions,
+  QuoteResult,
+} from '../finance/sources/yahoo';
 import { fetchLiveQuotes } from '../finance/live';
 import { searchYahoo } from '../finance/search';
 import {
@@ -17,7 +20,10 @@ import {
   breakoutBB,
   type Signal,
 } from '../finance/strategies';
-import { backtest as runBacktest } from '../finance/backtest';
+import {
+  backtest as runBacktest,
+  type BacktestOptions,
+} from '../finance/backtest';
 import {
   annualizedVolatility,
   maxDrawdown,
@@ -133,8 +139,7 @@ export function createFinanceTools(
   // Default to French if no locale is provided
   const locale = ctx.locale ?? 'fr';
   const {
-    fetchQuote = async (symbol: string) =>
-      (await fetchLiveQuotes([symbol]))[0],
+    fetchQuote = async (symbol: string) => (await fetchLiveQuotes([symbol]))[0],
     fetchOHLC = fetchOHLCYahoo,
     search = searchYahoo,
     searchCIK = searchCompanyCIK,
@@ -191,8 +196,20 @@ export function createFinanceTools(
       end: z.number().optional(),
     }),
     execute: async ({ symbol, timeframe, range, start, end }) => {
-      const candles = await fetchOHLC(symbol, timeframe, { range, start, end });
-      await persistAnalysis('ohlc', { symbol, timeframe, range, start, end }, candles);
+      // Construct options object only with defined properties to satisfy
+      // `exactOptionalPropertyTypes` and avoid passing explicit `undefined`
+      // values to `fetchOHLC`.
+      const opts: OHLCOptions = {};
+      if (range !== undefined) opts.range = range;
+      if (start !== undefined) opts.start = start;
+      if (end !== undefined) opts.end = end;
+
+      const candles = await fetchOHLC(symbol, timeframe, opts);
+      await persistAnalysis(
+        'ohlc',
+        { symbol, timeframe, range, start, end },
+        candles,
+      );
       return candles;
     },
   });
@@ -292,7 +309,11 @@ export function createFinanceTools(
         }
         if (!cikVal) throw new Error('CIK not found');
         const filings = await listFilings(cikVal, forms);
-        await persistAnalysis('filings', { ticker, cik: cikVal, forms }, filings);
+        await persistAnalysis(
+          'filings',
+          { ticker, cik: cikVal, forms },
+          filings,
+        );
         return filings;
       },
     }),
@@ -373,8 +394,15 @@ export function createFinanceTools(
       params: z.record(z.any()).optional(),
     }),
     execute: async ({ symbol, timeframe, name, params }) => {
-      emitUIEvent({ type: 'add_indicator', payload: { symbol, timeframe, name, params } });
-      await persistAnalysis('add_indicator', { symbol, timeframe, name, params }, { ok: true });
+      emitUIEvent({
+        type: 'add_indicator',
+        payload: { symbol, timeframe, name, params },
+      });
+      await persistAnalysis(
+        'add_indicator',
+        { symbol, timeframe, name, params },
+        { ok: true },
+      );
       return { ok: true };
     },
   });
@@ -403,7 +431,11 @@ export function createFinanceTools(
       });
       const payload = { id, symbol, timeframe, at, price, type, text };
       emitUIEvent({ type: 'add_annotation', payload });
-      await persistAnalysis('add_annotation', { symbol, timeframe, at, price, type }, { id });
+      await persistAnalysis(
+        'add_annotation',
+        { symbol, timeframe, at, price, type },
+        { id },
+      );
       return { id };
     },
   });
@@ -499,7 +531,9 @@ export function createFinanceTools(
           await persistAnalysis('ask_about_selection', params, { ok: true });
           // Return a formatted anchor so the assistant can mention
           // the exact symbol/timeframe/timestamp in its response.
-          return { anchor: `${params.symbol},${params.timeframe},${params.at}` };
+          return {
+            anchor: `${params.symbol},${params.timeframe},${params.at}`,
+          };
         },
       }),
     },
@@ -516,11 +550,18 @@ export function createFinanceTools(
           const questions =
             locale === 'fr'
               ? [
-                  { key: 'horizon', question: 'Quel est votre horizon de placement ?' },
-                  { key: 'risk', question: 'Quel niveau de risque tolérez-vous ?' },
+                  {
+                    key: 'horizon',
+                    question: 'Quel est votre horizon de placement ?',
+                  },
+                  {
+                    key: 'risk',
+                    question: 'Quel niveau de risque tolérez-vous ?',
+                  },
                   {
                     key: 'universe',
-                    question: "Sur quels actifs souhaitez-vous vous concentrer ?",
+                    question:
+                      'Sur quels actifs souhaitez-vous vous concentrer ?',
                   },
                   {
                     key: 'frequency',
@@ -528,7 +569,8 @@ export function createFinanceTools(
                   },
                   {
                     key: 'costs',
-                    question: 'Quels frais et slippage souhaitez-vous modéliser ?',
+                    question:
+                      'Quels frais et slippage souhaitez-vous modéliser ?',
                   },
                   { key: 'esg', question: 'Avez-vous des restrictions ESG ?' },
                   {
@@ -537,7 +579,10 @@ export function createFinanceTools(
                   },
                 ]
               : [
-                  { key: 'horizon', question: 'What is your investment horizon?' },
+                  {
+                    key: 'horizon',
+                    question: 'What is your investment horizon?',
+                  },
                   {
                     key: 'risk',
                     question: 'What level of risk can you tolerate?',
@@ -581,7 +626,12 @@ export function createFinanceTools(
             constraints: z.any().optional(),
           })
           .strict(),
-        execute: async ({ title, answers, universe = {}, constraints = {} }) => {
+        execute: async ({
+          title,
+          answers,
+          universe = {},
+          constraints = {},
+        }) => {
           if (!createStrategyFn) {
             const mod = await import('../db/queries');
             // Cast the query helpers to the looser dependency signatures used in
@@ -602,7 +652,10 @@ export function createFinanceTools(
             status: 'draft',
           });
           // Very naive rule proposal: moving average crossover with fixed params.
-          const rules = { type: 'ma_crossover', params: { short: 50, long: 200 } };
+          const rules = {
+            type: 'ma_crossover',
+            params: { short: 50, long: 200 },
+          };
           const version = await createStrategyVersionFn?.({
             strategyId: strat.id,
             description:
@@ -639,12 +692,19 @@ export function createFinanceTools(
             const mod = await import('../db/queries');
             listStrategiesFn = mod.listStrategiesByChat;
           }
-          const output = await listStrategiesFn({
+          // Build options selectively to avoid explicit `undefined` values
+          // under `exactOptionalPropertyTypes`.
+          const args: { chatId: string; cursor?: Date; limit?: number } = {
             chatId: chatId ?? ctx.chatId,
-            cursor: cursor ? new Date(cursor) : undefined,
-            limit,
-          });
-          await persistAnalysis('strategy_list', { chatId, cursor, limit }, output);
+          };
+          if (cursor) args.cursor = new Date(cursor);
+          if (limit !== undefined) args.limit = limit;
+          const output = await listStrategiesFn(args);
+          await persistAnalysis(
+            'strategy_list',
+            { chatId, cursor, limit },
+            output,
+          );
           return output;
         },
       }),
@@ -701,28 +761,48 @@ export function createFinanceTools(
           const version = await getStrategyVersionFn?.({ id: versionId });
           if (!version) throw new Error('strategy version not found');
           const symbol = symbols[0];
-          const candles = await fetchOHLC(symbol, timeframe, { range });
+          if (!symbol) throw new Error('symbol required');
+          // Only include the range parameter when provided so we don't
+          // violate `exactOptionalPropertyTypes` by passing `undefined`.
+          const ohlcOpts: OHLCOptions = {};
+          if (range !== undefined) ohlcOpts.range = range;
+          const candles = await fetchOHLC(symbol, timeframe, ohlcOpts);
           const closes = candles.map((c: any) => c.close);
           // Trading signals produced by selected strategy rule set.
           let signals: Signal[];
           switch (version.rules?.type) {
             case 'rsi_reversion':
-              signals = rsiReversion(closes, version.rules.params?.period, version.rules.params?.oversold, version.rules.params?.overbought).signals;
+              signals = rsiReversion(
+                closes,
+                version.rules.params?.period,
+                version.rules.params?.oversold,
+                version.rules.params?.overbought,
+              ).signals;
               break;
             case 'breakout_bb':
-              signals = breakoutBB(closes, version.rules.params?.period, version.rules.params?.multiplier).signals;
+              signals = breakoutBB(
+                closes,
+                version.rules.params?.period,
+                version.rules.params?.multiplier,
+              ).signals;
               break;
             default:
-              signals = maCrossover(closes, version.rules.params?.short, version.rules.params?.long).signals;
+              signals = maCrossover(
+                closes,
+                version.rules.params?.short,
+                version.rules.params?.long,
+              ).signals;
           }
           const signalMap: Record<number, 'enter' | 'exit'> = {};
           for (const s of signals) signalMap[s.index] = s.type;
-          const bt = runBacktest({
+          // Assemble backtest options without passing undefined values.
+          const btOpts: BacktestOptions = {
             candles,
             signals: signalMap,
-            costs,
-            slippage,
-          });
+          };
+          if (costs !== undefined) btOpts.costs = costs;
+          if (slippage !== undefined) btOpts.slippage = slippage;
+          const bt = runBacktest(btOpts);
           await saveBacktestFn?.({
             strategyVersionId: versionId,
             symbolSet: symbols,
@@ -754,22 +834,26 @@ export function createFinanceTools(
             feedback: z.string(),
           })
           .strict(),
-          execute: async ({ versionId, feedback }) => {
-            if (!getStrategyVersionFn || !createStrategyVersionFn) {
-              const mod = await import('../db/queries');
-              getStrategyVersionFn = mod.getStrategyVersion as any;
-              createStrategyVersionFn = mod.createStrategyVersion as any;
-            }
-            const prev = await getStrategyVersionFn?.({ id: versionId });
-            if (!prev) throw new Error('strategy version not found');
-            const next = await createStrategyVersionFn?.({
-              strategyId: prev.strategyId,
-              description: prev.description,
-              rules: prev.rules,
-              params: prev.params,
-              notes: feedback,
-            });
-          await persistAnalysis('strategy_refine', { versionId, feedback }, next);
+        execute: async ({ versionId, feedback }) => {
+          if (!getStrategyVersionFn || !createStrategyVersionFn) {
+            const mod = await import('../db/queries');
+            getStrategyVersionFn = mod.getStrategyVersion as any;
+            createStrategyVersionFn = mod.createStrategyVersion as any;
+          }
+          const prev = await getStrategyVersionFn?.({ id: versionId });
+          if (!prev) throw new Error('strategy version not found');
+          const next = await createStrategyVersionFn?.({
+            strategyId: prev.strategyId,
+            description: prev.description,
+            rules: prev.rules,
+            params: prev.params,
+            notes: feedback,
+          });
+          await persistAnalysis(
+            'strategy_refine',
+            { versionId, feedback },
+            next,
+          );
           return next;
         },
       }),
@@ -796,10 +880,7 @@ export function createFinanceTools(
           indicators = [],
           annotations = [],
         }) => {
-          if (
-            !getStrategyVersionFn ||
-            !updateStrategyStatusFn
-          ) {
+          if (!getStrategyVersionFn || !updateStrategyStatusFn) {
             const mod = await import('../db/queries');
             getStrategyVersionFn = mod.getStrategyVersion;
             // Cast to a looser signature so callers can supply plain strings

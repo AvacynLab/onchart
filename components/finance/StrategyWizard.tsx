@@ -56,11 +56,15 @@ export default function StrategyWizard({ onComplete }: Props) {
   const current = fields[step];
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Guard against an out-of-bounds step index which could occur if the fields
+  // definition changes without resetting the current step.
+  if (!current) return null;
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const raw = inputRef.current?.value ?? '';
-    const value = current.type === 'number' ? Number(raw) : raw;
-    const nextAnswers = { ...answers, [current.name]: value } as WizardAnswers;
+    const value = current!.type === 'number' ? Number(raw) : raw;
+    const nextAnswers = { ...answers, [current!.name]: value } as WizardAnswers;
     setAnswers(nextAnswers);
     if (step < fields.length - 1) {
       setStep(step + 1);

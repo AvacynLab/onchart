@@ -39,7 +39,9 @@ export function useAutoResume({
 
     const dataPart = dataStream[0];
 
-    if (dataPart.type === 'data-appendMessage') {
+    // Guard against an empty stream so `dataPart` is defined before
+    // inspecting its fields under `noUncheckedIndexedAccess`.
+    if (dataPart?.type === 'data-appendMessage') {
       const message = JSON.parse(dataPart.data);
       setMessages([...initialMessages, message]);
     }

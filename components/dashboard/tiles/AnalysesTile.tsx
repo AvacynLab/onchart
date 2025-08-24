@@ -166,13 +166,16 @@ async function fetchAnalysesGrouped(): Promise<AnalysisGroup[]> {
       lastMessages.map((m) => [m.chatId, textFromParts(m.parts)]),
     );
 
-    return Array.from(groups.values()).map((g) => ({
-      ...g,
-      items: g.items
-        .sort((a, b) => b.date.getTime() - a.date.getTime())
-        .slice(0, 3),
-      lastMessage: map.get(g.chatId),
-    }));
+    return Array.from(groups.values()).map((g) => {
+      const last = map.get(g.chatId);
+      return {
+        ...g,
+        items: g.items
+          .sort((a, b) => b.date.getTime() - a.date.getTime())
+          .slice(0, 3),
+        ...(last !== undefined ? { lastMessage: last } : {}),
+      };
+    });
   } catch (err) {
     console.error('failed to load analyses', err);
     return [];

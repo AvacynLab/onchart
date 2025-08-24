@@ -25,7 +25,7 @@ export async function GET(req: Request): Promise<Response> {
   const { searchParams } = new URL(req.url);
   const symbolParam = searchParams.get('symbol');
   const interval = searchParams.get('interval');
-  const range = searchParams.get('range') || undefined;
+  const range = searchParams.get('range');
   const start = searchParams.get('start');
   const end = searchParams.get('end');
 
@@ -63,11 +63,17 @@ export async function GET(req: Request): Promise<Response> {
   }
 
   try {
-    const candles = await fetchOHLCYahoo(normalized.yahoo, interval, {
-      range,
-      start: start ? Number(start) : undefined,
-      end: end ? Number(end) : undefined,
-    });
+    // Build the Yahoo Finance query options without undefined values to satisfy
+    // `exactOptionalPropertyTypes`. Parameters are included only when provided
+    // so the downstream fetcher receives a minimal object.
+    const yahooOpts: { range?: string; start?: number; end?: number } = {};
+    if (range) yahooOpts.range = range;
+    if (start && end) {
+      yahooOpts.start = Number(start);
+      yahooOpts.end = Number(end);
+    }
+
+    const candles = await fetchOHLCYahoo(normalized.yahoo, interval, yahooOpts);
     const result = { symbol: normalized.symbol, candles };
     const ttl = interval.endsWith('d') ? DAILY_TTL_MS : INTRADAY_TTL_MS;
     setCache(cacheKey, result, ttl);
@@ -112,4 +118,3 @@ export async function GET(req: Request): Promise<Response> {
     }
   }
 }
-

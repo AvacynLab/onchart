@@ -41,10 +41,17 @@ export function ema(prices: number[], period: number): number[] {
   const k = 2 / (n + 1);
   const result: number[] = [];
   // seed with SMA of first period
-  let prev = sma(p.slice(0, n), n)[0];
+  // Seed the EMA with the SMA of the first `n` prices.
+  // If the SMA array is empty, there is not enough data to compute the EMA.
+  const seed = sma(p.slice(0, n), n)[0];
+  if (seed === undefined) return [];
+  let prev = seed;
   result.push(prev);
   for (let i = n; i < p.length; i++) {
-    const value = k * (p[i] - prev) + prev;
+    // Guard against out-of-bounds access when using strict indexing.
+    const price = p[i];
+    if (price === undefined) continue;
+    const value = k * (price - prev) + prev;
     result.push(value);
     prev = value;
   }
@@ -67,8 +74,12 @@ export function rsi(prices: number[], period: number): number[] {
     gains.push(Math.max(diff, 0));
     losses.push(Math.max(-diff, 0));
   }
-  let avgGain = sma(gains.slice(0, n), n)[0];
-  let avgLoss = sma(losses.slice(0, n), n)[0];
+  // Seed average gains and losses with the first window's SMA values.
+  const gainSeed = sma(gains.slice(0, n), n)[0];
+  const lossSeed = sma(losses.slice(0, n), n)[0];
+  if (gainSeed === undefined || lossSeed === undefined) return [];
+  let avgGain = gainSeed;
+  let avgLoss = lossSeed;
   const result: number[] = [];
   result.push(100 - 100 / (1 + avgGain / avgLoss));
   for (let i = n; i < gains.length; i++) {

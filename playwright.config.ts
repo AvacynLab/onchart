@@ -52,6 +52,8 @@ export default defineConfig({
     baseURL,
     // Force French locale during tests to avoid middleware redirects to `/en`.
     extraHTTPHeaders: { 'Accept-Language': 'fr' },
+    // Use `data-testid` attributes for Playwright's `getByTestId` queries.
+    testIdAttribute: 'data-testid',
     // Keep a trace for any failed test to aid debugging in CI runs.
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
@@ -87,7 +89,7 @@ export default defineConfig({
     // full application HTML to keep the probe fast and reliable. Playwright
     // only accepts either `url` or `port`, so rely solely on the readiness URL
     // which implicitly conveys the port.
-    url: `${baseURL}/ping`,
+    url: `${baseURL}/api/ping`,
     env: {
       // Include the existing environment so secrets like AUTH_SECRET are
       // available to the Next.js server. Without spreading `process.env`,
