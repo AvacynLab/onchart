@@ -383,7 +383,7 @@ Avec ces 4 blocs, les tests `e2e` doivent **déjà** passer nettement plus loin 
 - [ ] 7) `components/multimodal-input.tsx`
 - [ ] 8) Bento / Accueil
 - [ ] 9) `components/dashboard/tiles/CurrentPricesTile.tsx`
-- [ ] 10) `playwright.config.ts`
+- [x] 10) `playwright.config.ts`
 - [ ] 11) `tests/e2e/*`
 - [ ] 12) `lib/telemetry/*`
 - [ ] 13) `lib/ai/entitlements.ts`
@@ -399,3 +399,4 @@ Avec ces 4 blocs, les tests `e2e` doivent **déjà** passer nettement plus loin 
 
 ## History
 - 2025-09-07: AGENTS.md reset with full checklist; installed missing `next-intl` dependency, linted, ran unit tests, attempted e2e tests (EADDRINUSE)
+- 2025-09-07: switched Playwright to high-numbered port 4310 and reran unit tests; e2e build failed to launch

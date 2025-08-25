@@ -12,10 +12,10 @@ config({
 // vCPUs).
 const WORKERS = os.cpus().length >= 4 ? 4 : 2;
 
-// Use a dedicated port for e2e tests to avoid conflicts with local dev
-// servers. Playwright and the Next.js server both read this value so they stay
-// in sync.
-const PORT = Number(process.env.PORT ?? 3110) || 3110;
+// Use a high-numbered dedicated port for e2e tests to reduce the risk of
+// colliding with services that might already be bound during CI runs. Both
+// Playwright and the Next.js server read this value so they remain in sync.
+const PORT = Number(process.env.PORT ?? 4310) || 4310;
 
 // Base URL points to the server root and remains unchanged when switching
 // locales. Language negotiation relies on cookies or headers rather than path
