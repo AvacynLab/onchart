@@ -377,10 +377,10 @@ Avec ces 4 blocs, les tests `e2e` doivent **déjà** passer nettement plus loin 
 - [x] 1) `instrumentation.ts`
 - [x] 2) `app/layout.tsx`
 - [x] 3) `lib/auth/useSafeSession.ts` (NOUVEAU) + migrations d’usage
-- [ ] 4) `app/(auth)/register/page.tsx`
-- [ ] 5) `app/(auth)/login/page.tsx`
-- [ ] 6) `components/sidebar-user-nav.tsx`
-- [ ] 7) `components/multimodal-input.tsx`
+- [x] 4) `app/(auth)/register/page.tsx`
+- [x] 5) `app/(auth)/login/page.tsx`
+- [x] 6) `components/sidebar-user-nav.tsx`
+- [x] 7) `components/multimodal-input.tsx`
 - [ ] 8) Bento / Accueil
 - [ ] 9) `components/dashboard/tiles/CurrentPricesTile.tsx`
 - [x] 10) `playwright.config.ts`
@@ -394,9 +394,10 @@ Avec ces 4 blocs, les tests `e2e` doivent **déjà** passer nettement plus loin 
 - [ ] 18) Lint, typecheck, CI
 - [ ] 19) Sécurité & erreurs
 - [ ] 20) Internationalisation (si active)
-- [ ] 21) `app/(chat)/api/finance/ohlc/route.ts`
-- [ ] 22) `components/finance/StrategyWizard.tsx`
+- [x] 21) `app/(chat)/api/finance/ohlc/route.ts`
+- [x] 22) `components/finance/StrategyWizard.tsx`
 
 ## History
+- 2025-09-07: replaced test instrumentation, kept providers mounted, added useSafeSession across auth pages and sidebar, improved multimodal accessibility; unit tests pass, lint pending, e2e install interrupted
 - 2025-09-07: AGENTS.md reset with full checklist; installed missing `next-intl` dependency, linted, ran unit tests, attempted e2e tests (EADDRINUSE)
 - 2025-09-07: switched Playwright to high-numbered port 4310 and reran unit tests; e2e build failed to launch
