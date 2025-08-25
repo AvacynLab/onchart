@@ -82,7 +82,12 @@ export default defineConfig({
     // Start the pre-built production server on the test port. The build is
     // executed ahead of time by the `pretest:e2e` script so Playwright only
     // needs to wait for the server to become ready.
-    command: `pnpm start -p ${PORT}`,
+    // Start the Next.js server. The `PORT` environment variable is injected
+    // via `webServer.env` below, so passing an explicit `-p` flag here would
+    // duplicate the port argument and can trigger `EADDRINUSE` errors on
+    // some Node versions. Rely solely on the environment variable to keep
+    // the invocation stable across platforms.
+    command: 'pnpm start',
     reuseExistingServer: !process.env.CI,
     timeout: 600_000,
     // IMPORTANT: check readiness via a lightweight endpoint rather than the
