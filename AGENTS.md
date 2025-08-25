@@ -372,10 +372,11 @@ Avec ces 4 blocs, les tests `e2e` doivent **déjà** passer nettement plus loin 
 
 ---
 
+
 ## Progress
-- [ ] 1) `instrumentation.ts`
-- [ ] 2) `app/layout.tsx`
-- [ ] 3) `lib/auth/useSafeSession.ts` (NOUVEAU) + migrations d’usage
+- [x] 1) `instrumentation.ts`
+- [x] 2) `app/layout.tsx`
+- [x] 3) `lib/auth/useSafeSession.ts` (NOUVEAU) + migrations d’usage
 - [ ] 4) `app/(auth)/register/page.tsx`
 - [ ] 5) `app/(auth)/login/page.tsx`
 - [ ] 6) `components/sidebar-user-nav.tsx`
@@ -384,18 +385,17 @@ Avec ces 4 blocs, les tests `e2e` doivent **déjà** passer nettement plus loin 
 - [ ] 9) `components/dashboard/tiles/CurrentPricesTile.tsx`
 - [ ] 10) `playwright.config.ts`
 - [ ] 11) `tests/e2e/*`
-- [x] 12) `lib/telemetry/*`
+- [ ] 12) `lib/telemetry/*`
 - [ ] 13) `lib/ai/entitlements.ts`
 - [ ] 14) Accessibilité & testids transverses
 - [ ] 15) `app/api/*` (robustesse API)
 - [ ] 16) `app/(chat)/**` & Sidebar
 - [ ] 17) Bundling & perfs
-- [x] 18) Lint, typecheck, CI
+- [ ] 18) Lint, typecheck, CI
 - [ ] 19) Sécurité & erreurs
 - [ ] 20) Internationalisation (si active)
 - [ ] 21) `app/(chat)/api/finance/ohlc/route.ts`
-- [x] 22) `components/finance/StrategyWizard.tsx`
+- [ ] 22) `components/finance/StrategyWizard.tsx`
 
 ## History
-- 2025-09-07: Réinitialisation du fichier AGENTS.md avec la checklist complète.
-- 2025-09-07: Retrait du top-level await de la télémétrie, correction du `StrategyWizard` et exécution des tests.
+- 2025-09-07: AGENTS.md reset with full checklist; installed missing `next-intl` dependency, linted, ran unit tests, attempted e2e tests (EADDRINUSE)
