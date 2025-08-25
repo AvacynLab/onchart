@@ -69,9 +69,15 @@ function PureMessages({
         />
       ))}
 
-      {status === 'submitted' &&
-        messages.length > 0 &&
-        messages[messages.length - 1].role === 'user' && <ThinkingMessage />}
+      {(() => {
+        // Check the most recent message safely to appease strict index access
+        // rules while still showing a thinking indicator for user messages.
+        const lastMessage = messages.at(-1);
+        return (
+          status === 'submitted' &&
+          lastMessage?.role === 'user' && <ThinkingMessage />
+        );
+      })()}
 
       <motion.div
         ref={messagesEndRef}

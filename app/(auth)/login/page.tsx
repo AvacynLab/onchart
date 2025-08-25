@@ -2,22 +2,29 @@
 
 import { useRouter } from 'next/navigation';
 import { useActionState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSafeSession } from '@/lib/auth/useSafeSession';
 import { login, type LoginActionState } from '../actions';
 import { SignInPage } from '@/components/ui/sign-in';
 import { toast } from '@/components/toast';
 
 export default function Page() {
   const router = useRouter();
-  const [state, formAction] = useActionState<LoginActionState, FormData>(login, { status: 'idle' });
-  const { update: updateSession } = useSession();
+  const [state, formAction] = useActionState<LoginActionState, FormData>(
+    login,
+    { status: 'idle' },
+  );
+  // Use the safe variant to avoid context errors when the provider is missing.
+  const { update: updateSession } = useSafeSession();
 
   // Display notifications and refresh session when login state changes
   useEffect(() => {
     if (state.status === 'failed') {
       toast({ type: 'error', description: 'Invalid credentials!' });
     } else if (state.status === 'invalid_data') {
-      toast({ type: 'error', description: 'Failed validating your submission!' });
+      toast({
+        type: 'error',
+        description: 'Failed validating your submission!',
+      });
     } else if (state.status === 'success') {
       updateSession();
       router.refresh();
@@ -25,10 +32,15 @@ export default function Page() {
   }, [state.status, router, updateSession]);
 
   // Handle email/password sign in submission
-  const handleSignIn = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    formAction(formData);
+    try {
+      const formData = new FormData(event.currentTarget);
+      await formAction(formData);
+    } catch (err) {
+      console.debug('login failed', err);
+      toast({ type: 'error', description: 'Failed to submit login!' });
+    }
   };
 
   // const handleGoogleSignIn = () => {

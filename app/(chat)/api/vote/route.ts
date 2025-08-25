@@ -9,7 +9,10 @@ export const runtime = 'nodejs';
 // When no Postgres database is configured, fall back to an in-memory store so
 // tests can exercise the vote API without external dependencies.
 const useMockStore = !process.env.POSTGRES_URL;
-const mockVotes = new Map<string, Array<{ messageId: string; type: 'up' | 'down' }>>();
+const mockVotes = new Map<
+  string,
+  Array<{ messageId: string; type: 'up' | 'down' }>
+>();
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -73,7 +76,10 @@ export async function PATCH(request: Request) {
     const existing = mockVotes.get(chatId) ?? [];
     const idx = existing.findIndex((v) => v.messageId === messageId);
     if (idx >= 0) {
-      existing[idx].type = type;
+      const vote = existing[idx];
+      if (vote) {
+        vote.type = type;
+      }
     } else {
       existing.push({ messageId, type });
     }

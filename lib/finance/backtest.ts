@@ -50,7 +50,11 @@ const TRADING_DAYS_PER_YEAR = 365;
  * Compute maximum drawdown of an equity series.
  */
 function computeMaxDrawdown(curve: number[]): number {
-  let peak = curve[0];
+  const first = curve[0];
+  // If the series is empty, max drawdown is zero.
+  if (first === undefined) return 0;
+
+  let peak = first;
   let maxDd = 0;
   for (const value of curve) {
     if (value > peak) peak = value;
@@ -99,6 +103,7 @@ export function backtest({
 
   for (let i = 0; i < candles.length; i++) {
     const bar = candles[i];
+    if (!bar) continue;
     const signal = signals[i];
     const price = bar.close;
 
@@ -126,7 +131,12 @@ export function backtest({
     }
 
     const markToMarket = equity + position * price;
+    // `curve` always contains at least the initial equity so the previous value
+    // should exist. Guard explicitly instead of using a non-null assertion.
     const prev = curve[curve.length - 1];
+    if (prev === undefined) {
+      throw new Error('Missing previous equity value');
+    }
     curve.push(markToMarket);
     returns.push((markToMarket - prev) / prev);
   }
@@ -137,21 +147,29 @@ export function backtest({
   const downside = stdev(negativeReturns.length ? negativeReturns : [0]);
   const periods = returns.length;
   const years = periods / TRADING_DAYS_PER_YEAR;
+  // `curve` always has at least one element; guard to satisfy strict indexing
+  // rules without using a non-null assertion.
   const ending = curve[curve.length - 1];
+  if (ending === undefined) {
+    throw new Error('Missing ending equity value');
+  }
 
   // Compute common performance statistics. CAGR expresses the compounded
   // annual growth rate, Sharpe normalises returns by volatility, Sortino only
   // penalises downside deviation, and profit factor divides gross wins by
   // absolute gross losses.
+  const start = curve[0];
+  if (start === undefined) {
+    throw new Error('Missing starting equity value');
+  }
   const metrics: BacktestMetrics = {
-    cagr: Math.pow(ending / curve[0], 1 / years) - 1,
+    cagr: Math.pow(ending / start, 1 / years) - 1,
     sharpe: (avgReturn / (volatility || 1)) * Math.sqrt(TRADING_DAYS_PER_YEAR),
     sortino: (avgReturn / (downside || 1)) * Math.sqrt(TRADING_DAYS_PER_YEAR),
     maxDrawdown: computeMaxDrawdown(curve),
     hitRate: wins + losses > 0 ? wins / (wins + losses) : 0,
-    profitFactor: lossSum !== 0 ? profitSum / Math.abs(lossSum) : Infinity,
+    profitFactor: lossSum !== 0 ? profitSum / Math.abs(lossSum) : Number.POSITIVE_INFINITY,
   };
 
   return { equityCurve: curve, metrics };
 }
-

@@ -27,7 +27,8 @@ export class DataSourceError extends FinanceError {
   info?: DataSourceInfo;
   constructor(message: string, info?: DataSourceInfo) {
     super(message);
-    this.info = info;
+    // Only assign when defined to satisfy `exactOptionalPropertyTypes`.
+    if (info !== undefined) this.info = info;
   }
 }
 

@@ -29,3 +29,8 @@ test('computes equity curve and metrics for simple trades', () => {
   // profit factor slightly above 1 (wins outweigh losses)
   assert.ok(Math.abs(metrics.profitFactor - 1.142857) < 1e-3);
 });
+
+test('handles empty candle series without crashing', () => {
+  const { metrics } = backtest({ candles: [], signals: {} });
+  assert.equal(metrics.maxDrawdown, 0);
+});

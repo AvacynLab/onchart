@@ -64,10 +64,16 @@ test('sidebar toggling pushes grid and chat dock moves with content', async ({
   await expect(page.getByTestId('multimodal-input')).toBeVisible({
     timeout: 20_000,
   });
-  await expect(page.getByTestId('bento-grid')).toBeVisible();
+  await expect(page.getByTestId('bento-grid')).toBeVisible({ timeout: 3_000 });
+  // Capture a screenshot once the dashboard is visible to aid future
+  // diagnostics when this test fails.
+  await test.info().attach('home-bento', {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: 'image/png',
+  });
   const content = page.locator('#bento-content');
   const input = page.locator('form input[placeholder="Ask a question"]');
-  await expect(content).toBeVisible();
+  await expect(content).toBeVisible({ timeout: 3_000 });
 
   const boxBefore = await content.boundingBox();
   const inputBefore = await input.boundingBox();
@@ -90,9 +96,9 @@ test('split and timeframe controls update charts', async ({ page }) => {
   await expect(page.getByTestId('multimodal-input')).toBeVisible({
     timeout: 20_000,
   });
-  await expect(page.getByTestId('bento-grid')).toBeVisible();
+  await expect(page.getByTestId('bento-grid')).toBeVisible({ timeout: 3_000 });
   const panes = page.locator('[data-testid="chart-pane"]');
-  await expect(panes).toHaveCount(1);
+  await expect(panes).toHaveCount(1, { timeout: 3_000 });
 
   await page
     .getByTestId('split-group')
@@ -122,7 +128,7 @@ test('sending a message fades out bento and navigates to chat', async ({
   await expect(page.getByTestId('multimodal-input')).toBeVisible({
     timeout: 20_000,
   });
-  await expect(page.getByTestId('bento-grid')).toBeVisible();
+  await expect(page.getByTestId('bento-grid')).toBeVisible({ timeout: 3_000 });
   const input = page.locator('form input[placeholder="Ask a question"]');
   await input.fill('Why is grass green?');
   await input.press('Enter');

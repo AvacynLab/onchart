@@ -124,7 +124,7 @@ export default function StrategiesTileClient({
     <BentoCard
       title={t('title')}
       titleId={titleId}
-      titleTestId={titleTestId}
+      {...(titleTestId ? { titleTestId } : {})}
       actions={
         <button
           type="button"

@@ -38,6 +38,14 @@ export function isMarketOpen(
 
   const [openH, openM] = open.split(':').map(Number);
   const [closeH, closeM] = close.split(':').map(Number);
+  if (
+    openH === undefined ||
+    openM === undefined ||
+    closeH === undefined ||
+    closeM === undefined
+  ) {
+    return false;
+  }
   const minutes = local.getHours() * 60 + local.getMinutes();
   const openMinutes = openH * 60 + openM;
   const closeMinutes = closeH * 60 + closeM;

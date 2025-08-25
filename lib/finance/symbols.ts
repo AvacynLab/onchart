@@ -105,6 +105,10 @@ export function normalizeSymbol(raw: string): NormalizedSymbol {
   // Pairs separated by '/' are typically crypto or FX.
   if (input.includes('/')) {
     const [base, quote] = input.split('/');
+    if (!base || !quote) {
+      // Fallback: malformed pair; treat as equity symbol.
+      return { symbol: input, yahoo: input, assetClass: 'equity' };
+    }
     const pair = `${base}${quote}`;
     if (STABLECOINS.includes(quote) || STABLECOINS.includes(base)) {
       // Treat as crypto pair.

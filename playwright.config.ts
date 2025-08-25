@@ -12,10 +12,10 @@ config({
 // vCPUs).
 const WORKERS = os.cpus().length >= 4 ? 4 : 2;
 
-// Use a dedicated port for e2e tests to avoid conflicts with local dev
-// servers. Playwright and the Next.js server both read this value so they stay
-// in sync.
-const PORT = Number(process.env.PORT ?? 3110) || 3110;
+// Use a high-numbered dedicated port for e2e tests to reduce the risk of
+// colliding with services that might already be bound during CI runs. Both
+// Playwright and the Next.js server read this value so they remain in sync.
+const PORT = Number(process.env.PORT ?? 4310) || 4310;
 
 // Base URL points to the server root and remains unchanged when switching
 // locales. Language negotiation relies on cookies or headers rather than path
@@ -52,6 +52,8 @@ export default defineConfig({
     baseURL,
     // Force French locale during tests to avoid middleware redirects to `/en`.
     extraHTTPHeaders: { 'Accept-Language': 'fr' },
+    // Use `data-testid` attributes for Playwright's `getByTestId` queries.
+    testIdAttribute: 'data-testid',
     // Keep a trace for any failed test to aid debugging in CI runs.
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
@@ -80,14 +82,19 @@ export default defineConfig({
     // Start the pre-built production server on the test port. The build is
     // executed ahead of time by the `pretest:e2e` script so Playwright only
     // needs to wait for the server to become ready.
-    command: `pnpm start -p ${PORT}`,
+    // Start the Next.js server. The `PORT` environment variable is injected
+    // via `webServer.env` below, so passing an explicit `-p` flag here would
+    // duplicate the port argument and can trigger `EADDRINUSE` errors on
+    // some Node versions. Rely solely on the environment variable to keep
+    // the invocation stable across platforms.
+    command: 'pnpm start',
     reuseExistingServer: !process.env.CI,
     timeout: 600_000,
     // IMPORTANT: check readiness via a lightweight endpoint rather than the
     // full application HTML to keep the probe fast and reliable. Playwright
     // only accepts either `url` or `port`, so rely solely on the readiness URL
     // which implicitly conveys the port.
-    url: `${baseURL}/ping`,
+    url: `${baseURL}/api/ping`,
     env: {
       // Include the existing environment so secrets like AUTH_SECRET are
       // available to the Next.js server. Without spreading `process.env`,

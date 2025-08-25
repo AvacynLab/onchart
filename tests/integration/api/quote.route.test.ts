@@ -55,7 +55,8 @@ test('equity falls back to Stooq when Yahoo fails', async () => {
     }
     if (u.includes('stooq')) {
       stooqCalls++;
-      const csv = 'Date,Open,High,Low,Close,Volume\n2024-01-01,10,10,10,10,0\n2024-01-02,11,11,11,11,0\n';
+      const csv =
+        'Date,Open,High,Low,Close,Volume\n2024-01-01,10,10,10,10,0\n2024-01-02,11,11,11,11,0\n';
       return new Response(csv, { status: 200 });
     }
     throw new Error(`unexpected url ${u}`);
@@ -85,6 +86,10 @@ test('returns 502 when all sources fail', async () => {
   try {
     const res = await GET(createRequest('ZZZZ'));
     assert.equal(res.status, 502);
+    const body = await res.json();
+    assert.deepEqual(body, {
+      error: { code: 'UPSTREAM_FAILURE', message: 'failed to fetch quote' },
+    });
   } finally {
     // @ts-expect-error restore
     global.fetch = original;
@@ -103,7 +108,8 @@ test('second call hits cache without extra fetch', async () => {
     }
     if (u.includes('stooq')) {
       stooq++;
-      const csv = 'Date,Open,High,Low,Close,Volume\n2024-01-01,10,10,10,10,0\n2024-01-02,11,11,11,11,0\n';
+      const csv =
+        'Date,Open,High,Low,Close,Volume\n2024-01-01,10,10,10,10,0\n2024-01-02,11,11,11,11,0\n';
       return new Response(csv, { status: 200 });
     }
     throw new Error(`unexpected url ${u}`);
@@ -127,4 +133,17 @@ test('second call hits cache without extra fetch', async () => {
 test('rejects unsupported symbols with 400', async () => {
   const res = await GET(createRequest('DROP TABLE'));
   assert.equal(res.status, 400);
+  const body = await res.json();
+  assert.deepEqual(body, {
+    error: { code: 'UNSUPPORTED_SYMBOL', message: 'unsupported symbol' },
+  });
+});
+
+test('requires symbol query parameter', async () => {
+  const res = await GET(new Request('http://test/api/finance/quote'));
+  assert.equal(res.status, 400);
+  const body = await res.json();
+  assert.deepEqual(body, {
+    error: { code: 'MISSING_SYMBOL', message: 'symbol parameter required' },
+  });
 });

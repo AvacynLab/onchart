@@ -1,8 +1,8 @@
 'use client';
 
+import React, { useEffect, useState } from 'react';
 import cx from 'classnames';
 import { format, isWithinInterval } from 'date-fns';
-import { useEffect, useState } from 'react';
 
 interface WeatherAtLocation {
   latitude: number;
@@ -42,7 +42,8 @@ interface WeatherAtLocation {
   };
 }
 
-const SAMPLE = {
+// Example dataset used both as a default prop and for testing.
+export const SAMPLE = {
   latitude: 37.763283,
   longitude: -122.41286,
   generationtime_ms: 0.027894973754882812,
@@ -213,10 +214,19 @@ export function Weather({
     ...weatherAtLocation.hourly.temperature_2m.slice(0, 24),
   );
 
-  const isDay = isWithinInterval(new Date(weatherAtLocation.current.time), {
-    start: new Date(weatherAtLocation.daily.sunrise[0]),
-    end: new Date(weatherAtLocation.daily.sunset[0]),
-  });
+  // Guard against missing sunrise/sunset data so the component remains
+  // type-safe under `noUncheckedIndexedAccess` and does not crash when the
+  // API omits values. When either timestamp is absent we default to daytime
+  // styling to avoid a flicker between undefined states.
+  const sunrise = weatherAtLocation.daily.sunrise[0];
+  const sunset = weatherAtLocation.daily.sunset[0];
+  const isDay =
+    sunrise !== undefined && sunset !== undefined
+      ? isWithinInterval(new Date(weatherAtLocation.current.time), {
+          start: new Date(sunrise),
+          end: new Date(sunset),
+        })
+      : true;
 
   const [isMobile, setIsMobile] = useState(false);
 
@@ -283,28 +293,34 @@ export function Weather({
       </div>
 
       <div className="flex flex-row justify-between">
-        {displayTimes.map((time, index) => (
-          <div key={time} className="flex flex-col items-center gap-1">
-            <div className="text-blue-100 text-xs">
-              {format(new Date(time), 'ha')}
+        {displayTimes.map((time, index) => {
+          // `displayTemperatures` mirrors `displayTimes` but TypeScript cannot
+          // infer matching lengths. Guard against out-of-bounds access to
+          // satisfy `noUncheckedIndexedAccess`.
+          const temp = displayTemperatures[index];
+          return (
+            <div key={time} className="flex flex-col items-center gap-1">
+              <div className="text-blue-100 text-xs">
+                {format(new Date(time), 'ha')}
+              </div>
+              <div
+                className={cx(
+                  'size-6 rounded-full skeleton-div',
+                  {
+                    'bg-yellow-300': isDay,
+                  },
+                  {
+                    'bg-indigo-200': !isDay,
+                  },
+                )}
+              />
+              <div className="text-blue-50 text-sm">
+                {typeof temp === 'number' ? n(temp) : ''}
+                {weatherAtLocation.hourly_units.temperature_2m}
+              </div>
             </div>
-            <div
-              className={cx(
-                'size-6 rounded-full skeleton-div',
-                {
-                  'bg-yellow-300': isDay,
-                },
-                {
-                  'bg-indigo-200': !isDay,
-                },
-              )}
-            />
-            <div className="text-blue-50 text-sm">
-              {n(displayTemperatures[index])}
-              {weatherAtLocation.hourly_units.temperature_2m}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

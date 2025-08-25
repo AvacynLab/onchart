@@ -70,7 +70,13 @@ export function AssetProvider({
 
   const value: AssetContextValue = {
     asset,
-    setAsset: (symbol, name) => setAsset((s) => ({ ...s, symbol, name })),
+    // Only include `name` when provided to respect `exactOptionalPropertyTypes`.
+    setAsset: (symbol, name) =>
+      setAsset((s) => ({
+        ...s,
+        symbol,
+        ...(name !== undefined ? { name } : {}),
+      })),
     setTimeframe: (tf) => setAsset((s) => ({ ...s, timeframe: tf })),
     setPanes: (p) => setAsset((s) => ({ ...s, panes: p })),
     toggleSync: () => setAsset((s) => ({ ...s, sync: !s.sync })),

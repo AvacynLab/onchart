@@ -149,32 +149,37 @@ function PureMultimodalInput({
 
   const t = useTranslations('chat');
 
-  const uploadFile = useCallback(async (file: File) => {
-    const formData = new FormData();
-    formData.append('file', file);
+  const uploadFile = useCallback(
+    async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
 
-    try {
-      const response = await fetch('/api/files/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      try {
+        const response = await fetch('/api/files/upload', {
+          method: 'POST',
+          body: formData,
+        });
 
-      if (response.ok) {
-        const data = await response.json();
-        const { url, pathname, contentType } = data;
+        if (response.ok) {
+          const data = await response.json();
+          const { url, pathname, contentType } = data;
 
-        return {
-          url,
-          name: pathname,
-          contentType: contentType,
-        };
+          return {
+            url,
+            name: pathname,
+            contentType: contentType,
+          };
+        }
+        const { error } = await response.json();
+        console.debug('File upload failed', error);
+        toast.error(error);
+      } catch (error) {
+        console.debug('File upload failed', error);
+        toast.error(t('uploadFailed', { defaultMessage: 'Upload failed' }));
       }
-      const { error } = await response.json();
-      toast.error(error);
-    } catch (error) {
-      toast.error(t('uploadFailed'));
-    }
-  }, [t]);
+    },
+    [t],
+  );
 
   const handleFileChange = useCallback(
     async (event: ChangeEvent<HTMLInputElement>) => {
@@ -211,7 +216,12 @@ function PureMultimodalInput({
   }, [status, scrollToBottom]);
 
   return (
-    <div data-testid="multimodal-input" className="relative w-full flex flex-col gap-4">
+    <div
+      data-testid="multimodal-input"
+      aria-label="multimodal-input"
+      role="group"
+      className="relative w-full flex flex-col gap-4"
+    >
       {/*
         The floating "scroll to bottom" button only appears once the
         viewer has scrolled roughly 80px away from the newest message.

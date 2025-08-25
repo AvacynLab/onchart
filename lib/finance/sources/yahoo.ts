@@ -76,7 +76,7 @@ export interface Candle {
   volume: number;
 }
 
-interface OHLCOptions {
+export interface OHLCOptions {
   range?: string;
   start?: number; // unix timestamp
   end?: number; // unix timestamp

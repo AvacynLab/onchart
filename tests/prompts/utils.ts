@@ -2,11 +2,9 @@ import { generateId, type ModelMessage } from 'ai';
 import { TEST_PROMPTS } from './basic';
 import type { LanguageModelV2StreamPart } from '@ai-sdk/provider';
 
-export function compareMessages(
-  firstMessage: ModelMessage,
-  secondMessage: ModelMessage,
-): boolean {
-  if (firstMessage.role !== secondMessage.role) return false;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function compareMessages(firstMessage: any, secondMessage: any): boolean {
+  if (!firstMessage || firstMessage.role !== secondMessage.role) return false;
 
   if (
     !Array.isArray(firstMessage.content) ||
@@ -22,6 +20,7 @@ export function compareMessages(
   for (let i = 0; i < firstMessage.content.length; i++) {
     const item1 = firstMessage.content[i];
     const item2 = secondMessage.content[i];
+    if (!item1 || !item2) return false;
 
     if (item1.type !== item2.type) return false;
 
@@ -73,13 +72,13 @@ export const getResponseChunksByPrompt = (
   isReasoningEnabled = false,
 ): LanguageModelV2StreamPart[] => {
   const recentMessage = prompt.at(-1);
-
-  if (!recentMessage) {
+  if (recentMessage == null) {
     throw new Error('No recent message found!');
   }
+  const rm: ModelMessage = recentMessage;
 
   if (isReasoningEnabled) {
-    if (compareMessages(recentMessage, TEST_PROMPTS.USER_SKY)) {
+    if (compareMessages(rm, TEST_PROMPTS.USER_SKY)) {
       return [
         ...reasoningToDeltas('The sky is blue because of rayleigh scattering!'),
         ...textToDeltas("It's just blue duh!"),
@@ -89,7 +88,7 @@ export const getResponseChunksByPrompt = (
           usage: { inputTokens: 3, outputTokens: 10, totalTokens: 13 },
         },
       ];
-    } else if (compareMessages(recentMessage, TEST_PROMPTS.USER_GRASS)) {
+    } else if (compareMessages(rm, TEST_PROMPTS.USER_GRASS)) {
       return [
         ...reasoningToDeltas(
           'Grass is green because of chlorophyll absorption!',
@@ -104,7 +103,7 @@ export const getResponseChunksByPrompt = (
     }
   }
 
-  if (compareMessages(recentMessage, TEST_PROMPTS.USER_THANKS)) {
+  if (compareMessages(rm, TEST_PROMPTS.USER_THANKS)) {
     return [
       ...textToDeltas("You're welcome!"),
       {

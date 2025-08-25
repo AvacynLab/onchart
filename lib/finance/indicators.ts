@@ -41,10 +41,17 @@ export function ema(prices: number[], period: number): number[] {
   const k = 2 / (n + 1);
   const result: number[] = [];
   // seed with SMA of first period
-  let prev = sma(p.slice(0, n), n)[0];
+  // Seed the EMA with the SMA of the first `n` prices.
+  // If the SMA array is empty, there is not enough data to compute the EMA.
+  const seed = sma(p.slice(0, n), n)[0];
+  if (seed === undefined) return [];
+  let prev = seed;
   result.push(prev);
   for (let i = n; i < p.length; i++) {
-    const value = k * (p[i] - prev) + prev;
+    // Guard against out-of-bounds access when using strict indexing.
+    const price = p[i];
+    if (price === undefined) continue;
+    const value = k * (price - prev) + prev;
     result.push(value);
     prev = value;
   }
@@ -63,17 +70,27 @@ export function rsi(prices: number[], period: number): number[] {
   const gains: number[] = [];
   const losses: number[] = [];
   for (let i = 1; i < p.length; i++) {
-    const diff = p[i] - p[i - 1];
+    const curr = p[i];
+    const prev = p[i - 1];
+    if (curr === undefined || prev === undefined) continue;
+    const diff = curr - prev;
     gains.push(Math.max(diff, 0));
     losses.push(Math.max(-diff, 0));
   }
-  let avgGain = sma(gains.slice(0, n), n)[0];
-  let avgLoss = sma(losses.slice(0, n), n)[0];
+  // Seed average gains and losses with the first window's SMA values.
+  const gainSeed = sma(gains.slice(0, n), n)[0];
+  const lossSeed = sma(losses.slice(0, n), n)[0];
+  if (gainSeed === undefined || lossSeed === undefined) return [];
+  let avgGain = gainSeed;
+  let avgLoss = lossSeed;
   const result: number[] = [];
   result.push(100 - 100 / (1 + avgGain / avgLoss));
   for (let i = n; i < gains.length; i++) {
-    avgGain = (avgGain * (n - 1) + gains[i]) / n;
-    avgLoss = (avgLoss * (n - 1) + losses[i]) / n;
+    const gain = gains[i];
+    const loss = losses[i];
+    if (gain === undefined || loss === undefined) continue;
+    avgGain = (avgGain * (n - 1) + gain) / n;
+    avgLoss = (avgLoss * (n - 1) + loss) / n;
     const rs = avgLoss === 0 ? Number.POSITIVE_INFINITY : avgGain / avgLoss;
     result.push(100 - 100 / (1 + rs));
   }
@@ -97,13 +114,19 @@ export function macd(
   const macdLine: number[] = [];
   const offset = long - short;
   for (let i = 0; i < emaLong.length; i++) {
-    macdLine.push(emaShort[i + offset] - emaLong[i]);
+    const shortVal = emaShort[i + offset];
+    const longVal = emaLong[i];
+    if (shortVal === undefined || longVal === undefined) continue;
+    macdLine.push(shortVal - longVal);
   }
   const signalLine = ema(macdLine, signalPeriod);
   const histogram: number[] = [];
   const histOffset = macdLine.length - signalLine.length;
   for (let i = 0; i < signalLine.length; i++) {
-    histogram.push(macdLine[i + histOffset] - signalLine[i]);
+    const m = macdLine[i + histOffset];
+    const s = signalLine[i];
+    if (m === undefined || s === undefined) continue;
+    histogram.push(m - s);
   }
   return { macd: macdLine.slice(histOffset), signal: signalLine, histogram };
 }
@@ -126,6 +149,7 @@ export function bollinger(
   for (let i = 0; i <= p.length - n; i++) {
     const window = p.slice(i, i + n);
     const avg = middle[i];
+    if (avg === undefined) continue;
     const variance =
       window.reduce((acc, v) => acc + Math.pow(v - avg, 2), 0) / n;
     const std = Math.sqrt(variance);
@@ -162,14 +186,18 @@ export function atr(
     const high = h[i];
     const low = l[i];
     const prevClose = c[i - 1];
+    if (high === undefined || low === undefined || prevClose === undefined) continue;
     const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
     trs.push(tr);
   }
   const result: number[] = [];
   let prevAtr = sma(trs.slice(0, n), n)[0];
+  if (prevAtr === undefined) return [];
   result.push(prevAtr);
   for (let i = n; i < trs.length; i++) {
-    prevAtr = (prevAtr * (n - 1) + trs[i]) / n;
+    const tr = trs[i];
+    if (tr === undefined) continue;
+    prevAtr = (prevAtr * (n - 1) + tr) / n;
     result.push(prevAtr);
   }
   return result;
@@ -206,9 +234,11 @@ export function stochastic(
     const highSlice = h.slice(i, i + n);
     const lowSlice = l.slice(i, i + n);
     const close = c[i + n - 1];
+    if (close === undefined) continue;
     const highest = Math.max(...highSlice);
     const lowest = Math.min(...lowSlice);
-    const value = ((close - lowest) / (highest - lowest)) * 100;
+    const denom = highest - lowest || 1; // avoid divide-by-zero
+    const value = ((close - lowest) / denom) * 100;
     k.push(value);
   }
   const d = sma(k, dP);

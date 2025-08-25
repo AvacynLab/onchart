@@ -1,5 +1,6 @@
 'use client';
 
+import { useId } from 'react';
 import { useAsset, type Timeframe } from '@/lib/asset/AssetContext';
 import { useTranslations } from 'next-intl';
 import { ChartGrid } from './ChartGrid';
@@ -15,6 +16,9 @@ const SPLITS: (1 | 2 | 4)[] = [1, 2, 4];
 export function ChartCard() {
   const { asset, setTimeframe, setPanes, toggleSync } = useAsset();
   const t = useTranslations('dashboard.bento');
+  // Generate stable ids so groups can be associated with their labels.
+  const tfLabelId = useId();
+  const splitLabelId = useId();
 
   return (
     <div className="border rounded p-3 min-h-0 flex flex-col">
@@ -25,7 +29,15 @@ export function ChartCard() {
         </h2>
         <div className="flex items-center gap-2">
           {/* timeframe buttons */}
-          <div className="flex gap-1" data-testid="tf-group">
+          <span id={tfLabelId} className="sr-only">
+            {t('timeframe')}
+          </span>
+          <div
+            className="flex gap-1"
+            role="group"
+            aria-labelledby={tfLabelId}
+            data-testid="tf-group"
+          >
             {TIMEFRAMES.map((tf) => (
               <button
                 key={tf}
@@ -40,7 +52,15 @@ export function ChartCard() {
             ))}
           </div>
           {/* split selector */}
-          <div className="flex gap-1" data-testid="split-group" aria-label={t('split')}>
+          <span id={splitLabelId} className="sr-only">
+            {t('split')}
+          </span>
+          <div
+            className="flex gap-1"
+            role="group"
+            aria-labelledby={splitLabelId}
+            data-testid="split-group"
+          >
             {SPLITS.map((p) => (
               <button
                 key={p}
@@ -81,4 +101,3 @@ export function ChartCard() {
 }
 
 export default ChartCard;
-

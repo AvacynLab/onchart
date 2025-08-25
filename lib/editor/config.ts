@@ -1,4 +1,4 @@
-import { textblockTypeInputRule } from 'prosemirror-inputrules';
+import { InputRule, textblockTypeInputRule } from 'prosemirror-inputrules';
 import { Schema } from 'prosemirror-model';
 import { schema } from 'prosemirror-schema-basic';
 import { addListNodes } from 'prosemirror-schema-list';
@@ -8,19 +8,35 @@ import type { MutableRefObject } from 'react';
 
 import { buildContentFromDocument } from './functions';
 
+// ProseMirror schema supporting basic document nodes and lists.
 export const documentSchema = new Schema({
   nodes: addListNodes(schema.spec.nodes, 'paragraph block*', 'block'),
   marks: schema.spec.marks,
 });
 
-export function headingRule(level: number) {
+/**
+ * Creates an input rule that converts leading `#` characters into heading
+ * nodes. The schema's `heading` node is optional, so we guard against it being
+ * absent to satisfy `exactOptionalPropertyTypes`.
+ */
+export function headingRule(level: number): InputRule {
+  const heading = documentSchema.nodes.heading;
+  if (!heading) {
+    throw new Error('Heading node not defined in document schema');
+  }
+
   return textblockTypeInputRule(
     new RegExp(`^(#{1,${level}})\\s$`),
-    documentSchema.nodes.heading,
+    heading,
     () => ({ level }),
   );
 }
 
+/**
+ * Applies a ProseMirror transaction and triggers a save callback whenever the
+ * document changes. The debounce behaviour is controlled via transaction meta
+ * flags `no-save` and `no-debounce`.
+ */
 export const handleTransaction = ({
   transaction,
   editorRef,

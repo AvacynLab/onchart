@@ -147,6 +147,16 @@ export class ChatPage {
       .getByTestId('message-assistant')
       .all();
     const lastMessageElement = messageElements[messageElements.length - 1];
+    if (!lastMessageElement) {
+      return {
+        element: undefined,
+        content: null,
+        reasoning: null,
+        async toggleReasoningVisibility() {},
+        async upvote() {},
+        async downvote() {},
+      };
+    }
 
     const content = await lastMessageElement
       .getByTestId('message-content')

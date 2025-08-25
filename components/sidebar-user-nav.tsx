@@ -3,7 +3,8 @@
 import { ChevronUp } from 'lucide-react';
 import Image from 'next/image';
 import type { User } from 'next-auth';
-import { signOut, useSession } from 'next-auth/react';
+import { signOut } from 'next-auth/react';
+import { useSafeSession } from '@/lib/auth/useSafeSession';
 import { useTheme } from 'next-themes';
 
 import {
@@ -23,12 +24,34 @@ import { toast } from './toast';
 import { LoaderIcon } from './icons';
 import { guestRegex } from '@/lib/constants';
 
-export function SidebarUserNav({ user }: { user: User }) {
+/**
+ * User dropdown shown in the sidebar footer. Works with or without an
+ * authenticated session; when `user` is null a sign-in button is displayed
+ * instead.
+ */
+export function SidebarUserNav({ user }: { user?: User | null }) {
   const router = useRouter();
-  const { data, status } = useSession();
+  const { data, status } = useSafeSession();
   const { setTheme, resolvedTheme } = useTheme();
 
-  const isGuest = guestRegex.test(data?.user?.email ?? '');
+  const email = data?.user?.email ?? user?.email ?? '';
+  const isGuest = guestRegex.test(email);
+
+  if (status === 'unauthenticated' || !email) {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            data-testid="user-nav-button"
+            className="h-10"
+            onClick={() => router.push('/login')}
+          >
+            Sign in
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    );
+  }
 
   return (
     <SidebarMenu>
@@ -53,14 +76,15 @@ export function SidebarUserNav({ user }: { user: User }) {
                 className="data-[state=open]:bg-sidebar-accent bg-background data-[state=open]:text-sidebar-accent-foreground h-10"
               >
                 <Image
-                  src={`https://avatar.vercel.sh/${user.email}`}
-                  alt={user.email ?? 'User Avatar'}
+                  src={`https://avatar.vercel.sh/${email}`}
+                  alt={email || 'User Avatar'}
                   width={24}
                   height={24}
+                  sizes="24px"
                   className="rounded-full"
                 />
                 <span data-testid="user-email" className="truncate">
-                  {isGuest ? 'Guest' : user?.email}
+                  {isGuest ? 'Guest' : email}
                 </span>
                 <ChevronUp className="ml-auto" />
               </SidebarMenuButton>
@@ -74,7 +98,9 @@ export function SidebarUserNav({ user }: { user: User }) {
             <DropdownMenuItem
               data-testid="user-nav-item-theme"
               className="cursor-pointer"
-              onSelect={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+              onSelect={() =>
+                setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
+              }
             >
               {`Toggle ${resolvedTheme === 'light' ? 'dark' : 'light'} mode`}
             </DropdownMenuItem>

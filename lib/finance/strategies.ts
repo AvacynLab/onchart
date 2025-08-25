@@ -51,6 +51,7 @@ function backtest(prices: number[], signals: Signal[]): {
   let trades = 0;
   for (const s of signals) {
     const price = p[s.index];
+    if (price === undefined) continue;
     if (s.type === 'enter' && position === null) {
       position = price;
     } else if (s.type === 'exit' && position !== null) {
@@ -88,9 +89,22 @@ export function maCrossover(
   const longSma = sma(p, long);
   const offset = long - short;
   const signals: Signal[] = [];
-  let prevDiff = shortSma[offset] - longSma[0];
+
+  // Seed the crossover comparison with the initial SMA difference. Guard array
+  // lookups to satisfy `noUncheckedIndexedAccess` and ensure we have enough
+  // data to compute the starting difference.
+  const seedShort = shortSma[offset];
+  const seedLong = longSma[0];
+  if (seedShort === undefined || seedLong === undefined) {
+    return { signals: [], performance: { trades: 0, pnl: 0 } };
+  }
+  let prevDiff = seedShort - seedLong;
+
   for (let i = 1; i < longSma.length; i++) {
-    const diff = shortSma[i + offset] - longSma[i];
+    const shortVal = shortSma[i + offset];
+    const longVal = longSma[i];
+    if (shortVal === undefined || longVal === undefined) continue;
+    const diff = shortVal - longVal;
     const idx = i + long - 1;
     if (prevDiff <= 0 && diff > 0) signals.push({ index: idx, type: 'enter' });
     if (prevDiff >= 0 && diff < 0) signals.push({ index: idx, type: 'exit' });
@@ -125,9 +139,14 @@ export function rsiReversion(
   const r = rsi(p, per);
   const signals: Signal[] = [];
   if (r.length === 0) return { signals, performance: { trades: 0, pnl: 0 } };
-  let prev = r[0];
+  // Seed the RSI comparison with the first value, ensuring it exists under
+  // strict optional property rules.
+  const seed = r[0];
+  if (seed === undefined) return { signals, performance: { trades: 0, pnl: 0 } };
+  let prev = seed;
   for (let i = 1; i < r.length; i++) {
     const curr = r[i];
+    if (curr === undefined) continue;
     const idx = i + per;
     if (prev >= os && curr < os) signals.push({ index: idx, type: 'enter' });
     if (prev <= ob && curr > ob) signals.push({ index: idx, type: 'exit' });
@@ -162,6 +181,9 @@ export function breakoutBB(
     const price = p[i + per - 1];
     const prevUpper = upper[i - 1];
     const prevMid = middle[i - 1];
+    if (price === undefined || prevUpper === undefined || prevMid === undefined) {
+      continue;
+    }
     if (!inPosition && price > prevUpper) {
       signals.push({ index: i + per - 1, type: 'enter' });
       inPosition = true;
@@ -218,7 +240,12 @@ export function opportunityScan(
 
     // compute daily returns for volatility calculation
     const returns = [] as number[];
-    for (let i = 1; i < p.length; i++) returns.push(p[i] / p[i - 1] - 1);
+    for (let i = 1; i < p.length; i++) {
+      const currPrice = p[i];
+      const prevPrice = p[i - 1];
+      if (currPrice === undefined || prevPrice === undefined) continue;
+      returns.push(currPrice / prevPrice - 1);
+    }
 
     const volatility = annualizedVolatility(returns);
     const reasons: string[] = [];
@@ -260,8 +287,9 @@ export async function assetDeepDive(
   fetcher: typeof fetch = fetch,
 ): Promise<AssetDeepDiveResult> {
   const matches = await searchCompanyCIK(ticker, fetcher);
-  if (matches.length === 0) throw new Error(`CIK for ${ticker} not found`);
-  const cik = matches[0].cik;
+  const firstMatch = matches[0];
+  if (!firstMatch) throw new Error(`CIK for ${ticker} not found`);
+  const cik = firstMatch.cik;
   const fundamentals = await fetchCompanyFacts(cik, fetcher);
   const filings = await listFilings(cik, ['10-K', '10-Q', '8-K'], fetcher);
   const news = await fetchRssFeeds(ticker, 7, fetcher);
@@ -270,9 +298,13 @@ export async function assetDeepDive(
     assets !== undefined && liabilities !== undefined
       ? liabilities / assets
       : undefined;
+  const enrichedFundamentals =
+    debtToAssets === undefined
+      ? fundamentals
+      : { ...fundamentals, debtToAssets };
   return {
     cik,
-    fundamentals: { ...fundamentals, debtToAssets },
+    fundamentals: enrichedFundamentals,
     filings,
     news,
   };
@@ -371,7 +403,10 @@ export async function ftReport(
   // Compute close-to-close returns for risk metrics.
   const returns: number[] = [];
   for (let i = 1; i < closes.length; i++) {
-    returns.push(closes[i] / closes[i - 1] - 1);
+    const curr = closes[i];
+    const prev = closes[i - 1];
+    if (curr === undefined || prev === undefined) continue;
+    returns.push(curr / prev - 1);
   }
   const risk = {
     volatility: annualizedVolatility(returns, periodsPerYear(interval)),

@@ -18,7 +18,10 @@ export default async function Page(props: {
   const params = await props.params;
   const search = (await props.searchParams) ?? {};
   const anchor = parseAnchor(search.anchor);
-  const initialInput = anchor ? buildInitialInput(anchor) : undefined;
+  // Ensure `initialInput` is always a string so exact optional property types
+  // allow passing it directly to the `<Chat>` component without omitting the
+  // prop when no anchor is present.
+  const initialInput = anchor ? buildInitialInput(anchor) : '';
   const { id } = params;
   const chat = await getChatById({ id });
 
@@ -63,7 +66,7 @@ export default async function Page(props: {
           session={session}
           autoResume={true}
           initialInput={initialInput}
-          anchor={anchor ?? undefined}
+          {...(anchor ? { anchor } : {})}
         />
         <DataStreamHandler />
         <FinancePanel chatId={chat.id} userId={session.user.id} />
@@ -83,7 +86,7 @@ export default async function Page(props: {
         session={session}
         autoResume={true}
         initialInput={initialInput}
-        anchor={anchor ?? undefined}
+        {...(anchor ? { anchor } : {})}
       />
       <DataStreamHandler />
       <FinancePanel chatId={chat.id} userId={session.user.id} />
